@@ -1,9 +1,11 @@
 import { Router } from 'express';
+import { listEmployees } from '../controllers/hrController';
 
 const router = Router();
 
-router.get('/employees', (_req, res) => {
-  res.json([]);
-});
+/**
+ * GET /api/hr/employees
+ */
+router.get('/employees', listEmployees);
 
 export default router;

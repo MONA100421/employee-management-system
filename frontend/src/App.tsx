@@ -1,35 +1,50 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 
-function App() {
-  const [count, setCount] = useState(0)
+import Login from './pages/auth/Login';
+import EmployeeProfiles from './pages/hr/EmployeeProfiles';
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+import RequireAuth from './routes/RequireAuth';
+import RequireRole from './routes/RequireRole';
+
+function HRDashboard() {
+  return <h1>HR Dashboard</h1>;
 }
 
-export default App
+function EmployeeDashboard() {
+  return <h1>Employee Dashboard</h1>;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* public */}
+          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="/login" element={<Login />} />
+
+          {/* protected */}
+          <Route element={<RequireAuth />}>
+            {/* HR only */}
+            <Route element={<RequireRole role="hr" />}>
+              <Route path="/hr/dashboard" element={<HRDashboard />} />
+              <Route path="/hr/employees" element={<EmployeeProfiles />} />
+            </Route>
+
+            {/* Employee only */}
+            <Route element={<RequireRole role="employee" />}>
+              <Route
+                path="/employee/dashboard"
+                element={<EmployeeDashboard />}
+              />
+            </Route>
+          </Route>
+
+          {/* fallback */}
+          <Route path="*" element={<h2>Page not found</h2>} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}

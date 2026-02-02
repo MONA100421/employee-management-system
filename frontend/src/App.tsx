@@ -2,18 +2,21 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 
 import Login from './pages/auth/Login';
-import EmployeeProfiles from './pages/hr/EmployeeProfiles';
 
+// layouts
+import AppLayout from './layout/AppLayout';
+
+// guards
 import RequireAuth from './routes/RequireAuth';
 import RequireRole from './routes/RequireRole';
 
-function HRDashboard() {
-  return <h1>HR Dashboard</h1>;
-}
+// employee pages
+import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import Onboarding from './pages/employee/OnboardingApplication';
 
-function EmployeeDashboard() {
-  return <h1>Employee Dashboard</h1>;
-}
+// hr pages
+import EmployeeProfiles from './pages/hr/EmployeeProfiles';
+import HRDashboard from './pages/hr/HRDashboard';
 
 export default function App() {
   return (
@@ -26,18 +29,16 @@ export default function App() {
 
           {/* protected */}
           <Route element={<RequireAuth />}>
-            {/* HR only */}
-            <Route element={<RequireRole role="hr" />}>
-              <Route path="/hr/dashboard" element={<HRDashboard />} />
-              <Route path="/hr/employees" element={<EmployeeProfiles />} />
-            </Route>
+            <Route element={<AppLayout />}>
+              {/* employee */}
+              <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+              <Route path="/employee/onboarding" element={<Onboarding />} />
 
-            {/* Employee only */}
-            <Route element={<RequireRole role="employee" />}>
-              <Route
-                path="/employee/dashboard"
-                element={<EmployeeDashboard />}
-              />
+              {/* hr */}
+              <Route element={<RequireRole role="hr" />}>
+                <Route path="/hr/dashboard" element={<HRDashboard />} />
+                <Route path="/hr/employees" element={<EmployeeProfiles />} />
+              </Route>
             </Route>
           </Route>
 

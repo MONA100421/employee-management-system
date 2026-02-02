@@ -1,3 +1,4 @@
+import { reviewOnboarding } from '../../lib/onboarding';
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -37,6 +38,7 @@ const EmployeeProfileDetail: React.FC = () => {
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedback, setFeedback] = useState<string | undefined>(undefined);
 
 
   // Mock employee data
@@ -375,10 +377,10 @@ const EmployeeProfileDetail: React.FC = () => {
         }
         itemName={`${employee.firstName} ${employee.lastName}`}
         requireFeedback={reviewAction === 'reject'}
-        onSubmit={(feedback) => {
-            console.log('HR decision:', reviewAction, feedback);
-            setFeedbackOpen(false);
-            setConfirmOpen(true);
+        onSubmit={(value) => {
+        setFeedback(value);
+        setFeedbackOpen(false);
+        setConfirmOpen(true);
         }}
         onCancel={() => setFeedbackOpen(false)}
         />
@@ -390,9 +392,25 @@ const EmployeeProfileDetail: React.FC = () => {
             reviewAction === 'approve' ? 'approve' : 'reject'
         } this onboarding application?`}
         confirmColor={reviewAction === 'approve' ? 'success' : 'error'}
-        onConfirm={() => {
-            console.log('Final confirmed:', reviewAction);
+        onConfirm={async () => {
+        if (!id || !reviewAction) return;
+
+        try {
+            const result = await reviewOnboarding(
+            id,
+            reviewAction === 'approve' ? 'approved' : 'rejected',
+            reviewAction === 'reject' ? feedback : undefined
+            );
+
+            if (result.ok) {
+            // 👉 之後可以加 toast
+            navigate('/hr/employees');
+            }
+        } catch (err) {
+            console.error('Review onboarding failed', err);
+        } finally {
             setConfirmOpen(false);
+        }
         }}
         onCancel={() => setConfirmOpen(false)}
         />

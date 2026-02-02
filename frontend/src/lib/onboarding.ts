@@ -31,3 +31,21 @@ export async function submitOnboarding(formData: Record<string, any>) {
   const res = await api.post('/onboarding', { formData });
   return res.data as { ok: boolean; status: UIOnboardingStatus };
 }
+
+export type ReviewDecision = 'approved' | 'rejected';
+
+export async function reviewOnboarding(
+  onboardingId: string,
+  decision: ReviewDecision,
+  feedback?: string
+): Promise<{ ok: boolean }> {
+  const resp = await api.post(
+    `/hr/onboarding/${onboardingId}/review`,
+    {
+      decision,
+      feedback,
+    }
+  );
+
+  return resp.data;
+}

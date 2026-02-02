@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
@@ -27,11 +27,17 @@ import {
   ArrowBack as BackIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import FeedbackDialog from '../../components/common/FeedbackDialog';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const EmployeeProfileDetail: React.FC = () => {
   const theme = useTheme();
   const { id } = useParams();
   const navigate = useNavigate();
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
 
   // Mock employee data
   const employee = {
@@ -321,8 +327,79 @@ const EmployeeProfileDetail: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+
+        {/* ===== HR Review Actions ===== */}
+        <Card sx={{ mt: 3 }}>
+            <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                    Application Review
+                </Typography>
+
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 3 }}>
+                    Please review the onboarding information carefully before making a decision.
+                </Typography>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                    variant="contained"
+                    color="success"
+                    onClick={() => {
+                    setReviewAction('approve');
+                    setFeedbackOpen(true);
+                    }}
+                >
+                    Approve Application
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => {
+                    setReviewAction('reject');
+                    setFeedbackOpen(true);
+                    }}
+                >
+                    Reject Application
+                </Button>
+                </Box>
+            </CardContent>
+        </Card>
+        
+        <FeedbackDialog
+        open={feedbackOpen}
+        type={reviewAction === 'approve' ? 'approve' : 'reject'}
+        title={
+            reviewAction === 'approve'
+            ? 'Approve Onboarding Application'
+            : 'Reject Onboarding Application'
+        }
+        itemName={`${employee.firstName} ${employee.lastName}`}
+        requireFeedback={reviewAction === 'reject'}
+        onSubmit={(feedback) => {
+            console.log('HR decision:', reviewAction, feedback);
+            setFeedbackOpen(false);
+            setConfirmOpen(true);
+        }}
+        onCancel={() => setFeedbackOpen(false)}
+        />
+
+        <ConfirmDialog
+        open={confirmOpen}
+        title="Confirm Decision"
+        message={`Are you sure you want to ${
+            reviewAction === 'approve' ? 'approve' : 'reject'
+        } this onboarding application?`}
+        confirmColor={reviewAction === 'approve' ? 'success' : 'error'}
+        onConfirm={() => {
+            console.log('Final confirmed:', reviewAction);
+            setConfirmOpen(false);
+        }}
+        onCancel={() => setConfirmOpen(false)}
+        />
+
+        </Grid>
     </Box>
+
   );
 };
 

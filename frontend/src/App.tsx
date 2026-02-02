@@ -17,6 +17,7 @@ import Onboarding from './pages/employee/OnboardingApplication';
 // hr pages
 import EmployeeProfiles from './pages/hr/EmployeeProfiles';
 import HRDashboard from './pages/hr/HRDashboard';
+import EmployeeProfileDetail from './pages/hr/EmployeeProfileDetail';
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
               <Route element={<RequireRole role="hr" />}>
                 <Route path="/hr/dashboard" element={<HRDashboard />} />
                 <Route path="/hr/employees" element={<EmployeeProfiles />} />
+                <Route path="/hr/onboarding/:id" element={<EmployeeProfileDetail />} />
               </Route>
             </Route>
           </Route>

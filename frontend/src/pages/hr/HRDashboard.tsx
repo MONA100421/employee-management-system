@@ -5,7 +5,6 @@ import {
   CardContent,
   Typography,
   Avatar,
-  AvatarGroup,
   useTheme,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';

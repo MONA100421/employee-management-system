@@ -17,7 +17,7 @@ import {
   Schedule as ScheduleIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import StatusChip from '../../components/common/StatusChip';
 
 const EmployeeDashboard: React.FC = () => {

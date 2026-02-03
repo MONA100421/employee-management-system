@@ -32,40 +32,45 @@ const uiToDBStatus = (s: string) => {
 export const getMyOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user) return res.status(401).json({ ok: false, message: 'Unauthenticated' });
+    if (!user) {
+      return res.status(401).json({ ok: false, message: 'Unauthenticated' });
+    }
 
-    const app = await OnboardingApplication.findOne({ user: new mongoose.Types.ObjectId(user.id) }).lean();
+    const app = await OnboardingApplication.findOne({
+      user: user.id,
+    }).lean();
 
     if (!app) {
       return res.json({
         ok: true,
         application: {
           id: null,
-          status: dbToUIStatus('never_submitted'),
+          status: 'never-submitted',
           formData: {},
           hrFeedback: null,
           submittedAt: null,
           reviewedAt: null,
-        }
+        },
       });
     }
 
     return res.json({
-        ok: true,
-        application: {
-            id: app._id,
-            status: dbToUIStatus(app.status),
-            formData: app.formData || {},
-            hrFeedback: app.hrFeedback || null,
-            submittedAt: app.submittedAt ?? null,
-            reviewedAt: app.reviewedAt ?? null,
-         }
+      ok: true,
+      application: {
+        id: app._id.toString(),
+        status: dbToUIStatus(app.status),
+        formData: app.formData || {},
+        hrFeedback: app.hrFeedback || null,
+        submittedAt: app.submittedAt ?? null,
+        reviewedAt: app.reviewedAt ?? null,
+      },
     });
   } catch (err) {
     console.error('getMyOnboarding error', err);
     return res.status(500).json({ ok: false, message: 'Server error' });
   }
 };
+
 
 /**
  * POST /api/onboarding
@@ -84,11 +89,11 @@ export const submitOnboarding = async (req: Request, res: Response) => {
     }
 
     // find existing
-    let app = await OnboardingApplication.findOne({ user: new mongoose.Types.ObjectId(user.id) });
+    let app = await OnboardingApplication.findOne({ user: user.id });
 
     if (!app) {
       app = new OnboardingApplication({
-        user: new mongoose.Types.ObjectId(user.id),
+        user: user.id,
         status: 'pending',
         formData,
         submittedAt: new Date(),

@@ -10,7 +10,6 @@ import {
   Avatar,
   Chip,
   Button,
-  Divider,
   IconButton,
   Paper,
   useTheme,

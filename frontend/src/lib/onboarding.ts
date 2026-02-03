@@ -10,7 +10,7 @@ export type UIOnboardingStatus =
 export interface OnboardingApplication {
   id: string | null;
   status: UIOnboardingStatus;
-  formData: Record<string, any>;
+  formData: Record<string, unknown>;
   hrFeedback: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
@@ -27,7 +27,7 @@ export async function getMyOnboarding(): Promise<OnboardingApplication> {
 /**
  * POST /api/onboarding
  */
-export async function submitOnboarding(formData: Record<string, any>) {
+export async function submitOnboarding(formData: Record<string, unknown>) {
   const res = await api.post('/onboarding', { formData });
   return res.data as { ok: boolean; status: UIOnboardingStatus };
 }

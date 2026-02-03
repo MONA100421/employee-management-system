@@ -10,4 +10,12 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const stored = localStorage.getItem('auth_user');
+  if (stored) {
+    config.headers['x-user'] = stored;
+  }
+  return config;
+});
+
 export default api;

@@ -32,7 +32,7 @@ import {
   Logout as LogoutIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 const drawerWidth = 260;
 

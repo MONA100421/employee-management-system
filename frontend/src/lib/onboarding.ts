@@ -1,4 +1,3 @@
-// src/lib/onboarding.ts
 import api from './api';
 
 export type UIOnboardingStatus =

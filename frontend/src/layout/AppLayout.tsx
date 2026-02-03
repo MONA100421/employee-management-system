@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   AppBar,
   Box,
@@ -19,7 +19,7 @@ import {
   Divider,
   useTheme,
   useMediaQuery,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
@@ -31,35 +31,48 @@ import {
   PersonAdd as PersonAddIcon,
   Logout as LogoutIcon,
   Settings as SettingsIcon,
-} from '@mui/icons-material';
-import { useAuth } from '../contexts/useAuth';
+} from "@mui/icons-material";
+import { useAuth } from "../contexts/useAuth";
+import { NavLink } from "../components/ui/NavLink";
 
 const drawerWidth = 260;
 
 const employeeMenuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/employee/dashboard' },
-  { text: 'Personal Information', icon: <PersonIcon />, path: '/employee/personal-info' },
-  { text: 'Onboarding', icon: <AssignmentIcon />, path: '/employee/onboarding' },
-  { text: 'Visa Status', icon: <DescriptionIcon />, path: '/employee/visa-status' },
+  { text: "Dashboard", icon: <DashboardIcon />, path: "/employee/dashboard" },
+  {
+    text: "Personal Information",
+    icon: <PersonIcon />,
+    path: "/employee/personal-info",
+  },
+  {
+    text: "Onboarding",
+    icon: <AssignmentIcon />,
+    path: "/employee/onboarding",
+  },
+  {
+    text: "Visa Status",
+    icon: <DescriptionIcon />,
+    path: "/employee/visa-status",
+  },
 ];
 
 const hrMenuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/hr/dashboard' },
-  { text: 'Employee Profiles', icon: <PeopleIcon />, path: '/hr/employees' },
-  { text: 'Visa Management', icon: <BadgeIcon />, path: '/hr/visa-management' },
-  { text: 'Hiring Management', icon: <PersonAddIcon />, path: '/hr/hiring' },
+  { text: "Dashboard", icon: <DashboardIcon />, path: "/hr/dashboard" },
+  { text: "Employee Profiles", icon: <PeopleIcon />, path: "/hr/employees" },
+  { text: "Visa Management", icon: <BadgeIcon />, path: "/hr/visa-management" },
+  { text: "Hiring Management", icon: <PersonAddIcon />, path: "/hr/hiring" },
 ];
 
 const AppLayout: React.FC = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menuItems = user?.role === 'hr' ? hrMenuItems : employeeMenuItems;
+  const menuItems = user?.role === "hr" ? hrMenuItems : employeeMenuItems;
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -76,16 +89,16 @@ const AppLayout: React.FC = () => {
   const handleLogout = () => {
     handleProfileMenuClose();
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Box
         sx={{
           p: 3,
-          display: 'flex',
-          alignItems: 'center',
+          display: "flex",
+          alignItems: "center",
           gap: 2,
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
@@ -96,20 +109,26 @@ const AppLayout: React.FC = () => {
             height: 40,
             borderRadius: 2,
             background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+          <Typography variant="h6" sx={{ color: "white", fontWeight: 700 }}>
             E
           </Typography>
         </Box>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 700, color: theme.palette.text.primary }}
+          >
             EMS
           </Typography>
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+          <Typography
+            variant="caption"
+            sx={{ color: theme.palette.text.secondary }}
+          >
             Employee Management
           </Typography>
         </Box>
@@ -117,23 +136,21 @@ const AppLayout: React.FC = () => {
 
       <List sx={{ flex: 1, py: 2 }}>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ px: 2, py: 0.5 }}>
+          <ListItem disablePadding sx={{ px: 2, py: 0.5 }}>
             <ListItemButton
-              onClick={() => {
-                navigate(item.path);
-                if (isMobile) setMobileOpen(false);
-              }}
-              selected={location.pathname === item.path}
+              component={NavLink}
+              to={item.path}
+              onClick={() => isMobile && setMobileOpen(false)}
+              className="nav-item"
+              activeClassName="nav-item-active"
               sx={{
                 borderRadius: 2,
-                '&.Mui-selected': {
+                color: "text.secondary",
+                "&.nav-item-active": {
                   backgroundColor: theme.palette.primary.main,
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
-                  },
-                  '& .MuiListItemIcon-root': {
-                    color: 'white',
+                  color: "white",
+                  "& .MuiListItemIcon-root": {
+                    color: "white",
                   },
                 },
               }}
@@ -141,7 +158,10 @@ const AppLayout: React.FC = () => {
               <ListItemIcon
                 sx={{
                   minWidth: 40,
-                  color: location.pathname === item.path ? 'white' : theme.palette.text.secondary,
+                  color:
+                    location.pathname === item.path
+                      ? "white"
+                      : theme.palette.text.secondary,
                 }}
               >
                 {item.icon}
@@ -158,8 +178,8 @@ const AppLayout: React.FC = () => {
             p: 2,
             backgroundColor: theme.palette.background.default,
             borderRadius: 2,
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            alignItems: "center",
             gap: 2,
           }}
         >
@@ -170,13 +190,20 @@ const AppLayout: React.FC = () => {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="body2"
-              sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}
+              sx={{
+                fontWeight: 600,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
             >
               {user?.firstName} {user?.lastName}
             </Typography>
             <Typography
               variant="caption"
-              sx={{ color: theme.palette.text.secondary, textTransform: 'capitalize' }}
+              sx={{
+                color: theme.palette.text.secondary,
+                textTransform: "capitalize",
+              }}
             >
               {user?.role}
             </Typography>
@@ -187,14 +214,14 @@ const AppLayout: React.FC = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <CssBaseline />
       <AppBar
         position="fixed"
         sx={{
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
-          backgroundColor: 'white',
+          backgroundColor: "white",
           color: theme.palette.text.primary,
         }}
       >
@@ -203,15 +230,27 @@ const AppLayout: React.FC = () => {
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ mr: 2, display: { md: "none" } }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            {menuItems.find((item) => item.path === location.pathname)?.text || 'Dashboard'}
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{ flexGrow: 1, fontWeight: 600 }}
+          >
+            {menuItems.find((item) => item.path === location.pathname)?.text ||
+              "Dashboard"}
           </Typography>
           <IconButton onClick={handleProfileMenuOpen} size="small">
-            <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 36, height: 36 }}>
+            <Avatar
+              sx={{
+                bgcolor: theme.palette.primary.main,
+                width: 36,
+                height: 36,
+              }}
+            >
               {user?.firstName?.[0]}
               {user?.lastName?.[0]}
             </Avatar>
@@ -221,13 +260,13 @@ const AppLayout: React.FC = () => {
             open={Boolean(anchorEl)}
             onClose={handleProfileMenuClose}
             onClick={handleProfileMenuClose}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            transformOrigin={{ horizontal: "right", vertical: "top" }}
+            anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
             PaperProps={{
               sx: { width: 200, mt: 1 },
             }}
           >
-            <MenuItem onClick={() => navigate('/employee/personal-info')}>
+            <MenuItem onClick={() => navigate("/employee/personal-info")}>
               <ListItemIcon>
                 <PersonIcon fontSize="small" />
               </ListItemIcon>
@@ -260,11 +299,11 @@ const AppLayout: React.FC = () => {
           onClose={handleDrawerToggle}
           ModalProps={{ keepMounted: true }}
           sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
+            display: { xs: "block", md: "none" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
               width: drawerWidth,
-              borderRight: 'none',
+              borderRight: "none",
               boxShadow: theme.shadows[3],
             },
           }}
@@ -274,9 +313,9 @@ const AppLayout: React.FC = () => {
         <Drawer
           variant="permanent"
           sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
+            display: { xs: "none", md: "block" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
               width: drawerWidth,
               borderRight: `1px solid ${theme.palette.divider}`,
             },
@@ -294,7 +333,7 @@ const AppLayout: React.FC = () => {
           p: 3,
           width: { md: `calc(100% - ${drawerWidth}px)` },
           backgroundColor: theme.palette.background.default,
-          minHeight: '100vh',
+          minHeight: "100vh",
         }}
       >
         <Toolbar />

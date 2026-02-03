@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -13,53 +13,59 @@ import {
   Divider,
   useTheme,
   CircularProgress,
-} from '@mui/material';
-import Grid from '@mui/material/Grid';
+} from "@mui/material";
+import Grid from "@mui/material/Grid";
 import {
   CheckCircle as CheckIcon,
   Schedule as PendingIcon,
   Cancel as RejectedIcon,
   Send as SendIcon,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
-import StatusChip from '../../components/common/StatusChip';
-import type { StatusType } from '../../components/common/StatusChip';
-import FileUpload from '../../components/common/FileUpload';
+import StatusChip from "../../components/common/StatusChip";
+import type { StatusType } from "../../components/common/StatusChip";
+import FileUpload from "../../components/common/FileUpload";
 
-import {
-  getMyOnboarding,
-  submitOnboarding,
-} from '../../lib/onboarding';
-import type { UIOnboardingStatus } from '../../lib/onboarding';
+import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
+import type { UIOnboardingStatus } from "../../lib/onboarding";
+import PersonalInformation from "./PersonalInformation";
 
-const steps = ['Personal Info', 'Address', 'Work Authorization', 'Documents', 'Review'];
+const steps = [
+  "Personal Info",
+  "Address",
+  "Work Authorization",
+  "Documents",
+  "Review",
+];
 
 const Onboarding: React.FC = () => {
   const theme = useTheme();
 
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<UIOnboardingStatus>('never-submitted');
+  const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
   const [activeStep, setActiveStep] = useState(0);
-  const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(null);
+  const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(
+    null,
+  );
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    middleName: '',
-    preferredName: '',
-    ssn: '',
-    dateOfBirth: '',
-    gender: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    phone: '',
-    emergencyContact: '',
-    emergencyPhone: '',
-    emergencyRelationship: '',
-    workAuthType: '',
-    workAuthOther: '',
+    firstName: "",
+    lastName: "",
+    middleName: "",
+    preferredName: "",
+    ssn: "",
+    dateOfBirth: "",
+    gender: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    phone: "",
+    emergencyContact: "",
+    emergencyPhone: "",
+    emergencyRelationship: "",
+    workAuthType: "",
+    workAuthOther: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -75,7 +81,7 @@ const Onboarding: React.FC = () => {
           setFormData((prev) => ({ ...prev, ...app.formData }));
         }
       } catch (err) {
-        console.error('Failed to load onboarding', err);
+        console.error("Failed to load onboarding", err);
       } finally {
         setLoading(false);
       }
@@ -88,7 +94,7 @@ const Onboarding: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setFormData((prev) => ({ ...prev, [field]: e.target.value }));
       if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: '' }));
+        setErrors((prev) => ({ ...prev, [field]: "" }));
       }
     };
 
@@ -96,15 +102,16 @@ const Onboarding: React.FC = () => {
     const newErrors: Record<string, string> = {};
 
     if (step === 0) {
-      if (!formData.firstName) newErrors.firstName = 'First name is required';
-      if (!formData.lastName) newErrors.lastName = 'Last name is required';
-      if (!formData.ssn) newErrors.ssn = 'SSN is required';
-      if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+      if (!formData.firstName) newErrors.firstName = "First name is required";
+      if (!formData.lastName) newErrors.lastName = "Last name is required";
+      if (!formData.ssn) newErrors.ssn = "SSN is required";
+      if (!formData.dateOfBirth)
+        newErrors.dateOfBirth = "Date of birth is required";
     } else if (step === 1) {
-      if (!formData.address) newErrors.address = 'Address is required';
-      if (!formData.city) newErrors.city = 'City is required';
-      if (!formData.state) newErrors.state = 'State is required';
-      if (!formData.zipCode) newErrors.zipCode = 'ZIP code is required';
+      if (!formData.address) newErrors.address = "Address is required";
+      if (!formData.city) newErrors.city = "City is required";
+      if (!formData.state) newErrors.state = "State is required";
+      if (!formData.zipCode) newErrors.zipCode = "ZIP code is required";
     }
 
     setErrors(newErrors);
@@ -128,27 +135,29 @@ const Onboarding: React.FC = () => {
         setStatus(res.status);
       }
     } catch (err) {
-      console.error('Submit onboarding failed', err);
+      console.error("Submit onboarding failed", err);
     }
   };
 
   const getStatusBanner = () => {
     switch (status) {
-      case 'pending':
+      case "pending":
         return (
           <Alert severity="info" icon={<PendingIcon />} sx={{ mb: 3 }}>
             <Typography fontWeight={600}>Application Pending Review</Typography>
-            <Typography>Your onboarding application is under HR review.</Typography>
+            <Typography>
+              Your onboarding application is under HR review.
+            </Typography>
           </Alert>
         );
-      case 'approved':
+      case "approved":
         return (
           <Alert severity="success" icon={<CheckIcon />} sx={{ mb: 3 }}>
             <Typography fontWeight={600}>Application Approved</Typography>
             <Typography>Welcome to the team!</Typography>
           </Alert>
         );
-      case 'rejected':
+      case "rejected":
         return (
           <Alert severity="error" icon={<RejectedIcon />} sx={{ mb: 3 }}>
             <Typography fontWeight={600}>Application Rejected</Typography>
@@ -164,93 +173,11 @@ const Onboarding: React.FC = () => {
     switch (step) {
       case 0:
         return (
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="First Name"
-                required
-                value={formData.firstName}
-                onChange={handleChange('firstName')}
-                error={!!errors.firstName}
-                helperText={errors.firstName}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Last Name"
-                required
-                value={formData.lastName}
-                onChange={handleChange('lastName')}
-                error={!!errors.lastName}
-                helperText={errors.lastName}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Middle Name"
-                value={formData.middleName}
-                onChange={handleChange('middleName')}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Preferred Name"
-                value={formData.preferredName}
-                onChange={handleChange('preferredName')}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Social Security Number"
-                required
-                value={formData.ssn}
-                onChange={handleChange('ssn')}
-                error={!!errors.ssn}
-                helperText={errors.ssn}
-                placeholder="XXX-XX-XXXX"
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Date of Birth"
-                type="date"
-                required
-                value={formData.dateOfBirth}
-                onChange={handleChange('dateOfBirth')}
-                error={!!errors.dateOfBirth}
-                helperText={errors.dateOfBirth}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Gender"
-                select
-                SelectProps={{ native: true }}
-                value={formData.gender}
-                onChange={handleChange('gender')}
-              >
-                <option value="">Select...</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-                <option value="prefer-not">Prefer not to say</option>
-              </TextField>
-            </Grid>
-          </Grid>
+          <PersonalInformation
+            formData={formData}
+            errors={errors}
+            onChange={handleChange}
+          />
         );
 
       case 1:
@@ -262,7 +189,7 @@ const Onboarding: React.FC = () => {
                 label="Address"
                 required
                 value={formData.address}
-                onChange={handleChange('address')}
+                onChange={handleChange("address")}
                 error={!!errors.address}
                 helperText={errors.address}
               />
@@ -277,7 +204,7 @@ const Onboarding: React.FC = () => {
                 fullWidth
                 label="Work Authorization Type"
                 value={formData.workAuthType}
-                onChange={handleChange('workAuthType')}
+                onChange={handleChange("workAuthType")}
               />
             </Grid>
           </Grid>
@@ -286,7 +213,10 @@ const Onboarding: React.FC = () => {
         return (
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <FileUpload label="Driver's License / ID" onFileSelect={() => {}} />
+              <FileUpload
+                label="Driver's License / ID"
+                onFileSelect={() => {}}
+              />
             </Grid>
           </Grid>
         );
@@ -304,26 +234,30 @@ const Onboarding: React.FC = () => {
   // ===== Loading =====
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
         <CircularProgress />
       </Box>
     );
   }
 
   // ===== Pending / Approved =====
-  if (status === 'pending' || status === 'approved') {
+  if (status === "pending" || status === "approved") {
     return (
       <Box>
         {getStatusBanner()}
         <Card>
-          <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            {status === 'pending' ? (
-              <PendingIcon sx={{ fontSize: 64, color: theme.palette.info.main }} />
+          <CardContent sx={{ textAlign: "center", py: 6 }}>
+            {status === "pending" ? (
+              <PendingIcon
+                sx={{ fontSize: 64, color: theme.palette.info.main }}
+              />
             ) : (
-              <CheckIcon sx={{ fontSize: 64, color: theme.palette.success.main }} />
+              <CheckIcon
+                sx={{ fontSize: 64, color: theme.palette.success.main }}
+              />
             )}
             <Typography variant="h5" fontWeight={600} mt={2}>
-              {status === 'pending' ? 'Under Review' : 'Onboarding Complete'}
+              {status === "pending" ? "Under Review" : "Onboarding Complete"}
             </Typography>
           </CardContent>
         </Card>
@@ -364,11 +298,19 @@ const Onboarding: React.FC = () => {
           <Divider sx={{ mb: 3 }} />
 
           <Box display="flex" justifyContent="space-between">
-            <Button onClick={handleBack} disabled={activeStep === 0} variant="outlined">
+            <Button
+              onClick={handleBack}
+              disabled={activeStep === 0}
+              variant="outlined"
+            >
               Back
             </Button>
             {activeStep === steps.length - 1 ? (
-              <Button variant="contained" onClick={handleSubmit} startIcon={<SendIcon />}>
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                startIcon={<SendIcon />}
+              >
                 Submit Application
               </Button>
             ) : (

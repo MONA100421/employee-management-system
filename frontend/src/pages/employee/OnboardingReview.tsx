@@ -12,6 +12,8 @@ import {
 import type { OnboardingForm } from "./PersonalInformation";
 import type { OnboardingDocument } from "./types";
 import StatusChip from "../../components/common/StatusChip";
+import { Schedule as ScheduleIcon } from "@mui/icons-material";
+
 
 
 type Props = {
@@ -134,15 +136,36 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
                           Click to re-upload
                         </Typography>
                       )}
-                      
+
                       {doc.status === "pending" && (
-                        <Typography
-                          variant="caption"
-                          sx={{ color: "warning.main" }}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            "@keyframes pulse": {
+                              "0%": { opacity: 0.5 },
+                              "50%": { opacity: 1 },
+                              "100%": { opacity: 0.5 },
+                            },
+                          }}
                         >
-                          Re-uploaded, pending HR review
-                        </Typography>
+                          <ScheduleIcon
+                            fontSize="inherit"
+                            sx={{
+                              color: "warning.main",
+                              animation: "pulse 1.5s infinite",
+                            }}
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "warning.main", fontWeight: 500 }}
+                          >
+                            Re-uploaded, pending HR review
+                          </Typography>
+                        </Box>
                       )}
+
                     </Box>
 
                     <StatusChip status={doc.status} size="small" />
@@ -198,3 +221,4 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
     </Box>
   );
 }
+

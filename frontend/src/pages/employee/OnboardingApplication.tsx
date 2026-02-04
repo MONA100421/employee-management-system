@@ -365,6 +365,8 @@ const Onboarding: React.FC = () => {
         const isIdCardRejected = idCard?.status === "rejected";
         const isWorkAuthRejected = workAuth?.status === "rejected";
         const isPhotoRejected = photo?.status === "rejected";
+        const isIdCardLocked =
+          idCard?.status === "pending" || idCard?.status === "approved";
 
         return (
           <Grid container spacing={3}>
@@ -387,11 +389,14 @@ const Onboarding: React.FC = () => {
                   status={mapDocStatusToUploadStatus(
                     idCard?.status ?? "not-started",
                   )}
+                  disabled={isIdCardLocked}
                   onFileSelect={(file) => handleDocumentUpload("id-card", file)}
                   helperText={
-                    isIdCardRejected
-                      ? idCard?.feedback || "Please re-upload a clearer copy."
-                      : "Upload a clear copy of your ID"
+                    idCard?.status === "pending"
+                      ? "Re-uploaded, waiting for HR approval"
+                      : idCard?.status === "approved"
+                        ? "Approved"
+                        : "Upload a clear copy of your ID"
                   }
                 />
               </Box>
@@ -402,7 +407,9 @@ const Onboarding: React.FC = () => {
                 ref={workAuthRef}
                 sx={{
                   border: isWorkAuthRejected ? "2px solid" : "none",
-                  borderColor: isWorkAuthRejected ? "error.main" : "transparent",
+                  borderColor: isWorkAuthRejected
+                    ? "error.main"
+                    : "transparent",
                   borderRadius: 2,
                   p: isWorkAuthRejected ? 2 : 0,
                   backgroundColor: isWorkAuthRejected
@@ -416,6 +423,10 @@ const Onboarding: React.FC = () => {
                   status={mapDocStatusToUploadStatus(
                     workAuth?.status ?? "not-started",
                   )}
+                  disabled={
+                    workAuth?.status === "pending" ||
+                    workAuth?.status === "approved"
+                  }
                   onFileSelect={(file) =>
                     handleDocumentUpload("work-auth", file)
                   }
@@ -448,6 +459,10 @@ const Onboarding: React.FC = () => {
                     photo?.status ?? "not-started",
                   )}
                   accept=".jpg,.jpeg,.png"
+                  disabled={
+                    photo?.status === "pending" ||
+                    photo?.status === "approved"
+                  }
                   onFileSelect={(file) => handleDocumentUpload("photo", file)}
                   helperText={
                     isPhotoRejected

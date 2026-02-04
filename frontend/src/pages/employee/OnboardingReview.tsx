@@ -124,6 +124,16 @@ export default function OnboardingReview({ formData, documents }: Props) {
 
                     <StatusChip status={doc.status} size="small" />
                   </Box>
+
+                  {doc.status === "rejected" && doc.feedback && (
+                    <Alert severity="error" sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Feedback:
+                      </Typography>
+                      <Typography variant="body2">{doc.feedback}</Typography>
+                    </Alert>
+                  )}
+                  
                 </Grid>
               ))}
             </Grid>

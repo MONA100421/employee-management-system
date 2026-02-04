@@ -81,6 +81,11 @@ const Onboarding: React.FC = () => {
     );
   };
 
+  const goToDocumentsStep = () => {
+    setActiveStep(3);
+  };
+
+
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
   const [activeStep, setActiveStep] = useState(0);
@@ -333,7 +338,13 @@ const Onboarding: React.FC = () => {
           </Box>
         );
       case 4:
-          return <OnboardingReview formData={formData} documents={documents} />;
+          return (
+            <OnboardingReview
+              formData={formData}
+              documents={documents}
+              onFixDocument={goToDocumentsStep}
+            />
+          );
       default:
         return null;
     }

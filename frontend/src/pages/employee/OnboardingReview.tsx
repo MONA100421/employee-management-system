@@ -17,6 +17,7 @@ import StatusChip from "../../components/common/StatusChip";
 type Props = {
   formData: OnboardingForm;
   documents: OnboardingDocument[];
+  onFixDocument: () => void;
 };
 
 function InfoBlock({
@@ -38,7 +39,7 @@ function InfoBlock({
   );
 }
 
-export default function OnboardingReview({ formData, documents }: Props) {
+export default function OnboardingReview({ formData, documents, onFixDocument }: Props) {
   const theme = useTheme();
 
   return (
@@ -92,6 +93,9 @@ export default function OnboardingReview({ formData, documents }: Props) {
               {documents.map((doc: OnboardingDocument) => (
                 <Grid size={{ xs: 12, md: 6 }} key={doc.id}>
                   <Box
+                    onClick={
+                      doc.status === "rejected" ? onFixDocument : undefined
+                    }
                     sx={{
                       p: 2,
                       border: "1px solid",
@@ -101,14 +105,15 @@ export default function OnboardingReview({ formData, documents }: Props) {
                       justifyContent: "space-between",
                       alignItems: "center",
                       gap: 2,
+                      cursor: doc.status === "rejected" ? "pointer" : "default",
                       bgcolor:
-                        doc.status === "approved"
-                          ? "success.light"
-                          : doc.status === "pending"
-                            ? "warning.light"
-                            : doc.status === "rejected"
-                              ? "error.light"
-                              : "background.default",
+                        doc.status === "rejected"
+                          ? "rgba(198, 40, 40, 0.06)"
+                          : "transparent",
+                      "&:hover":
+                        doc.status === "rejected"
+                          ? { backgroundColor: "rgba(198, 40, 40, 0.12)" }
+                          : {},
                     }}
                   >
                     <Box sx={{ minWidth: 0 }}>
@@ -120,6 +125,11 @@ export default function OnboardingReview({ formData, documents }: Props) {
                           ? `Uploaded ${doc.uploadedAt}`
                           : "Not uploaded"}
                       </Typography>
+                      {doc.status === "rejected" && (
+                        <Typography variant="caption" color="error">
+                          Click to re-upload
+                        </Typography>
+                      )}
                     </Box>
 
                     <StatusChip status={doc.status} size="small" />
@@ -133,7 +143,6 @@ export default function OnboardingReview({ formData, documents }: Props) {
                       <Typography variant="body2">{doc.feedback}</Typography>
                     </Alert>
                   )}
-                  
                 </Grid>
               ))}
             </Grid>

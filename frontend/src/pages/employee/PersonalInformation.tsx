@@ -110,11 +110,14 @@ export default function PersonalInformation({
           fullWidth
           label="Gender"
           select
+          InputLabelProps={{ shrink: true }}
           SelectProps={{ native: true }}
           value={formData.gender || ""}
           onChange={onChange("gender")}
         >
-          <option value="">Select...</option>
+          <option value="" disabled>
+            Select...
+          </option>{" "}
           <option value="male">Male</option>
           <option value="female">Female</option>
           <option value="other">Other</option>

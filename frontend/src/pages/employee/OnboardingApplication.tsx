@@ -32,7 +32,7 @@ import type { OnboardingForm } from "./PersonalInformation";
 import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
 import type { OnboardingDocument } from "./types";
-import DocumentCard from "./DocumentCard";
+import FileUpload from "../../components/common/FileUpload";
 
 const steps = [
   "Personal Info",
@@ -321,22 +321,49 @@ const Onboarding: React.FC = () => {
         return <VisaStatus formData={formData} onChange={handleChange} />;
       case 3:
         return (
-          <Box>
-            <Typography variant="h6" fontWeight={600} mb={2}>
-              Documents
-            </Typography>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FileUpload
+                label="Driver's License / State ID *"
+                fileName={documents.find((d) => d.id === "id-card")?.fileName}
+                status={
+                  documents.find((d) => d.id === "id-card")?.status ===
+                  "pending"
+                    ? "uploading"
+                    : "idle"
+                }
+                onFileSelect={(file: File) =>
+                  handleDocumentUpload("id-card", file)
+                }
+                helperText="Upload a clear copy of your ID"
+              />
+            </Grid>
 
-            <Box sx={{ display: "grid", gap: 2 }}>
-              {documents.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  onUpload={(file: File) => handleDocumentUpload(doc.id, file)}
-                />
-              ))}
-            </Box>
-          </Box>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FileUpload
+                label="Work Authorization Document *"
+                fileName={documents.find((d) => d.id === "work-auth")?.fileName}
+                onFileSelect={(file: File) =>
+                  handleDocumentUpload("work-auth", file)
+                }
+                helperText="OPT EAD, Green Card, etc."
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FileUpload
+                label="Profile Photo"
+                accept=".jpg,.jpeg,.png"
+                fileName={documents.find((d) => d.id === "photo")?.fileName}
+                onFileSelect={(file: File) =>
+                  handleDocumentUpload("photo", file)
+                }
+                helperText="Professional headshot (optional)"
+              />
+            </Grid>
+          </Grid>
         );
+
       case 4:
         return (
           <OnboardingReview

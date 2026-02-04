@@ -122,14 +122,25 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
                       <Typography fontWeight={600} noWrap>
                         {doc.title}
                       </Typography>
+
                       <Typography variant="caption" color="text.secondary">
                         {doc.fileName
                           ? `Uploaded ${doc.uploadedAt}`
                           : "Not uploaded"}
                       </Typography>
+
                       {doc.status === "rejected" && (
                         <Typography variant="caption" color="error">
                           Click to re-upload
+                        </Typography>
+                      )}
+                      
+                      {doc.status === "pending" && (
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "warning.main" }}
+                        >
+                          Re-uploaded, pending HR review
                         </Typography>
                       )}
                     </Box>

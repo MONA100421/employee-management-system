@@ -119,6 +119,9 @@ const Onboarding: React.FC = () => {
           : doc,
       ),
     );
+    setTimeout(() => {
+      setActiveStep(4);
+    }, 300);
   };
 
   const [loading, setLoading] = useState(true);

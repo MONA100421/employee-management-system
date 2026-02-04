@@ -153,7 +153,6 @@ const Onboarding: React.FC = () => {
       if (!formData.state) newErrors.state = "State is required";
       if (!formData.zipCode) newErrors.zipCode = "ZIP code is required";
     } else if (step === 2) {
-      // optional: require work auth type
       if (!formData.workAuthType)
         newErrors.workAuthType = "Work authorization is required";
       if (formData.workAuthType === "other" && !formData.workAuthOther) {
@@ -185,6 +184,10 @@ const Onboarding: React.FC = () => {
       console.error("Submit onboarding failed", err);
     }
   };
+
+  const hasIncompleteDocuments = documents.some(
+    (doc) => doc.status !== "approved",
+  );
 
   const getStatusBanner = () => {
     switch (status) {
@@ -330,7 +333,7 @@ const Onboarding: React.FC = () => {
           </Box>
         );
       case 4:
-        return <OnboardingReview formData={formData} />;
+          return <OnboardingReview formData={formData} documents={documents} />;
       default:
         return null;
     }
@@ -415,6 +418,7 @@ const Onboarding: React.FC = () => {
                 variant="contained"
                 onClick={handleSubmit}
                 startIcon={<SendIcon />}
+                disabled={hasIncompleteDocuments}
               >
                 Submit Application
               </Button>

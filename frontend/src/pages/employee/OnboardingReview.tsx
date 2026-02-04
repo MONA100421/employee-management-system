@@ -7,11 +7,16 @@ import {
   Grid,
   Divider,
   useTheme,
+  Alert,
 } from "@mui/material";
 import type { OnboardingForm } from "./PersonalInformation";
+import type { OnboardingDocument } from "./types";
+import StatusChip from "../../components/common/StatusChip";
+
 
 type Props = {
   formData: OnboardingForm;
+  documents: OnboardingDocument[];
 };
 
 function InfoBlock({
@@ -33,7 +38,7 @@ function InfoBlock({
   );
 }
 
-export default function OnboardingReview({ formData }: Props) {
+export default function OnboardingReview({ formData, documents }: Props) {
   const theme = useTheme();
 
   return (
@@ -70,7 +75,6 @@ export default function OnboardingReview({ formData }: Props) {
             </Typography>
           </InfoBlock>
         </Grid>
-
         {/* Address */}
         <Grid size={{ xs: 12, md: 6 }}>
           <InfoBlock title="Address">
@@ -78,6 +82,53 @@ export default function OnboardingReview({ formData }: Props) {
             <Typography variant="body2">
               {formData.city}, {formData.state} {formData.zipCode}
             </Typography>
+          </InfoBlock>
+        </Grid>
+
+        {/* Documents Summary */}
+        <Grid size={{ xs: 12 }}>
+          <InfoBlock title="Documents">
+            <Grid container spacing={2}>
+              {documents.map((doc: OnboardingDocument) => (
+                <Grid size={{ xs: 12, md: 6 }} key={doc.id}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 2,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 2,
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography fontWeight={600} noWrap>
+                        {doc.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {doc.fileName
+                          ? `Uploaded ${doc.uploadedAt}`
+                          : "Not uploaded"}
+                      </Typography>
+                    </Box>
+
+                    <StatusChip status={doc.status} size="small" />
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* Warning */}
+            {documents.some(
+              (d: OnboardingDocument) => d.status !== "approved",
+            ) && (
+              <Alert severity="warning" sx={{ mt: 3 }}>
+                All required documents must be uploaded and approved before
+                submission.
+              </Alert>
+            )}
           </InfoBlock>
         </Grid>
 

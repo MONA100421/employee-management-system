@@ -62,7 +62,9 @@ const mapDocStatusToUploadStatus = (
 const Onboarding: React.FC = () => {
   const idCardRef = useRef<HTMLDivElement | null>(null);
   const workAuthRef = useRef<HTMLDivElement | null>(null);
-  const photoRef = useRef<HTMLDivElement | null>(null);const theme = useTheme();
+  const photoRef = useRef<HTMLDivElement | null>(null);
+  const theme = useTheme();
+
 
   const handleFixDocument = (docId: string) => {
     setActiveStep(3);
@@ -357,10 +359,25 @@ const Onboarding: React.FC = () => {
         const workAuth = documents.find((d) => d.id === "work-auth");
         const photo = documents.find((d) => d.id === "photo");
 
+        const isIdCardRejected = idCard?.status === "rejected";
+        const isWorkAuthRejected = workAuth?.status === "rejected";
+        const isPhotoRejected = photo?.status === "rejected";
+
         return (
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box ref={idCardRef}>
+              <Box
+                ref={idCardRef}
+                sx={{
+                  border: isIdCardRejected ? "2px solid" : "none",
+                  borderColor: isIdCardRejected ? "error.main" : "transparent",
+                  borderRadius: 2,
+                  p: isIdCardRejected ? 2 : 0,
+                  backgroundColor: isIdCardRejected
+                    ? "rgba(198, 40, 40, 0.04)"
+                    : "transparent",
+                }}
+              >
                 <FileUpload
                   label="Driver's License / State ID *"
                   fileName={idCard?.fileName}
@@ -368,13 +385,28 @@ const Onboarding: React.FC = () => {
                     idCard?.status ?? "not-started",
                   )}
                   onFileSelect={(file) => handleDocumentUpload("id-card", file)}
-                  helperText="Upload a clear copy of your ID"
+                  helperText={
+                    isIdCardRejected
+                      ? idCard?.feedback || "Please re-upload a clearer copy."
+                      : "Upload a clear copy of your ID"
+                  }
                 />
               </Box>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box ref={workAuthRef}>
+              <Box
+                ref={workAuthRef}
+                sx={{
+                  border: isWorkAuthRejected ? "2px solid" : "none",
+                  borderColor: isWorkAuthRejected ? "error.main" : "transparent",
+                  borderRadius: 2,
+                  p: isWorkAuthRejected ? 2 : 0,
+                  backgroundColor: isWorkAuthRejected
+                    ? "rgba(198, 40, 40, 0.04)"
+                    : "transparent",
+                }}
+              >
                 <FileUpload
                   label="Work Authorization Document *"
                   fileName={workAuth?.fileName}
@@ -384,13 +416,28 @@ const Onboarding: React.FC = () => {
                   onFileSelect={(file) =>
                     handleDocumentUpload("work-auth", file)
                   }
-                  helperText="OPT EAD, Green Card, etc."
+                  helperText={
+                    isWorkAuthRejected
+                      ? workAuth?.feedback || "Please re-upload a clearer copy."
+                      : "OPT EAD, Green Card, etc."
+                  }
                 />
               </Box>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box ref={photoRef}>
+              <Box
+                ref={photoRef}
+                sx={{
+                  border: isPhotoRejected ? "2px solid" : "none",
+                  borderColor: isPhotoRejected ? "error.main" : "transparent",
+                  borderRadius: 2,
+                  p: isPhotoRejected ? 2 : 0,
+                  backgroundColor: isPhotoRejected
+                    ? "rgba(198, 40, 40, 0.04)"
+                    : "transparent",
+                }}
+              >
                 <FileUpload
                   label="Profile Photo"
                   fileName={photo?.fileName}
@@ -399,7 +446,11 @@ const Onboarding: React.FC = () => {
                   )}
                   accept=".jpg,.jpeg,.png"
                   onFileSelect={(file) => handleDocumentUpload("photo", file)}
-                  helperText="Professional headshot (optional)"
+                  helperText={
+                    isPhotoRejected
+                      ? photo?.feedback || "Please re-upload a clearer photo."
+                      : "Professional headshot (optional)"
+                  }
                 />
               </Box>
             </Grid>

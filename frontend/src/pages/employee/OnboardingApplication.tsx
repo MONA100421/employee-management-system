@@ -45,6 +45,10 @@ const steps = [
 const Onboarding: React.FC = () => {
   const theme = useTheme();
 
+  const handleFixDocument = () => {
+    setActiveStep(3); // Documents step
+  };
+
   const [documents, setDocuments] = useState<OnboardingDocument[]>([
     {
       id: "id-card",
@@ -80,11 +84,6 @@ const Onboarding: React.FC = () => {
       ),
     );
   };
-
-  const goToDocumentsStep = () => {
-    setActiveStep(3);
-  };
-
 
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
@@ -338,13 +337,13 @@ const Onboarding: React.FC = () => {
           </Box>
         );
       case 4:
-          return (
-            <OnboardingReview
-              formData={formData}
-              documents={documents}
-              onFixDocument={goToDocumentsStep}
-            />
-          );
+        return (
+          <OnboardingReview
+            formData={formData}
+            documents={documents}
+            onFixDocument={handleFixDocument}
+          />
+        );
       default:
         return null;
     }

@@ -29,6 +29,9 @@ import FileUpload from "../../components/common/FileUpload";
 import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
 import PersonalInformation from "./PersonalInformation";
+import type { OnboardingForm } from "./PersonalInformation";
+import VisaStatus from "./VisaStatus";
+import OnboardingReview from "./OnboardingReview";
 
 const steps = [
   "Personal Info",
@@ -48,7 +51,7 @@ const Onboarding: React.FC = () => {
     null,
   );
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<OnboardingForm>({
     firstName: "",
     lastName: "",
     middleName: "",
@@ -90,7 +93,7 @@ const Onboarding: React.FC = () => {
   }, []);
 
   const handleChange =
-    (field: keyof typeof formData) =>
+    (field: keyof OnboardingForm) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setFormData((prev) => ({ ...prev, [field]: e.target.value }));
       if (errors[field]) {
@@ -112,6 +115,13 @@ const Onboarding: React.FC = () => {
       if (!formData.city) newErrors.city = "City is required";
       if (!formData.state) newErrors.state = "State is required";
       if (!formData.zipCode) newErrors.zipCode = "ZIP code is required";
+    } else if (step === 2) {
+      // optional: require work auth type
+      if (!formData.workAuthType)
+        newErrors.workAuthType = "Work authorization is required";
+      if (formData.workAuthType === "other" && !formData.workAuthOther) {
+        newErrors.workAuthOther = "Please specify your work authorization";
+      }
     }
 
     setErrors(newErrors);
@@ -125,7 +135,7 @@ const Onboarding: React.FC = () => {
   };
 
   const handleBack = () => {
-    setActiveStep((prev) => prev - 1);
+    setActiveStep((prev) => Math.max(prev - 1, 0));
   };
 
   const handleSubmit = async () => {
@@ -179,53 +189,120 @@ const Onboarding: React.FC = () => {
             onChange={handleChange}
           />
         );
-
       case 1:
         return (
           <Grid container spacing={3}>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
-                label="Address"
+                label="Street Address"
                 required
-                value={formData.address}
+                value={formData.address || ""}
                 onChange={handleChange("address")}
                 error={!!errors.address}
                 helperText={errors.address}
               />
             </Grid>
-          </Grid>
-        );
-      case 2:
-        return (
-          <Grid container spacing={3}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
-                label="Work Authorization Type"
-                value={formData.workAuthType}
-                onChange={handleChange("workAuthType")}
+                label="City"
+                required
+                value={formData.city || ""}
+                onChange={handleChange("city")}
+                error={!!errors.city}
+                helperText={errors.city}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <TextField
+                fullWidth
+                label="State"
+                required
+                value={formData.state || ""}
+                onChange={handleChange("state")}
+                error={!!errors.state}
+                helperText={errors.state}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <TextField
+                fullWidth
+                label="ZIP Code"
+                required
+                value={formData.zipCode || ""}
+                onChange={handleChange("zipCode")}
+                error={!!errors.zipCode}
+                helperText={errors.zipCode}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Emergency Contact
+              </Typography>
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Contact Name"
+                value={formData.emergencyContact || ""}
+                onChange={handleChange("emergencyContact")}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Phone Number"
+                value={formData.emergencyPhone || ""}
+                onChange={handleChange("emergencyPhone")}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Relationship"
+                value={formData.emergencyRelationship || ""}
+                onChange={handleChange("emergencyRelationship")}
               />
             </Grid>
           </Grid>
         );
+      case 2:
+        return <VisaStatus formData={formData} onChange={handleChange} />;
       case 3:
         return (
           <Grid container spacing={3}>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <FileUpload
-                label="Driver's License / ID"
-                onFileSelect={() => {}}
+                label="Driver's License / State ID *"
+                onFileSelect={(file) => console.log("File selected:", file)}
+                helperText="Upload a clear copy of your ID"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FileUpload
+                label="Work Authorization Document *"
+                onFileSelect={(file) => console.log("File selected:", file)}
+                helperText="OPT EAD, Green Card, etc."
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FileUpload
+                label="Profile Photo"
+                accept=".jpg,.jpeg,.png"
+                onFileSelect={(file) => console.log("File selected:", file)}
+                helperText="Professional headshot (optional)"
               />
             </Grid>
           </Grid>
         );
       case 4:
-        return (
-          <Alert severity="info">
-            Please review your information before submitting.
-          </Alert>
-        );
+        return <OnboardingReview formData={formData} />;
       default:
         return null;
     }

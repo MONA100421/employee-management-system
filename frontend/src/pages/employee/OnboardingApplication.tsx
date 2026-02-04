@@ -24,7 +24,6 @@ import {
 
 import StatusChip from "../../components/common/StatusChip";
 import type { StatusType } from "../../components/common/StatusChip";
-import FileUpload from "../../components/common/FileUpload";
 
 import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
@@ -32,6 +31,8 @@ import PersonalInformation from "./PersonalInformation";
 import type { OnboardingForm } from "./PersonalInformation";
 import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
+import type { OnboardingDocument } from "./types";
+import DocumentCard from "./DocumentCard";
 
 const steps = [
   "Personal Info",
@@ -43,6 +44,42 @@ const steps = [
 
 const Onboarding: React.FC = () => {
   const theme = useTheme();
+
+  const [documents, setDocuments] = useState<OnboardingDocument[]>([
+    {
+      id: "id-card",
+      title: "Driver's License / State ID",
+      type: "ID",
+      status: "not-started",
+    },
+    {
+      id: "work-auth",
+      title: "Work Authorization Document",
+      type: "Work Auth",
+      status: "not-started",
+    },
+    {
+      id: "photo",
+      title: "Profile Photo",
+      type: "Photo",
+      status: "not-started",
+    },
+  ]);
+
+  const handleDocumentUpload = (docId: string, file: File) => {
+    setDocuments((prev) =>
+      prev.map((doc) =>
+        doc.id === docId
+          ? {
+              ...doc,
+              status: "pending",
+              fileName: file.name,
+              uploadedAt: new Date().toISOString().split("T")[0],
+            }
+          : doc,
+      ),
+    );
+  };
 
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
@@ -276,30 +313,21 @@ const Onboarding: React.FC = () => {
         return <VisaStatus formData={formData} onChange={handleChange} />;
       case 3:
         return (
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FileUpload
-                label="Driver's License / State ID *"
-                onFileSelect={(file) => console.log("File selected:", file)}
-                helperText="Upload a clear copy of your ID"
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FileUpload
-                label="Work Authorization Document *"
-                onFileSelect={(file) => console.log("File selected:", file)}
-                helperText="OPT EAD, Green Card, etc."
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FileUpload
-                label="Profile Photo"
-                accept=".jpg,.jpeg,.png"
-                onFileSelect={(file) => console.log("File selected:", file)}
-                helperText="Professional headshot (optional)"
-              />
-            </Grid>
-          </Grid>
+          <Box>
+            <Typography variant="h6" fontWeight={600} mb={2}>
+              Documents
+            </Typography>
+
+            <Box sx={{ display: "grid", gap: 2 }}>
+              {documents.map((doc) => (
+                <DocumentCard
+                  key={doc.id}
+                  doc={doc}
+                  onUpload={(file: File) => handleDocumentUpload(doc.id, file)}
+                />
+              ))}
+            </Box>
+          </Box>
         );
       case 4:
         return <OnboardingReview formData={formData} />;

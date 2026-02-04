@@ -42,6 +42,22 @@ const steps = [
   "Review",
 ];
 
+const mapDocStatusToUploadStatus = (
+  status: OnboardingDocument["status"],
+): "idle" | "uploading" | "success" | "error" => {
+  switch (status) {
+    case "pending":
+      return "uploading";
+    case "approved":
+      return "success";
+    case "rejected":
+      return "error";
+    case "not-started":
+    default:
+      return "idle";
+  }
+};
+
 const Onboarding: React.FC = () => {
   const theme = useTheme();
 
@@ -319,22 +335,21 @@ const Onboarding: React.FC = () => {
         );
       case 2:
         return <VisaStatus formData={formData} onChange={handleChange} />;
-      case 3:
+      case 3: {
+        const idCard = documents.find((d) => d.id === "id-card");
+        const workAuth = documents.find((d) => d.id === "work-auth");
+        const photo = documents.find((d) => d.id === "photo");
+
         return (
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
               <FileUpload
                 label="Driver's License / State ID *"
-                fileName={documents.find((d) => d.id === "id-card")?.fileName}
-                status={
-                  documents.find((d) => d.id === "id-card")?.status ===
-                  "pending"
-                    ? "uploading"
-                    : "idle"
-                }
-                onFileSelect={(file: File) =>
-                  handleDocumentUpload("id-card", file)
-                }
+                fileName={idCard?.fileName}
+                status={mapDocStatusToUploadStatus(
+                  idCard?.status ?? "not-started",
+                )}
+                onFileSelect={(file) => handleDocumentUpload("id-card", file)}
                 helperText="Upload a clear copy of your ID"
               />
             </Grid>
@@ -342,10 +357,11 @@ const Onboarding: React.FC = () => {
             <Grid size={{ xs: 12, md: 6 }}>
               <FileUpload
                 label="Work Authorization Document *"
-                fileName={documents.find((d) => d.id === "work-auth")?.fileName}
-                onFileSelect={(file: File) =>
-                  handleDocumentUpload("work-auth", file)
-                }
+                fileName={workAuth?.fileName}
+                status={mapDocStatusToUploadStatus(
+                  workAuth?.status ?? "not-started",
+                )}
+                onFileSelect={(file) => handleDocumentUpload("work-auth", file)}
                 helperText="OPT EAD, Green Card, etc."
               />
             </Grid>
@@ -353,16 +369,18 @@ const Onboarding: React.FC = () => {
             <Grid size={{ xs: 12, md: 6 }}>
               <FileUpload
                 label="Profile Photo"
+                fileName={photo?.fileName}
+                status={mapDocStatusToUploadStatus(
+                  photo?.status ?? "not-started",
+                )}
                 accept=".jpg,.jpeg,.png"
-                fileName={documents.find((d) => d.id === "photo")?.fileName}
-                onFileSelect={(file: File) =>
-                  handleDocumentUpload("photo", file)
-                }
+                onFileSelect={(file) => handleDocumentUpload("photo", file)}
                 helperText="Professional headshot (optional)"
               />
             </Grid>
           </Grid>
         );
+      }
 
       case 4:
         return (

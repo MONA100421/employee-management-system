@@ -101,6 +101,14 @@ export default function OnboardingReview({ formData, documents }: Props) {
                       justifyContent: "space-between",
                       alignItems: "center",
                       gap: 2,
+                      bgcolor:
+                        doc.status === "approved"
+                          ? "success.light"
+                          : doc.status === "pending"
+                            ? "warning.light"
+                            : doc.status === "rejected"
+                              ? "error.light"
+                              : "background.default",
                     }}
                   >
                     <Box sx={{ minWidth: 0 }}>
@@ -120,7 +128,6 @@ export default function OnboardingReview({ formData, documents }: Props) {
               ))}
             </Grid>
 
-            {/* Warning */}
             {documents.some(
               (d: OnboardingDocument) => d.status !== "approved",
             ) && (

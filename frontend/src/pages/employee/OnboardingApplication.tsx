@@ -79,6 +79,7 @@ const Onboarding: React.FC = () => {
               status: "pending",
               fileName: file.name,
               uploadedAt: new Date().toISOString().split("T")[0],
+              feedback: undefined,
             }
           : doc,
       ),

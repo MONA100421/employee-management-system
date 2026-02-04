@@ -33,6 +33,7 @@ import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
 import type { OnboardingDocument } from "./types";
 import FileUpload from "../../components/common/FileUpload";
+import { useRef } from "react";
 
 const steps = [
   "Personal Info",
@@ -59,11 +60,27 @@ const mapDocStatusToUploadStatus = (
 };
 
 const Onboarding: React.FC = () => {
-  const theme = useTheme();
+  const idCardRef = useRef<HTMLDivElement | null>(null);
+  const workAuthRef = useRef<HTMLDivElement | null>(null);
+  const photoRef = useRef<HTMLDivElement | null>(null);const theme = useTheme();
 
-  const handleFixDocument = () => {
-    setActiveStep(3); // Documents step
+  const handleFixDocument = (docId: string) => {
+    setActiveStep(3);
+
+    setTimeout(() => {
+      const map: Record<string, HTMLDivElement | null> = {
+        "id-card": idCardRef.current,
+        "work-auth": workAuthRef.current,
+        photo: photoRef.current,
+      };
+
+      map[docId]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 100);
   };
+
 
   const [documents, setDocuments] = useState<OnboardingDocument[]>([
     {
@@ -343,40 +360,48 @@ const Onboarding: React.FC = () => {
         return (
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <FileUpload
-                label="Driver's License / State ID *"
-                fileName={idCard?.fileName}
-                status={mapDocStatusToUploadStatus(
-                  idCard?.status ?? "not-started",
-                )}
-                onFileSelect={(file) => handleDocumentUpload("id-card", file)}
-                helperText="Upload a clear copy of your ID"
-              />
+              <Box ref={idCardRef}>
+                <FileUpload
+                  label="Driver's License / State ID *"
+                  fileName={idCard?.fileName}
+                  status={mapDocStatusToUploadStatus(
+                    idCard?.status ?? "not-started",
+                  )}
+                  onFileSelect={(file) => handleDocumentUpload("id-card", file)}
+                  helperText="Upload a clear copy of your ID"
+                />
+              </Box>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FileUpload
-                label="Work Authorization Document *"
-                fileName={workAuth?.fileName}
-                status={mapDocStatusToUploadStatus(
-                  workAuth?.status ?? "not-started",
-                )}
-                onFileSelect={(file) => handleDocumentUpload("work-auth", file)}
-                helperText="OPT EAD, Green Card, etc."
-              />
+              <Box ref={workAuthRef}>
+                <FileUpload
+                  label="Work Authorization Document *"
+                  fileName={workAuth?.fileName}
+                  status={mapDocStatusToUploadStatus(
+                    workAuth?.status ?? "not-started",
+                  )}
+                  onFileSelect={(file) =>
+                    handleDocumentUpload("work-auth", file)
+                  }
+                  helperText="OPT EAD, Green Card, etc."
+                />
+              </Box>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
-              <FileUpload
-                label="Profile Photo"
-                fileName={photo?.fileName}
-                status={mapDocStatusToUploadStatus(
-                  photo?.status ?? "not-started",
-                )}
-                accept=".jpg,.jpeg,.png"
-                onFileSelect={(file) => handleDocumentUpload("photo", file)}
-                helperText="Professional headshot (optional)"
-              />
+              <Box ref={photoRef}>
+                <FileUpload
+                  label="Profile Photo"
+                  fileName={photo?.fileName}
+                  status={mapDocStatusToUploadStatus(
+                    photo?.status ?? "not-started",
+                  )}
+                  accept=".jpg,.jpeg,.png"
+                  onFileSelect={(file) => handleDocumentUpload("photo", file)}
+                  helperText="Professional headshot (optional)"
+                />
+              </Box>
             </Grid>
           </Grid>
         );

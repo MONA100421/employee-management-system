@@ -17,7 +17,7 @@ import StatusChip from "../../components/common/StatusChip";
 type Props = {
   formData: OnboardingForm;
   documents: OnboardingDocument[];
-  onFixDocument: () => void;
+  onFixDocument: (docId: string) => void;
 };
 
 function InfoBlock({
@@ -94,7 +94,9 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
                 <Grid size={{ xs: 12, md: 6 }} key={doc.id}>
                   <Box
                     onClick={
-                      doc.status === "rejected" ? onFixDocument : undefined
+                      doc.status === "rejected"
+                        ? () => onFixDocument(doc.id)
+                        : undefined
                     }
                     sx={{
                       p: 2,

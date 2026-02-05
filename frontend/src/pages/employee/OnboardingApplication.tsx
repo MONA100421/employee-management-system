@@ -36,6 +36,12 @@ import FileUpload from "../../components/common/FileUpload";
 import { useRef } from "react";
 import api from "../../lib/api";
 
+const idToBackendType: Record<string, string> = {
+  "id-card": "id_card",
+  "work-auth": "work_auth",
+  photo: "profile_photo",
+};
+
 const steps = [
   "Personal Info",
   "Address",
@@ -128,7 +134,7 @@ const Onboarding: React.FC = () => {
     },
   ]);
 
-  const handleDocumentUpload = (docId: string, file: File) => {
+  const handleDocumentUpload = async (docId: string, file: File) => {
     setDocuments((prev) =>
       prev.map((doc) =>
         doc.id === docId
@@ -142,10 +148,58 @@ const Onboarding: React.FC = () => {
           : doc,
       ),
     );
-    setTimeout(() => {
+
+    try {
+      const backendType = idToBackendType[docId];
+      if (!backendType) {
+        throw new Error(`Unknown document type: ${docId}`);
+      }
+
+      const res = await api.post("/documents", {
+        type: backendType,
+        category: "onboarding",
+        fileName: file.name,
+      });
+
+      if (!res.data?.ok) {
+        throw new Error("Document upload failed");
+      }
+
+      const serverDoc = res.data.document;
+
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === docId
+            ? {
+                ...doc,
+                status: serverDoc.status.replace("_", "-") as DocumentStatus,
+                fileName: serverDoc.fileName ?? file.name,
+                uploadedAt:
+                  serverDoc.uploadedAt ?? new Date().toISOString().split("T")[0],
+                feedback: serverDoc.hrFeedback,
+              }
+            : doc,
+        ),
+      );
+
       setActiveStep(4);
-    }, 300);
+    } catch (err) {
+      console.error("Document upload failed", err);
+
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === docId
+            ? {
+                ...doc,
+                status: "rejected",
+                feedback: "Upload failed. Please try again.",
+              }
+            : doc,
+        ),
+      );
+    }
   };
+
 
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");

@@ -101,14 +101,17 @@ export const uploadDocument = async (req: Request, res: Response) => {
     await doc.save();
 
     return res.json({
-      ok: true,
-      document: {
+    ok: true,
+    document: {
+        id: doc._id,
         type: doc.type,
         status: dbToUIStatus(doc.status),
         fileName: doc.fileName,
         uploadedAt: doc.uploadedAt,
-      },
+        hrFeedback: doc.hrFeedback ?? null,
+    },
     });
+
   } catch (err) {
     console.error("uploadDocument error", err);
     return res.status(500).json({ ok: false });

@@ -1,29 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Card,
   CardContent,
-  Typography,
-  TextField,
   Button,
   Alert,
   Stepper,
   Step,
   StepLabel,
   Divider,
-  useTheme,
   CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import {
-  CheckCircle as CheckIcon,
-  Schedule as PendingIcon,
-  Cancel as RejectedIcon,
-  Send as SendIcon,
-} from "@mui/icons-material";
-
-import StatusChip from "../../components/common/StatusChip";
-import type { StatusType } from "../../components/common/StatusChip";
 
 import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
@@ -31,16 +19,8 @@ import PersonalInformation from "./PersonalInformation";
 import type { OnboardingForm } from "./PersonalInformation";
 import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
-import type { OnboardingDocument, DocumentStatus } from "./types";
 import FileUpload from "../../components/common/FileUpload";
-import { useRef } from "react";
-import api from "../../lib/api";
-
-const idToBackendType: Record<string, string> = {
-  "id-card": "id_card",
-  "work-auth": "work_auth",
-  photo: "profile_photo",
-};
+import { useDocuments } from "../../hooks/useDocuments";
 
 const steps = [
   "Personal Info",
@@ -65,143 +45,9 @@ const mapDocStatusToUploadStatus = (
   }
 };
 
-
-const mapDocTitle = (type: string) => {
-  switch (type) {
-    case "id_card":
-      return "Driver's License / State ID";
-    case "work_auth":
-      return "Work Authorization Document";
-    case "profile_photo":
-      return "Profile Photo";
-    default:
-      return type;
-  }
-};
-
-type BackendDocument = {
-  id: string;
-  type: string;
-  category: "onboarding" | "visa";
-  status: "not_started" | "pending" | "approved" | "rejected";
-  fileName?: string | null;
-  uploadedAt?: string | null;
-  hrFeedback?: string | null;
-};
-
-
 const Onboarding: React.FC = () => {
-  const idCardRef = useRef<HTMLDivElement | null>(null);
-  const workAuthRef = useRef<HTMLDivElement | null>(null);
-  const photoRef = useRef<HTMLDivElement | null>(null);
-  const theme = useTheme();
+  const { documents, loading, uploadDocument } = useDocuments("onboarding");
 
-  const handleFixDocument = (docId: string) => {
-    setActiveStep(3);
-
-    setTimeout(() => {
-      const map: Record<string, HTMLDivElement | null> = {
-        "id-card": idCardRef.current,
-        "work-auth": workAuthRef.current,
-        photo: photoRef.current,
-      };
-
-      map[docId]?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 100);
-  };
-
-  const [documents, setDocuments] = useState<OnboardingDocument[]>([
-    {
-      id: "id-card",
-      title: "Driver's License / State ID",
-      type: "ID",
-      status: "not-started",
-    },
-    {
-      id: "work-auth",
-      title: "Work Authorization Document",
-      type: "Work Auth",
-      status: "not-started",
-    },
-    {
-      id: "photo",
-      title: "Profile Photo",
-      type: "Photo",
-      status: "not-started",
-    },
-  ]);
-
-  const handleDocumentUpload = async (docId: string, file: File) => {
-    setDocuments((prev) =>
-      prev.map((doc) =>
-        doc.id === docId
-          ? {
-              ...doc,
-              status: "pending",
-              fileName: file.name,
-              uploadedAt: new Date().toISOString().split("T")[0],
-              feedback: undefined,
-            }
-          : doc,
-      ),
-    );
-
-    try {
-      const backendType = idToBackendType[docId];
-      if (!backendType) {
-        throw new Error(`Unknown document type: ${docId}`);
-      }
-
-      const res = await api.post("/documents", {
-        type: backendType,
-        category: "onboarding",
-        fileName: file.name,
-      });
-
-      if (!res.data?.ok) {
-        throw new Error("Document upload failed");
-      }
-
-      const serverDoc = res.data.document;
-
-      setDocuments((prev) =>
-        prev.map((doc) =>
-          doc.id === docId
-            ? {
-                ...doc,
-                status: serverDoc.status.replace("_", "-") as DocumentStatus,
-                fileName: serverDoc.fileName ?? file.name,
-                uploadedAt:
-                  serverDoc.uploadedAt ?? new Date().toISOString().split("T")[0],
-                feedback: serverDoc.hrFeedback,
-              }
-            : doc,
-        ),
-      );
-
-      setActiveStep(4);
-    } catch (err) {
-      console.error("Document upload failed", err);
-
-      setDocuments((prev) =>
-        prev.map((doc) =>
-          doc.id === docId
-            ? {
-                ...doc,
-                status: "rejected",
-                feedback: "Upload failed. Please try again.",
-              }
-            : doc,
-        ),
-      );
-    }
-  };
-
-
-  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
   const [activeStep, setActiveStep] = useState(0);
   const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(
@@ -230,50 +76,18 @@ const Onboarding: React.FC = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
+  React.useEffect(() => {
     const load = async () => {
-      try {
-        const app = await getMyOnboarding();
+      const app = await getMyOnboarding();
+      setStatus(app.status.replace("_", "-") as UIOnboardingStatus);
+      setRejectionFeedback(app.hrFeedback ?? null);
 
-        const formattedStatus = app.status.replace(
-          "_",
-          "-",
-        ) as UIOnboardingStatus;
-
-        setStatus(formattedStatus);
-        setRejectionFeedback(app.hrFeedback ?? null);
-
-        if (app.formData) {
-          setFormData((prev) => ({ ...prev, ...app.formData }));
-        }
-
-        const docsResp = await api.get("/documents/me");
-
-        const formattedDocs: OnboardingDocument[] = docsResp.data.documents.map(
-          (d: BackendDocument) => ({
-            id: d.type.replace("_", "-"),
-            title: mapDocTitle(d.type),
-            type: d.type,
-            status: d.status.replace("_", "-") as DocumentStatus,
-            fileName: d.fileName,
-            uploadedAt: d.uploadedAt,
-            feedback: d.hrFeedback,
-          }),
-        );
-
-
-
-        setDocuments(formattedDocs);
-      } catch (err) {
-        console.error("Failed to load onboarding", err);
-      } finally {
-        setLoading(false);
+      if (app.formData) {
+        setFormData((prev) => ({ ...prev, ...app.formData }));
       }
     };
-
     load();
   }, []);
-
 
   const handleChange =
     (field: keyof OnboardingForm) =>
@@ -285,313 +99,29 @@ const Onboarding: React.FC = () => {
     };
 
   const validateStep = (step: number): boolean => {
-    const newErrors: Record<string, string> = {};
-
+    const errs: Record<string, string> = {};
     if (step === 0) {
-      if (!formData.firstName) newErrors.firstName = "First name is required";
-      if (!formData.lastName) newErrors.lastName = "Last name is required";
-      if (!formData.ssn) newErrors.ssn = "SSN is required";
-      if (!formData.dateOfBirth)
-        newErrors.dateOfBirth = "Date of birth is required";
-    } else if (step === 1) {
-      if (!formData.address) newErrors.address = "Address is required";
-      if (!formData.city) newErrors.city = "City is required";
-      if (!formData.state) newErrors.state = "State is required";
-      if (!formData.zipCode) newErrors.zipCode = "ZIP code is required";
-    } else if (step === 2) {
-      if (!formData.workAuthType)
-        newErrors.workAuthType = "Work authorization is required";
-      if (formData.workAuthType === "other" && !formData.workAuthOther) {
-        newErrors.workAuthOther = "Please specify your work authorization";
-      }
+      if (!formData.firstName) errs.firstName = "Required";
+      if (!formData.lastName) errs.lastName = "Required";
+      if (!formData.ssn) errs.ssn = "Required";
+      if (!formData.dateOfBirth) errs.dateOfBirth = "Required";
     }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateStep(activeStep)) {
-      setActiveStep((prev) => prev + 1);
-    }
-  };
+  const handleNext = () =>
+    validateStep(activeStep) && setActiveStep((s) => s + 1);
 
-  const handleBack = () => {
-    setActiveStep((prev) => Math.max(prev - 1, 0));
-  };
+  const handleBack = () => setActiveStep((s) => Math.max(0, s - 1));
 
   const handleSubmit = async () => {
-    try {
-      const res = await submitOnboarding(formData);
-      if (res.ok) {
-        setStatus(res.status);
-      }
-    } catch (err) {
-      console.error("Submit onboarding failed", err);
-    }
+    const res = await submitOnboarding(formData);
+    if (res.ok) setStatus(res.status);
   };
 
-  const hasIncompleteDocuments = documents.some(
-    (doc) => doc.status !== "approved",
-  );
+  const hasIncompleteDocuments = documents.some((d) => d.status !== "approved");
 
-  const getStatusBanner = () => {
-    switch (status) {
-      case "pending":
-        return (
-          <Alert severity="info" icon={<PendingIcon />} sx={{ mb: 3 }}>
-            <Typography fontWeight={600}>Application Pending Review</Typography>
-            <Typography>
-              Your onboarding application is under HR review.
-            </Typography>
-          </Alert>
-        );
-      case "approved":
-        return (
-          <Alert severity="success" icon={<CheckIcon />} sx={{ mb: 3 }}>
-            <Typography fontWeight={600}>Application Approved</Typography>
-            <Typography>Welcome to the team!</Typography>
-          </Alert>
-        );
-      case "rejected":
-        return (
-          <Alert severity="error" icon={<RejectedIcon />} sx={{ mb: 3 }}>
-            <Typography fontWeight={600}>Application Rejected</Typography>
-            <Typography>{rejectionFeedback}</Typography>
-          </Alert>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const renderStepContent = (step: number) => {
-    switch (step) {
-      case 0:
-        return (
-          <PersonalInformation
-            formData={formData}
-            errors={errors}
-            onChange={handleChange}
-          />
-        );
-      case 1:
-        return (
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                label="Street Address"
-                required
-                value={formData.address || ""}
-                onChange={handleChange("address")}
-                error={!!errors.address}
-                helperText={errors.address}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="City"
-                required
-                value={formData.city || ""}
-                onChange={handleChange("city")}
-                error={!!errors.city}
-                helperText={errors.city}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 3 }}>
-              <TextField
-                fullWidth
-                label="State"
-                required
-                value={formData.state || ""}
-                onChange={handleChange("state")}
-                error={!!errors.state}
-                helperText={errors.state}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 3 }}>
-              <TextField
-                fullWidth
-                label="ZIP Code"
-                required
-                value={formData.zipCode || ""}
-                onChange={handleChange("zipCode")}
-                error={!!errors.zipCode}
-                helperText={errors.zipCode}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12 }}>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Emergency Contact
-              </Typography>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Contact Name"
-                value={formData.emergencyContact || ""}
-                onChange={handleChange("emergencyContact")}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Phone Number"
-                value={formData.emergencyPhone || ""}
-                onChange={handleChange("emergencyPhone")}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Relationship"
-                value={formData.emergencyRelationship || ""}
-                onChange={handleChange("emergencyRelationship")}
-              />
-            </Grid>
-          </Grid>
-        );
-      case 2:
-        return <VisaStatus formData={formData} onChange={handleChange} />;
-      case 3: {
-        const idCard = documents.find((d) => d.id === "id-card");
-        const workAuth = documents.find((d) => d.id === "work-auth");
-        const photo = documents.find((d) => d.id === "photo");
-
-        const isIdCardRejected = idCard?.status === "rejected";
-        const isWorkAuthRejected = workAuth?.status === "rejected";
-        const isPhotoRejected = photo?.status === "rejected";
-        const isIdCardLocked =
-          idCard?.status === "pending" || idCard?.status === "approved";
-
-        return (
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Box
-                ref={idCardRef}
-                sx={{
-                  border: isIdCardRejected ? "2px solid" : "none",
-                  borderColor: isIdCardRejected ? "error.main" : "transparent",
-                  borderRadius: 2,
-                  p: isIdCardRejected ? 2 : 0,
-                  backgroundColor: isIdCardRejected
-                    ? "rgba(198, 40, 40, 0.04)"
-                    : "transparent",
-                }}
-              >
-                <FileUpload
-                  label="Driver's License / State ID *"
-                  fileName={idCard?.fileName}
-                  status={mapDocStatusToUploadStatus(
-                    idCard?.status ?? "not-started",
-                  )}
-                  disabled={isIdCardLocked}
-                  onFileSelect={(file) => handleDocumentUpload("id-card", file)}
-                  helperText={
-                    idCard?.status === "pending"
-                      ? "Re-uploaded, waiting for HR approval"
-                      : idCard?.status === "approved"
-                        ? "Approved"
-                        : "Upload a clear copy of your ID"
-                  }
-                />
-              </Box>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Box
-                ref={workAuthRef}
-                sx={{
-                  border: isWorkAuthRejected ? "2px solid" : "none",
-                  borderColor: isWorkAuthRejected
-                    ? "error.main"
-                    : "transparent",
-                  borderRadius: 2,
-                  p: isWorkAuthRejected ? 2 : 0,
-                  backgroundColor: isWorkAuthRejected
-                    ? "rgba(198, 40, 40, 0.04)"
-                    : "transparent",
-                }}
-              >
-                <FileUpload
-                  label="Work Authorization Document *"
-                  fileName={workAuth?.fileName}
-                  status={mapDocStatusToUploadStatus(
-                    workAuth?.status ?? "not-started",
-                  )}
-                  disabled={
-                    workAuth?.status === "pending" ||
-                    workAuth?.status === "approved"
-                  }
-                  onFileSelect={(file) =>
-                    handleDocumentUpload("work-auth", file)
-                  }
-                  helperText={
-                    isWorkAuthRejected
-                      ? workAuth?.feedback || "Please re-upload a clearer copy."
-                      : "OPT EAD, Green Card, etc."
-                  }
-                />
-              </Box>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Box
-                ref={photoRef}
-                sx={{
-                  border: isPhotoRejected ? "2px solid" : "none",
-                  borderColor: isPhotoRejected ? "error.main" : "transparent",
-                  borderRadius: 2,
-                  p: isPhotoRejected ? 2 : 0,
-                  backgroundColor: isPhotoRejected
-                    ? "rgba(198, 40, 40, 0.04)"
-                    : "transparent",
-                }}
-              >
-                <FileUpload
-                  label="Profile Photo"
-                  fileName={photo?.fileName}
-                  status={mapDocStatusToUploadStatus(
-                    photo?.status ?? "not-started",
-                  )}
-                  accept=".jpg,.jpeg,.png"
-                  disabled={
-                    photo?.status === "pending" || photo?.status === "approved"
-                  }
-                  onFileSelect={(file) => handleDocumentUpload("photo", file)}
-                  helperText={
-                    isPhotoRejected
-                      ? photo?.feedback || "Please re-upload a clearer photo."
-                      : "Professional headshot (optional)"
-                  }
-                />
-              </Box>
-            </Grid>
-          </Grid>
-        );
-      }
-
-      case 4:
-        return (
-          <OnboardingReview
-            formData={formData}
-            documents={documents}
-            onFixDocument={handleFixDocument}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
-  // ===== Loading =====
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
@@ -600,79 +130,77 @@ const Onboarding: React.FC = () => {
     );
   }
 
-  // ===== Pending / Approved =====
-  if (status === "pending" || status === "approved") {
-    return (
-      <Box>
-        {getStatusBanner()}
-        <Card>
-          <CardContent sx={{ textAlign: "center", py: 6 }}>
-            {status === "pending" ? (
-              <PendingIcon
-                sx={{ fontSize: 64, color: theme.palette.info.main }}
-              />
-            ) : (
-              <CheckIcon
-                sx={{ fontSize: 64, color: theme.palette.success.main }}
-              />
-            )}
-            <Typography variant="h5" fontWeight={600} mt={2}>
-              {status === "pending" ? "Under Review" : "Onboarding Complete"}
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-    );
-  }
-
-  // ===== Form =====
   return (
     <Box>
-      {getStatusBanner()}
+      {status === "pending" && (
+        <Alert severity="info">Application Pending Review</Alert>
+      )}
+      {status === "approved" && (
+        <Alert severity="success">Application Approved</Alert>
+      )}
+      {status === "rejected" && (
+        <Alert severity="error">{rejectionFeedback}</Alert>
+      )}
 
       <Card>
         <CardContent>
-          <Box mb={4}>
-            <Box display="flex" justifyContent="space-between" mb={3}>
-              <Typography variant="h5" fontWeight={600}>
-                Onboarding Application
-              </Typography>
-              <StatusChip status={status as StatusType} />
-            </Box>
+          <Stepper activeStep={activeStep} alternativeLabel>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
 
-            <Stepper activeStep={activeStep} alternativeLabel>
-              {steps.map((label) => (
-                <Step key={label}>
-                  <StepLabel>{label}</StepLabel>
-                </Step>
+          <Divider sx={{ my: 4 }} />
+
+          {activeStep === 0 && (
+            <PersonalInformation
+              formData={formData}
+              errors={errors}
+              onChange={handleChange}
+            />
+          )}
+
+          {activeStep === 2 && <VisaStatus />}
+
+          {activeStep === 3 && (
+            <Grid container spacing={3}>
+              {documents.map((doc) => (
+                <Grid key={doc.type} size={{ xs: 12, md: 6 }}>
+                  <FileUpload
+                    label={doc.title}
+                    fileName={doc.fileName}
+                    status={mapDocStatusToUploadStatus(doc.status)}
+                    disabled={doc.status === "approved"}
+                    onFileSelect={(file) => uploadDocument(doc.type, file)}
+                  />
+                </Grid>
               ))}
-            </Stepper>
-          </Box>
+            </Grid>
+          )}
 
-          <Divider sx={{ mb: 4 }} />
+          {activeStep === 4 && (
+            <OnboardingReview
+              formData={formData}
+              documents={documents}
+              onFixDocument={() => setActiveStep(3)}
+            />
+          )}
 
-          <Box sx={{ minHeight: 260, mb: 4 }}>
-            {renderStepContent(activeStep)}
-          </Box>
-
-          <Divider sx={{ mb: 3 }} />
+          <Divider sx={{ my: 3 }} />
 
           <Box display="flex" justifyContent="space-between">
-            <Button
-              onClick={handleBack}
-              disabled={activeStep === 0}
-              variant="outlined"
-            >
+            <Button onClick={handleBack} disabled={activeStep === 0}>
               Back
             </Button>
             {activeStep === steps.length - 1 ? (
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                startIcon={<SendIcon />}
                 disabled={hasIncompleteDocuments}
               >
-                Submit Application
+                Submit
               </Button>
             ) : (
               <Button variant="contained" onClick={handleNext}>

@@ -1,48 +1,59 @@
-import React from "react";
-import { Grid, TextField, MenuItem } from "@mui/material";
-import type { OnboardingForm } from "./PersonalInformation";
+import { Box, Grid, Typography } from "@mui/material";
+import FileUpload from "../../components/common/FileUpload";
+import { useDocuments } from "../../hooks/useDocuments";
+import type { OnboardingDocument } from "./types";
 
-type Props = {
-  formData: OnboardingForm;
-  onChange: (
-    field: keyof OnboardingForm,
-  ) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+const VISA_TYPES = [
+  "work_auth",
+  "opt_ead",
+  "opt_receipt",
+  "i_983",
+  "i_20",
+] as const;
+
+type VisaDocType = (typeof VISA_TYPES)[number];
+
+const isVisaDoc = (type: string): type is VisaDocType =>
+  VISA_TYPES.includes(type as VisaDocType);
+
+const mapStatusToUploadStatus = (status: OnboardingDocument["status"]) => {
+  switch (status) {
+    case "pending":
+      return "uploading";
+    case "approved":
+      return "success";
+    case "rejected":
+      return "error";
+    default:
+      return "idle";
+  }
 };
 
-export default function VisaStatus({ formData, onChange }: Props) {
-  return (
-    <Grid container spacing={3}>
-      <Grid size={{ xs: 12 }}>
-        <TextField
-          fullWidth
-          select
-          label="Work Authorization Type"
-          value={formData.workAuthType || ""}
-          onChange={onChange("workAuthType")}
-          helperText="Select your current authorization"
-        >
-          <MenuItem value="">Select...</MenuItem>
-          <MenuItem value="citizen">U.S. Citizen</MenuItem>
-          <MenuItem value="green-card">Green Card</MenuItem>
-          <MenuItem value="opt">OPT</MenuItem>
-          <MenuItem value="opt-stem">OPT STEM Extension</MenuItem>
-          <MenuItem value="h1b">H1-B</MenuItem>
-          <MenuItem value="l2">L2</MenuItem>
-          <MenuItem value="h4">H4</MenuItem>
-          <MenuItem value="other">Other</MenuItem>
-        </TextField>
-      </Grid>
+const VisaStatus = () => {
+  const { documents, uploadDocument } = useDocuments("visa");
 
-      {formData.workAuthType === "other" && (
-        <Grid size={{ xs: 12 }}>
-          <TextField
-            fullWidth
-            label="Please Specify"
-            value={formData.workAuthOther || ""}
-            onChange={onChange("workAuthOther")}
-          />
-        </Grid>
-      )}
-    </Grid>
+  return (
+    <Box>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Visa Documents
+      </Typography>
+
+      <Grid container spacing={3}>
+        {documents
+          .filter((doc) => isVisaDoc(doc.type))
+          .map((doc) => (
+            <Grid key={doc.type} size={{ xs: 12, md: 6 }}>
+              <FileUpload
+                label={doc.type}
+                fileName={doc.fileName}
+                status={mapStatusToUploadStatus(doc.status)}
+                onFileSelect={(file) => uploadDocument(doc.type, file)}
+              />
+            </Grid>
+          ))}
+      </Grid>
+    </Box>
   );
-}
+};
+
+export default VisaStatus;

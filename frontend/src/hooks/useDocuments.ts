@@ -1,41 +1,24 @@
 import { useEffect, useState } from "react";
 import api from "../lib/api";
-import type { OnboardingDocument } from "../pages/employee/types";
+import type { BaseDocument, DocumentCategory } from "../types/document";
 
-type Category = "onboarding" | "visa";
+export type UseDocumentsScope = DocumentCategory | "all";
 
-type BackendDocument = {
-  id: string;
-  type: string;
-  category: Category;
-  status: "not-started" | "pending" | "approved" | "rejected";
-  fileName?: string;
-  uploadedAt?: string;
-  hrFeedback?: string;
-};
-
-export const useDocuments = (category: Category) => {
-  const [documents, setDocuments] = useState<OnboardingDocument[]>([]);
+export const useDocuments = (scope: UseDocumentsScope) => {
+  const [documents, setDocuments] = useState<BaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await api.get("/documents/me");
+        const allDocs: BaseDocument[] = res.data.documents;
 
-        const docs: OnboardingDocument[] = res.data.documents
-          .filter((d: BackendDocument) => d.category === category)
-          .map((d: BackendDocument) => ({
-            id: d.type.replace("_", "-"),
-            title: d.type,
-            type: d.type,
-            status: d.status,
-            fileName: d.fileName,
-            uploadedAt: d.uploadedAt,
-            feedback: d.hrFeedback,
-          }));
-
-        setDocuments(docs);
+        setDocuments(
+          scope === "all"
+            ? allDocs
+            : allDocs.filter((d) => d.category === scope),
+        );
       } catch (err) {
         console.error("Failed to load documents", err);
       } finally {
@@ -44,7 +27,7 @@ export const useDocuments = (category: Category) => {
     };
 
     load();
-  }, [category]);
+  }, [scope]);
 
   const uploadDocument = async (type: string, file: File) => {
     setDocuments((prev) =>
@@ -60,39 +43,44 @@ export const useDocuments = (category: Category) => {
       ),
     );
 
-    try {
-      const res = await api.post("/documents", {
-        type,
-        category,
-        fileName: file.name,
-      });
+    const res = await api.post("/documents", {
+      type,
+      category: scope === "all" ? "onboarding" : scope,
+      fileName: file.name,
+    });
 
-      const saved = res.data.document;
+    const saved: BaseDocument = res.data.document;
 
-      setDocuments((prev) =>
-        prev.map((d) =>
-          d.type === type
-            ? {
-                ...d,
-                status: saved.status,
-                fileName: saved.fileName,
-                uploadedAt: saved.uploadedAt,
-                feedback: saved.hrFeedback,
-              }
-            : d,
-        ),
-      );
-    } catch (err) {
-      console.error("Upload failed", err);
-      setDocuments((prev) =>
-        prev.map((d) =>
-          d.type === type
-            ? { ...d, status: "rejected", feedback: "Upload failed" }
-            : d,
-        ),
-      );
-    }
+    setDocuments((prev) => prev.map((d) => (d.id === saved.id ? saved : d)));
   };
 
-  return { documents, loading, uploadDocument };
+  const reviewDocument = async (
+    id: string,
+    decision: "approved" | "rejected",
+    feedback?: string,
+  ) => {
+    await api.post(`/documents/${id}/review`, {
+      decision,
+      feedback,
+    });
+
+    setDocuments((prev) =>
+      prev.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              status: decision,
+              hrFeedback: decision === "rejected" ? feedback : undefined,
+            }
+          : d,
+      ),
+    );
+  };
+
+  return {
+    documents,
+    loading,
+    uploadDocument,
+    reviewDocument,
+  };
 };

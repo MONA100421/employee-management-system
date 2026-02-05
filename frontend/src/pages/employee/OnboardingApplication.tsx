@@ -21,6 +21,8 @@ import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
 import FileUpload from "../../components/common/FileUpload";
 import { useDocuments } from "../../hooks/useDocuments";
+import type { BaseDocument, OnboardingDocument } from "../../types/document";
+
 
 const steps = [
   "Personal Info",
@@ -29,6 +31,18 @@ const steps = [
   "Documents",
   "Review",
 ];
+
+const toOnboardingDoc = (d: BaseDocument): OnboardingDocument => ({
+  ...d,
+  title:
+    d.type === "id_card"
+      ? "Driver's License / State ID"
+      : d.type === "work_auth"
+        ? "Work Authorization Document"
+        : d.type === "profile_photo"
+          ? "Profile Photo"
+          : d.type,
+});
 
 const mapDocStatusToUploadStatus = (
   status: "not-started" | "pending" | "approved" | "rejected",
@@ -46,8 +60,13 @@ const mapDocStatusToUploadStatus = (
 };
 
 const Onboarding: React.FC = () => {
-  const { documents, loading, uploadDocument } = useDocuments("onboarding");
+  const {
+    documents: rawDocs,
+    loading,
+    uploadDocument,
+  } = useDocuments("onboarding");
 
+  const documents = rawDocs.map(toOnboardingDoc);
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
   const [activeStep, setActiveStep] = useState(0);
   const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(

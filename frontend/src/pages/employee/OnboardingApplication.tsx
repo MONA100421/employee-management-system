@@ -31,9 +31,10 @@ import PersonalInformation from "./PersonalInformation";
 import type { OnboardingForm } from "./PersonalInformation";
 import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
-import type { OnboardingDocument } from "./types";
+import type { OnboardingDocument, DocumentStatus } from "./types";
 import FileUpload from "../../components/common/FileUpload";
 import { useRef } from "react";
+import api from "../../lib/api";
 
 const steps = [
   "Personal Info",
@@ -44,8 +45,8 @@ const steps = [
 ];
 
 const mapDocStatusToUploadStatus = (
-  status: OnboardingDocument["status"],
-): "idle" | "uploading" | "success" | "error" => {
+  status: "not-started" | "pending" | "approved" | "rejected",
+) => {
   switch (status) {
     case "pending":
       return "uploading";
@@ -53,18 +54,41 @@ const mapDocStatusToUploadStatus = (
       return "success";
     case "rejected":
       return "error";
-    case "not-started":
     default:
       return "idle";
   }
 };
+
+
+const mapDocTitle = (type: string) => {
+  switch (type) {
+    case "id_card":
+      return "Driver's License / State ID";
+    case "work_auth":
+      return "Work Authorization Document";
+    case "profile_photo":
+      return "Profile Photo";
+    default:
+      return type;
+  }
+};
+
+type BackendDocument = {
+  id: string;
+  type: string;
+  category: "onboarding" | "visa";
+  status: "not_started" | "pending" | "approved" | "rejected";
+  fileName?: string | null;
+  uploadedAt?: string | null;
+  hrFeedback?: string | null;
+};
+
 
 const Onboarding: React.FC = () => {
   const idCardRef = useRef<HTMLDivElement | null>(null);
   const workAuthRef = useRef<HTMLDivElement | null>(null);
   const photoRef = useRef<HTMLDivElement | null>(null);
   const theme = useTheme();
-
 
   const handleFixDocument = (docId: string) => {
     setActiveStep(3);
@@ -82,7 +106,6 @@ const Onboarding: React.FC = () => {
       });
     }, 100);
   };
-
 
   const [documents, setDocuments] = useState<OnboardingDocument[]>([
     {
@@ -153,24 +176,50 @@ const Onboarding: React.FC = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // ===== Load onboarding from API =====
   useEffect(() => {
     const load = async () => {
       try {
         const app = await getMyOnboarding();
-        setStatus(app.status);
-        setRejectionFeedback(app.hrFeedback);
+
+        const formattedStatus = app.status.replace(
+          "_",
+          "-",
+        ) as UIOnboardingStatus;
+
+        setStatus(formattedStatus);
+        setRejectionFeedback(app.hrFeedback ?? null);
+
         if (app.formData) {
           setFormData((prev) => ({ ...prev, ...app.formData }));
         }
+
+        const docsResp = await api.get("/documents/me");
+
+        const formattedDocs: OnboardingDocument[] = docsResp.data.documents.map(
+          (d: BackendDocument) => ({
+            id: d.type.replace("_", "-"),
+            title: mapDocTitle(d.type),
+            type: d.type,
+            status: d.status.replace("_", "-") as DocumentStatus,
+            fileName: d.fileName,
+            uploadedAt: d.uploadedAt,
+            feedback: d.hrFeedback,
+          }),
+        );
+
+
+
+        setDocuments(formattedDocs);
       } catch (err) {
         console.error("Failed to load onboarding", err);
       } finally {
         setLoading(false);
       }
     };
+
     load();
   }, []);
+
 
   const handleChange =
     (field: keyof OnboardingForm) =>
@@ -460,8 +509,7 @@ const Onboarding: React.FC = () => {
                   )}
                   accept=".jpg,.jpeg,.png"
                   disabled={
-                    photo?.status === "pending" ||
-                    photo?.status === "approved"
+                    photo?.status === "pending" || photo?.status === "approved"
                   }
                   onFileSelect={(file) => handleDocumentUpload("photo", file)}
                   helperText={

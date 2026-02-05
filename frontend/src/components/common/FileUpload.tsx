@@ -14,7 +14,6 @@ import {
   CheckCircle as CheckIcon,
   Error as ErrorIcon,
 } from '@mui/icons-material';
-
 interface FileUploadProps {
   accept?: string;
   maxSize?: number; // in MB

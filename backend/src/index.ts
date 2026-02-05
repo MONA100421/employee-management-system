@@ -10,6 +10,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+
 mongoose
   .connect(process.env.MONGODB_URI as string)
   .then(() => {

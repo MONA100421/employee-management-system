@@ -1,47 +1,62 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
 import type { BaseDocument, DocumentCategory } from "../types/document";
 
 export type UseDocumentsScope = DocumentCategory | "all";
 
+let documentsCache: BaseDocument[] = [];
+
 export const useDocuments = (scope: UseDocumentsScope) => {
   const [documents, setDocuments] = useState<BaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
+  const applyScope = useCallback(
+    (docs: BaseDocument[]) => {
+      return scope === "all" ? docs : docs.filter((d) => d.category === scope);
+    },
+    [scope],
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (documentsCache.length === 0) {
         const res = await api.get("/documents/me");
-        const allDocs: BaseDocument[] = res.data.documents;
-
-        setDocuments(
-          scope === "all"
-            ? allDocs
-            : allDocs.filter((d) => d.category === scope),
-        );
-      } catch (err) {
-        console.error("Failed to load documents", err);
-      } finally {
-        setLoading(false);
+        documentsCache = res.data.documents;
       }
-    };
+      setDocuments(applyScope(documentsCache));
+    } catch (err) {
+      console.error("Failed to load documents", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [applyScope]);
 
+  useEffect(() => {
     load();
-  }, [scope]);
+  }, [load]);
+
+  const refresh = async () => {
+    setLoading(true);
+    const res = await api.get("/documents/me");
+    documentsCache = res.data.documents;
+    setDocuments(applyScope(documentsCache));
+    setLoading(false);
+  };
 
   const uploadDocument = async (type: string, file: File) => {
-    setDocuments((prev) =>
-      prev.map((d) =>
-        d.type === type
-          ? {
-              ...d,
-              status: "pending",
-              fileName: file.name,
-              uploadedAt: new Date().toISOString().split("T")[0],
-            }
-          : d,
-      ),
+    documentsCache = documentsCache.map((d) =>
+      d.type === type
+        ? {
+            ...d,
+            status: "pending",
+            fileName: file.name,
+            uploadedAt: new Date().toISOString().split("T")[0],
+          }
+        : d,
     );
+
+    setDocuments(applyScope(documentsCache));
 
     const res = await api.post("/documents", {
       type,
@@ -51,7 +66,9 @@ export const useDocuments = (scope: UseDocumentsScope) => {
 
     const saved: BaseDocument = res.data.document;
 
-    setDocuments((prev) => prev.map((d) => (d.id === saved.id ? saved : d)));
+    documentsCache = documentsCache.map((d) => (d.id === saved.id ? saved : d));
+
+    setDocuments(applyScope(documentsCache));
   };
 
   const reviewDocument = async (
@@ -64,17 +81,17 @@ export const useDocuments = (scope: UseDocumentsScope) => {
       feedback,
     });
 
-    setDocuments((prev) =>
-      prev.map((d) =>
-        d.id === id
-          ? {
-              ...d,
-              status: decision,
-              hrFeedback: decision === "rejected" ? feedback : undefined,
-            }
-          : d,
-      ),
+    documentsCache = documentsCache.map((d) =>
+      d.id === id
+        ? {
+            ...d,
+            status: decision,
+            hrFeedback: decision === "rejected" ? feedback : undefined,
+          }
+        : d,
     );
+
+    setDocuments(applyScope(documentsCache));
   };
 
   return {
@@ -82,5 +99,6 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     loading,
     uploadDocument,
     reviewDocument,
+    refresh,
   };
 };

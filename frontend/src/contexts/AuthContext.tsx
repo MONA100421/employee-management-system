@@ -12,13 +12,20 @@ export type AuthContextType = {
   loading: boolean;
   login: (
     username: string,
-    password: string
+    password: string,
   ) => Promise<{
     ok: boolean;
     user?: User;
     message?: string;
   }>;
   logout: () => void;
+  register: (data: {
+    email: string;
+    username: string;
+    password: string;
+  }) => Promise<boolean>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
+
+

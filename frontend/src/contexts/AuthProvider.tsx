@@ -1,43 +1,67 @@
-import { useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import api from '../lib/api';
-import { AuthContext, type User, type AuthContextType } from './AuthContext';
+import { useState } from "react";
+import type { ReactNode } from "react";
+import api from "../lib/api";
+import { AuthContext, type User, type AuthContextType } from "./AuthContext";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem("auth_user");
+    return stored ? JSON.parse(stored) : null;
+  });
 
-  useEffect(() => {
-    const initAuth = () => {
-        const stored = localStorage.getItem('auth_user');
-        if (stored) {
-            setUser(JSON.parse(stored));
-        }
-        setLoading(false);
-    };
+  const [loading] = useState(false);
 
-    initAuth();
-  }, []);
+  // Login
+  const login: AuthContextType["login"] = async (username, password) => {
+    try {
+      const resp = await api.post("/auth/login", { username, password });
 
-  const login: AuthContextType['login'] = async (username, password) => {
-    const resp = await api.post('/auth/login', { username, password });
+      if (resp.data.ok) {
+        setUser(resp.data.user);
+        localStorage.setItem("auth_user", JSON.stringify(resp.data.user));
+        return { ok: true, user: resp.data.user };
+      }
 
-    if (resp.data.ok) {
-      setUser(resp.data.user);
-      localStorage.setItem('auth_user', JSON.stringify(resp.data.user));
-      return { ok: true, user: resp.data.user };
+      return { ok: false, message: resp.data.message };
+    } catch {
+      return { ok: false, message: "Login failed" };
     }
-
-    return { ok: false, message: resp.data.message };
   };
 
+  // Logout
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('auth_user');
+    localStorage.removeItem("auth_user");
+  };
+
+  // Register
+  const register: AuthContextType["register"] = async ({
+    email,
+    username,
+    password,
+  }) => {
+    try {
+      await api.post("/auth/register", {
+        email,
+        username,
+        password,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        register,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

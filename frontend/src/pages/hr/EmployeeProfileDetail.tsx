@@ -1,5 +1,4 @@
-import { reviewOnboarding } from '../../lib/onboarding';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
@@ -10,7 +9,6 @@ import {
   Avatar,
   Chip,
   Button,
-  IconButton,
   Paper,
   useTheme,
 } from '@mui/material';
@@ -21,14 +19,14 @@ import {
   Work as WorkIcon,
   ContactEmergency as EmergencyIcon,
   Description as DocumentIcon,
-  Download as DownloadIcon,
-  Visibility as ViewIcon,
   Email as EmailIcon,
   ArrowBack as BackIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import FeedbackDialog from '../../components/common/FeedbackDialog';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import type { HRDocument } from './types';
+import api from '../../lib/api';
 
 const EmployeeProfileDetail: React.FC = () => {
   const theme = useTheme();
@@ -38,9 +36,46 @@ const EmployeeProfileDetail: React.FC = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | undefined>(undefined);
+  const [documents, setDocuments] = useState<HRDocument[]>([]);
 
 
-  // Mock employee data
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        const res = await api.get("/documents/me");
+
+        type BackendDocument = {
+          id: string;
+          type: string;
+          status: "pending" | "approved" | "rejected";
+          fileName?: string;
+          uploadedAt?: string;
+          hrFeedback?: string;
+        };
+
+        const docs: HRDocument[] = res.data.documents.map(
+          (d: BackendDocument) => ({
+            id: d.id,
+            employeeName: "John Doe",
+            employeeEmail: "john@company.com",
+            type: d.type,
+            status: d.status,
+            fileName: d.fileName,
+            uploadedAt: d.uploadedAt,
+            hrFeedback: d.hrFeedback,
+          }),
+        );
+
+        setDocuments(docs);
+      } catch (err) {
+        console.error("Failed to load documents", err);
+      }
+    };
+
+    loadDocuments();
+  }, []);
+
+
   const employee = {
     id: id,
     firstName: 'John',
@@ -140,7 +175,7 @@ const EmployeeProfileDetail: React.FC = () => {
       {/* Back Button */}
       <Button
         startIcon={<BackIcon />}
-        onClick={() => navigate('/hr/employees')}
+        onClick={() => navigate("/hr/employees")}
         sx={{ mb: 2 }}
       >
         Back to Employees
@@ -149,46 +184,75 @@ const EmployeeProfileDetail: React.FC = () => {
       {/* Profile Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ py: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              flexWrap: "wrap",
+            }}
+          >
             <Avatar
               sx={{
                 width: 100,
                 height: 100,
                 bgcolor: theme.palette.primary.main,
-                fontSize: '2rem',
+                fontSize: "2rem",
                 fontWeight: 700,
               }}
             >
-              {employee.firstName[0]}{employee.lastName[0]}
+              {employee.firstName[0]}
+              {employee.lastName[0]}
             </Avatar>
             <Box sx={{ flex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}
+              >
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {employee.firstName} {employee.lastName}
                 </Typography>
                 <Chip
-                  label={employee.status === 'active' ? 'Active' : 'Inactive'}
+                  label={employee.status === "active" ? "Active" : "Inactive"}
                   size="small"
                   sx={{
                     fontWeight: 600,
-                    bgcolor: employee.status === 'active' ? `${theme.palette.success.main}15` : `${theme.palette.grey[500]}15`,
-                    color: employee.status === 'active' ? theme.palette.success.main : theme.palette.grey[600],
+                    bgcolor:
+                      employee.status === "active"
+                        ? `${theme.palette.success.main}15`
+                        : `${theme.palette.grey[500]}15`,
+                    color:
+                      employee.status === "active"
+                        ? theme.palette.success.main
+                        : theme.palette.grey[600],
                   }}
                 />
               </Box>
-              <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography
+                variant="body1"
+                sx={{ color: theme.palette.text.secondary, mb: 1 }}
+              >
                 {employee.employment.title} • {employee.employment.department}
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <EmailIcon sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
-                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <EmailIcon
+                    sx={{ fontSize: 16, color: theme.palette.text.secondary }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ color: theme.palette.text.secondary }}
+                  >
                     {employee.email}
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <PhoneIcon sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
-                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <PhoneIcon
+                    sx={{ fontSize: 16, color: theme.palette.text.secondary }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ color: theme.palette.text.secondary }}
+                  >
                     {employee.phone}
                   </Typography>
                 </Box>
@@ -208,17 +272,24 @@ const EmployeeProfileDetail: React.FC = () => {
       <Grid container spacing={3}>
         {sections.map((section) => (
           <Grid size={{ xs: 12, sm: 6 }} key={section.title}>
-            <Card sx={{ height: '100%' }}>
+            <Card sx={{ height: "100%" }}>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    mb: 3,
+                  }}
+                >
                   <Box
                     sx={{
                       width: 40,
                       height: 40,
                       borderRadius: 2,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       bgcolor: `${theme.palette.primary.main}15`,
                       color: theme.palette.primary.main,
                     }}
@@ -233,7 +304,10 @@ const EmployeeProfileDetail: React.FC = () => {
                 <Grid container spacing={2}>
                   {section.fields.map((field) => (
                     <Grid size={{ xs: 6 }} key={field.label}>
-                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: theme.palette.text.secondary }}
+                      >
                         {field.label}
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -251,15 +325,17 @@ const EmployeeProfileDetail: React.FC = () => {
         <Grid size={{ xs: 12 }}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}
+              >
                 <Box
                   sx={{
                     width: 40,
                     height: 40,
                     borderRadius: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     bgcolor: `${theme.palette.primary.main}15`,
                     color: theme.palette.primary.main,
                   }}
@@ -272,13 +348,13 @@ const EmployeeProfileDetail: React.FC = () => {
               </Box>
 
               <Grid container spacing={2}>
-                {employee.documents.map((doc, index) => (
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
+                {documents.map((doc) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={doc.id}>
                     <Paper
                       sx={{
                         p: 2,
-                        display: 'flex',
-                        alignItems: 'center',
+                        display: "flex",
+                        alignItems: "center",
                         gap: 2,
                         border: `1px solid ${theme.palette.divider}`,
                       }}
@@ -288,39 +364,93 @@ const EmployeeProfileDetail: React.FC = () => {
                           width: 40,
                           height: 40,
                           borderRadius: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: theme.palette.error.main + '15',
-                          color: theme.palette.error.main,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          bgcolor:
+                            doc.status === "rejected"
+                              ? `${theme.palette.error.main}15`
+                              : `${theme.palette.primary.main}15`,
+                          color:
+                            doc.status === "rejected"
+                              ? theme.palette.error.main
+                              : theme.palette.primary.main,
                         }}
                       >
                         <DocumentIcon fontSize="small" />
                       </Box>
+
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography
                           variant="body2"
                           sx={{
                             fontWeight: 500,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          {doc.name}
+                          {doc.fileName || doc.type}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                          {doc.type} • {doc.uploadedAt}
+
+                        <Typography
+                          variant="caption"
+                          sx={{ color: theme.palette.text.secondary }}
+                        >
+                          {doc.type} • {doc.uploadedAt || "—"}
                         </Typography>
+
+                        {doc.status === "rejected" && doc.hrFeedback && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: theme.palette.error.main,
+                              display: "block",
+                              mt: 0.5,
+                            }}
+                          >
+                            Feedback: {doc.hrFeedback}
+                          </Typography>
+                        )}
                       </Box>
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <IconButton size="small">
-                          <ViewIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small">
-                          <DownloadIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+
+                      {doc.status === "pending" && (
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <Button
+                            size="small"
+                            color="success"
+                            onClick={() => {
+                              setReviewAction("approve");
+                              setFeedback(undefined);
+                              setFeedbackOpen(true);
+                              setDocuments((prev) =>
+                                prev.map((d) =>
+                                  d.id === doc.id ? { ...d } : d,
+                                ),
+                              );
+                            }}
+                          >
+                            Approve
+                          </Button>
+
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              setReviewAction("reject");
+                              setFeedback(undefined);
+                              setFeedbackOpen(true);
+                              setDocuments((prev) =>
+                                prev.map((d) =>
+                                  d.id === doc.id ? { ...d } : d,
+                                ),
+                              );
+                            }}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      )}
                     </Paper>
                   </Grid>
                 ))}
@@ -331,92 +461,105 @@ const EmployeeProfileDetail: React.FC = () => {
 
         {/* ===== HR Review Actions ===== */}
         <Card sx={{ mt: 3 }}>
-            <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                    Application Review
-                </Typography>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              Application Review
+            </Typography>
 
-                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 3 }}>
-                    Please review the onboarding information carefully before making a decision.
-                </Typography>
+            <Typography
+              variant="body2"
+              sx={{ color: theme.palette.text.secondary, mb: 3 }}
+            >
+              Please review the onboarding information carefully before making a
+              decision.
+            </Typography>
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button
-                    variant="contained"
-                    color="success"
-                    onClick={() => {
-                    setReviewAction('approve');
-                    setFeedbackOpen(true);
-                    }}
-                >
-                    Approve Application
-                </Button>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => {
+                  setReviewAction("approve");
+                  setFeedbackOpen(true);
+                }}
+              >
+                Approve Application
+              </Button>
 
-                <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => {
-                    setReviewAction('reject');
-                    setFeedbackOpen(true);
-                    }}
-                >
-                    Reject Application
-                </Button>
-                </Box>
-            </CardContent>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => {
+                  setReviewAction("reject");
+                  setFeedbackOpen(true);
+                }}
+              >
+                Reject Application
+              </Button>
+            </Box>
+          </CardContent>
         </Card>
-        
+
         <FeedbackDialog
-        open={feedbackOpen}
-        type={reviewAction === 'approve' ? 'approve' : 'reject'}
-        title={
-            reviewAction === 'approve'
-            ? 'Approve Onboarding Application'
-            : 'Reject Onboarding Application'
-        }
-        itemName={`${employee.firstName} ${employee.lastName}`}
-        requireFeedback={reviewAction === 'reject'}
-        onSubmit={(value) => {
-        setFeedback(value);
-        setFeedbackOpen(false);
-        setConfirmOpen(true);
-        }}
-        onCancel={() => setFeedbackOpen(false)}
+          open={feedbackOpen}
+          type={reviewAction === "approve" ? "approve" : "reject"}
+          title={
+            reviewAction === "approve"
+              ? "Approve Onboarding Application"
+              : "Reject Onboarding Application"
+          }
+          itemName={`${employee.firstName} ${employee.lastName}`}
+          requireFeedback={reviewAction === "reject"}
+          onSubmit={(value) => {
+            setFeedback(value);
+            setFeedbackOpen(false);
+            setConfirmOpen(true);
+          }}
+          onCancel={() => setFeedbackOpen(false)}
         />
 
         <ConfirmDialog
-        open={confirmOpen}
-        title="Confirm Decision"
-        message={`Are you sure you want to ${
-            reviewAction === 'approve' ? 'approve' : 'reject'
-        } this onboarding application?`}
-        confirmColor={reviewAction === 'approve' ? 'success' : 'error'}
-        onConfirm={async () => {
-        if (!id || !reviewAction) return;
+          open={confirmOpen}
+          title="Confirm Decision"
+          message={`Are you sure you want to ${
+            reviewAction === "approve" ? "approve" : "reject"
+          } this onboarding application?`}
+          confirmColor={reviewAction === "approve" ? "success" : "error"}
+          onConfirm={async () => {
+            if (!reviewAction) return;
 
-        try {
-            const result = await reviewOnboarding(
-            id,
-            reviewAction === 'approve' ? 'approved' : 'rejected',
-            reviewAction === 'reject' ? feedback : undefined
-            );
+            const targetDoc = documents.find((d) => d.status === "pending");
+            if (!targetDoc) return;
 
-            if (result.ok) {
-            // 👉 之後可以加 toast
-            navigate('/hr/employees');
+            try {
+              await api.post(`/documents/${targetDoc.id}/review`, {
+                decision: reviewAction === "approve" ? "approved" : "rejected",
+                feedback: reviewAction === "reject" ? feedback : undefined,
+              });
+
+              setDocuments((prev) =>
+                prev.map((d) =>
+                  d.id === targetDoc.id
+                    ? {
+                        ...d,
+                        status:
+                          reviewAction === "approve" ? "approved" : "rejected",
+                        hrFeedback: feedback,
+                      }
+                    : d,
+                ),
+              );
+            } catch (err) {
+              console.error("Document review failed", err);
+              alert("Review failed");
+            } finally {
+              setConfirmOpen(false);
             }
-        } catch (err) {
-            console.error('Review onboarding failed', err);
-        } finally {
-            setConfirmOpen(false);
-        }
-        }}
-        onCancel={() => setConfirmOpen(false)}
+          }}
+          onCancel={() => setConfirmOpen(false)}
         />
-
-        </Grid>
+      </Grid>
     </Box>
-
   );
 };
 

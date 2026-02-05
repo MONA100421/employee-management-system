@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Avatar,
   useTheme,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -15,8 +14,8 @@ import {
   HourglassTop as PendingIcon,
   TrendingUp as TrendingIcon,
 } from "@mui/icons-material";
-import StatusChip from "../../components/common/StatusChip";
 import { useDocuments } from "../../hooks/useDocuments";
+import DocumentList from "../../components/common/DocumentList";
 
 const HRDashboard: React.FC = () => {
   const theme = useTheme();
@@ -127,33 +126,8 @@ const HRDashboard: React.FC = () => {
             </Typography>
           )}
 
-          {pendingDocs.map((doc) => (
-            <Box
-              key={doc.id}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                p: 2,
-                mb: 1,
-                bgcolor: theme.palette.background.default,
-                borderRadius: 2,
-              }}
-            >
-              <Avatar sx={{ bgcolor: theme.palette.warning.main }}>
-                {doc.type[0].toUpperCase()}
-              </Avatar>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                  {doc.type}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {doc.category}
-                </Typography>
-              </Box>
-              <StatusChip status="pending" />
-            </Box>
-          ))}
+          <DocumentList documents={pendingDocs} readonly />
+
         </CardContent>
       </Card>
     </Box>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -11,7 +11,6 @@ import {
   Divider,
   CircularProgress,
 } from "@mui/material";
-import Grid from "@mui/material/Grid";
 
 import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
@@ -19,10 +18,9 @@ import PersonalInformation from "./PersonalInformation";
 import type { OnboardingForm } from "./PersonalInformation";
 import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
-import FileUpload from "../../components/common/FileUpload";
+import DocumentList from "../../components/common/DocumentList";
 import { useDocuments } from "../../hooks/useDocuments";
 import type { BaseDocument, OnboardingDocument } from "../../types/document";
-
 
 const steps = [
   "Personal Info",
@@ -44,21 +42,6 @@ const toOnboardingDoc = (d: BaseDocument): OnboardingDocument => ({
           : d.type,
 });
 
-const mapDocStatusToUploadStatus = (
-  status: "not-started" | "pending" | "approved" | "rejected",
-) => {
-  switch (status) {
-    case "pending":
-      return "uploading";
-    case "approved":
-      return "success";
-    case "rejected":
-      return "error";
-    default:
-      return "idle";
-  }
-};
-
 const Onboarding: React.FC = () => {
   const {
     documents: rawDocs,
@@ -67,6 +50,7 @@ const Onboarding: React.FC = () => {
   } = useDocuments("onboarding");
 
   const documents = rawDocs.map(toOnboardingDoc);
+
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
   const [activeStep, setActiveStep] = useState(0);
   const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(
@@ -95,7 +79,7 @@ const Onboarding: React.FC = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  React.useEffect(() => {
+  useEffect(() => {
     const load = async () => {
       const app = await getMyOnboarding();
       setStatus(app.status.replace("_", "-") as UIOnboardingStatus);
@@ -117,7 +101,7 @@ const Onboarding: React.FC = () => {
       }
     };
 
-  const validateStep = (step: number): boolean => {
+  const validateStep = (step: number) => {
     const errs: Record<string, string> = {};
     if (step === 0) {
       if (!formData.firstName) errs.firstName = "Required";
@@ -131,7 +115,6 @@ const Onboarding: React.FC = () => {
 
   const handleNext = () =>
     validateStep(activeStep) && setActiveStep((s) => s + 1);
-
   const handleBack = () => setActiveStep((s) => Math.max(0, s - 1));
 
   const handleSubmit = async () => {
@@ -184,19 +167,7 @@ const Onboarding: React.FC = () => {
           {activeStep === 2 && <VisaStatus />}
 
           {activeStep === 3 && (
-            <Grid container spacing={3}>
-              {documents.map((doc) => (
-                <Grid key={doc.type} size={{ xs: 12, md: 6 }}>
-                  <FileUpload
-                    label={doc.title}
-                    fileName={doc.fileName}
-                    status={mapDocStatusToUploadStatus(doc.status)}
-                    disabled={doc.status === "approved"}
-                    onFileSelect={(file) => uploadDocument(doc.type, file)}
-                  />
-                </Grid>
-              ))}
-            </Grid>
+            <DocumentList documents={documents} onUpload={uploadDocument} />
           )}
 
           {activeStep === 4 && (

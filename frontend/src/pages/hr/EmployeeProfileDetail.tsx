@@ -1,9 +1,6 @@
 import {
   Box,
   Button,
-  Card,
-  CardContent,
-  Grid,
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +8,7 @@ import { useState } from "react";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { useDocuments } from "../../hooks/useDocuments";
+import DocumentList from "../../components/common/DocumentList";
 
 const EmployeeProfileDetail = () => {
   const navigate = useNavigate();
@@ -25,17 +23,6 @@ const EmployeeProfileDetail = () => {
   if (loading) {
     return <Typography>Loading documents…</Typography>;
   }
-
-  const handleApprove = (id: string) => {
-    setReviewingId(id);
-    setDecision("approved");
-    setConfirmOpen(true);
-  };
-
-  const handleReject = (id: string) => {
-    setReviewingId(id);
-    setDecision("rejected");
-  };
 
   const handleConfirmApprove = async () => {
     if (!reviewingId) return;
@@ -57,51 +44,19 @@ const EmployeeProfileDetail = () => {
         Employee Documents
       </Typography>
 
-      <Grid container spacing={3}>
-        {documents.map((doc) => (
-          <Grid key={doc.id} size={{ xs: 12, md: 6 }}>
-            <Card>
-              <CardContent>
-                <Typography fontWeight={600}>{doc.type}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Status: {doc.status}
-                </Typography>
-
-                {doc.fileName && (
-                  <Typography variant="body2">File: {doc.fileName}</Typography>
-                )}
-
-                {doc.hrFeedback && (
-                  <Typography variant="body2" color="error">
-                    Feedback: {doc.hrFeedback}
-                  </Typography>
-                )}
-
-                {doc.status === "pending" && (
-                  <Box sx={{mt: 2, display: "flex", gap: 1 }}>
-                    <Button
-                      size="small"
-                      color="success"
-                      variant="contained"
-                      onClick={() => handleApprove(doc.id)}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      onClick={() => handleReject(doc.id)}
-                    >
-                      Reject
-                    </Button>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      <DocumentList
+        documents={documents}
+        readonly
+        onApprove={(id) => {
+          setReviewingId(id);
+          setDecision("approved");
+          setConfirmOpen(true);
+        }}
+        onReject={(id) => {
+          setReviewingId(id);
+          setDecision("rejected");
+        }}
+      />
 
       {/* Reject dialog (needs feedback) */}
       <FeedbackDialog

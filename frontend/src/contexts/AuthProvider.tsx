@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import api from "../lib/api";
 import { AuthContext, type User, type AuthContextType } from "./AuthContext";
+import { resetDocumentsCache } from "../hooks/useDocuments";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -32,6 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("auth_user");
+    resetDocumentsCache();
   };
 
   // Register (invite-based)

@@ -4,19 +4,23 @@ import type { BaseDocument, DocumentCategory } from "../types/document";
 
 export type UseDocumentsScope = DocumentCategory | "all";
 
+// Simple in-memory cache
 let documentsCache: BaseDocument[] = [];
 
 export const useDocuments = (scope: UseDocumentsScope) => {
   const [documents, setDocuments] = useState<BaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Apply scope filter
   const applyScope = useCallback(
     (docs: BaseDocument[]) => {
-      return scope === "all" ? docs : docs.filter((d) => d.category === scope);
+      if (scope === "all") return docs;
+      return docs.filter((d) => d.category === scope);
     },
     [scope],
   );
 
+  // Initial load (with cache)
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -36,6 +40,7 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     load();
   }, [load]);
 
+  // Force refresh (ignore cache)
   const refresh = async () => {
     setLoading(true);
     const res = await api.get("/documents/me");
@@ -44,6 +49,7 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     setLoading(false);
   };
 
+  // Upload document
   const uploadDocument = async (type: string, file: File) => {
     documentsCache = documentsCache.map((d) =>
       d.type === type
@@ -71,6 +77,7 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     setDocuments(applyScope(documentsCache));
   };
 
+  // HR review document
   const reviewDocument = async (
     id: string,
     decision: "approved" | "rejected",
@@ -101,4 +108,8 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     reviewDocument,
     refresh,
   };
+};
+
+export const resetDocumentsCache = () => {
+  documentsCache = [];
 };

@@ -34,21 +34,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("auth_user");
   };
 
-  // Register
+  // Register (invite-based)
   const register: AuthContextType["register"] = async ({
     email,
     username,
     password,
+    token,
   }) => {
     try {
       await api.post("/auth/register", {
         email,
         username,
         password,
+        token,
       });
-      return true;
-    } catch {
-      return false;
+
+      return { ok: true };
+    } catch (err: unknown) {
+      let message =
+        "Registration failed. Invitation may be invalid or expired.";
+
+      if (typeof err === "object" && err !== null && "response" in err) {
+        const response = (err as { response?: { data?: { message?: string } } })
+          .response;
+
+        if (response?.data?.message) {
+          message = response.data.message;
+        }
+      }
+
+      return {
+        ok: false,
+        message,
+      };
     }
   };
 

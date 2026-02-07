@@ -1,16 +1,18 @@
-import { createContext } from 'react';
+import { createContext } from "react";
 
 export type User = {
+  id?: string;
   username: string;
+  email: string;
   role: "hr" | "employee";
   firstName?: string;
   lastName?: string;
-  email: string;
 };
 
 export type AuthContextType = {
   user: User | null;
   loading: boolean;
+
   login: (
     username: string,
     password: string,
@@ -19,14 +21,18 @@ export type AuthContextType = {
     user?: User;
     message?: string;
   }>;
+
   logout: () => void;
-  register: (data: {
+
+  register: (payload: {
     email: string;
     username: string;
     password: string;
-  }) => Promise<boolean>;
+    token?: string;
+  }) => Promise<{
+    ok: boolean;
+    message?: string;
+  }>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
-
-

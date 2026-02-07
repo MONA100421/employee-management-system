@@ -11,16 +11,12 @@ export const useDocuments = (scope: UseDocumentsScope) => {
   const [documents, setDocuments] = useState<BaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Apply scope filter
   const applyScope = useCallback(
-    (docs: BaseDocument[]) => {
-      if (scope === "all") return docs;
-      return docs.filter((d) => d.category === scope);
-    },
+    (docs: BaseDocument[]) =>
+      scope === "all" ? docs : docs.filter((d) => d.category === scope),
     [scope],
   );
 
-  // Initial load (with cache)
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -40,7 +36,6 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     load();
   }, [load]);
 
-  // Force refresh (ignore cache)
   const refresh = async () => {
     setLoading(true);
     const res = await api.get("/documents/me");
@@ -49,8 +44,11 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     setLoading(false);
   };
 
-  // Upload document
   const uploadDocument = async (type: string, file: File) => {
+    if (scope === "all") {
+      throw new Error("Cannot upload document in 'all' scope");
+    }
+
     documentsCache = documentsCache.map((d) =>
       d.type === type
         ? {
@@ -66,7 +64,7 @@ export const useDocuments = (scope: UseDocumentsScope) => {
 
     const res = await api.post("/documents", {
       type,
-      category: scope === "all" ? "onboarding" : scope,
+      category: scope,
       fileName: file.name,
     });
 
@@ -77,7 +75,6 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     setDocuments(applyScope(documentsCache));
   };
 
-  // HR review document
   const reviewDocument = async (
     id: string,
     decision: "approved" | "rejected",

@@ -1,11 +1,10 @@
-import { Router } from 'express';
-import { listEmployees } from '../controllers/hrController';
+import { Router } from "express";
+import { inviteEmployee, listEmployees } from "../controllers/hrController";
+import { authMiddleware } from "../utils/authMiddleware";
 
 const router = Router();
 
-/**
- * GET /api/hr/employees
- */
-router.get('/employees', listEmployees);
+router.get("/employees", authMiddleware, listEmployees);
+router.post("/invite", authMiddleware, inviteEmployee);
 
 export default router;

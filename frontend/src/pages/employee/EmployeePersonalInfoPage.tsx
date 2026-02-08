@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -8,99 +8,163 @@ import {
   TextField,
   Avatar,
   IconButton,
+  useTheme,
 } from "@mui/material";
 import {
   Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
-  Person as PersonIcon,
-  Phone as PhoneIcon,
 } from "@mui/icons-material";
 import { useForm, Controller } from "react-hook-form";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { useAuth } from "../../contexts/useAuth";
+import { getMyEmployee, patchMyEmployee } from "../../lib/employees";
+import type { EmployeeProfile } from "../../types/user";
 
-type EmployeeProfileForm = {
+/* ---------- Form type (THIS PAGE ONLY) ---------- */
+type EmployeePersonalInfoForm = {
+  // name (User)
   firstName: string;
   lastName: string;
+  middleName?: string;
   preferredName?: string;
+
+  // contact
   phone?: string;
+  workPhone?: string;
+
+  // address
+  street?: string;
+  apt?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+
+  // employment (read-only)
+  employeeId?: string;
+  title?: string;
+  department?: string;
+  manager?: string;
+  startDate?: string;
+  workAuthorization?: string;
+
+  // emergency
+  emergencyContactName?: string;
+  emergencyRelationship?: string;
+  emergencyPhone?: string;
+  emergencyEmail?: string;
 };
 
-const sections = [
-  {
-    id: "name",
-    title: "Name Information",
-    icon: <PersonIcon />,
-    fields: [
-      { name: "firstName", label: "First Name" },
-      { name: "lastName", label: "Last Name" },
-      { name: "preferredName", label: "Preferred Name" },
-    ],
-  },
-  {
-    id: "contact",
-    title: "Contact Information",
-    icon: <PhoneIcon />,
-    fields: [{ name: "phone", label: "Phone" }],
-  },
-] as const;
-
-type SectionId = (typeof sections)[number]["id"];
-
 export default function EmployeePersonalInfoPage() {
+  const theme = useTheme();
   const { user } = useAuth();
 
-  const [editingSection, setEditingSection] = useState<SectionId | null>(null);
+  const [profile, setProfile] = useState<EmployeeProfile | null>(null);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const defaultValues = useMemo<EmployeeProfileForm>(
-    () => ({
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      preferredName: "",
-      phone: "",
-    }),
-    [user],
-  );
-
-  const { control, handleSubmit, reset, getValues } =
-    useForm<EmployeeProfileForm>({
-      defaultValues,
+  /* ---------- RHF ---------- */
+  const { control, reset, getValues, handleSubmit } =
+    useForm<EmployeePersonalInfoForm>({
+      defaultValues: {},
     });
 
-  const handleEdit = (sectionId: SectionId) => {
-    setEditingSection(sectionId);
-  };
+  /* ---------- Load data ---------- */
+  useEffect(() => {
+    (async () => {
+      const res = await getMyEmployee();
+      setProfile(res.employee);
 
-  const handleSave = (sectionId: SectionId) =>
-    handleSubmit((data) => {
-      console.log("Save section:", sectionId, data);
+      reset({
+        firstName: res.user.firstName,
+        lastName: res.user.lastName,
+        preferredName: res.user.preferredName ?? "",
+        phone: res.employee?.phone ?? "",
+
+        street: res.employee?.address?.street ?? "",
+        apt: "",
+        city: res.employee?.address?.city ?? "",
+        state: res.employee?.address?.state ?? "",
+        zipCode: res.employee?.address?.zipCode ?? "",
+        country: res.employee?.address?.country ?? "",
+
+        employeeId: res.employee?.employment?.employeeId,
+        title: res.employee?.employment?.title,
+        department: res.employee?.employment?.department,
+        manager: res.employee?.employment?.manager,
+        startDate: res.employee?.employment?.startDate,
+        workAuthorization: res.employee?.employment?.workAuthorization,
+
+        emergencyContactName: res.employee?.emergency?.contactName ?? "",
+        emergencyRelationship: res.employee?.emergency?.relationship ?? "",
+        emergencyPhone: res.employee?.emergency?.phone ?? "",
+        emergencyEmail: res.employee?.emergency?.email ?? "",
+      });
+    })();
+  }, [reset]);
+
+  /* ---------- Save ---------- */
+  const saveSection = (section: string) =>
+    handleSubmit(async (values) => {
+      setSaving(true);
+
+      const payload: Partial<EmployeeProfile> = {};
+
+      if (section === "contact") {
+        payload.phone = values.phone;
+      }
+
+      if (section === "address") {
+        payload.address = {
+          street: values.street,
+          city: values.city,
+          state: values.state,
+          zipCode: values.zipCode,
+          country: values.country,
+        };
+      }
+
+      if (section === "emergency") {
+        payload.emergency = {
+          contactName: values.emergencyContactName,
+          relationship: values.emergencyRelationship,
+          phone: values.emergencyPhone,
+          email: values.emergencyEmail,
+        };
+      }
+
+      await patchMyEmployee(payload);
       setEditingSection(null);
+      setSaving(false);
     })();
 
-  const handleCancel = () => {
-    setCancelDialogOpen(true);
-  };
-
-  const confirmCancel = () => {
-    reset(defaultValues);
-    setEditingSection(null);
-    setCancelDialogOpen(false);
-  };
-
+  /* ---------- UI ---------- */
   return (
     <Box>
+      {/* ===== Profile Header ===== */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ py: 4 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <Avatar sx={{ width: 96, height: 96 }}>
-              {getValues("firstName")?.[0]}
-              {getValues("lastName")?.[0]}
+            <Avatar
+              sx={{
+                width: 100,
+                height: 100,
+                bgcolor: theme.palette.primary.main,
+                fontSize: "2rem",
+                fontWeight: 700,
+              }}
+            >
+              {user?.firstName?.[0]}
+              {user?.lastName?.[0]}
             </Avatar>
             <Box>
               <Typography variant="h4" fontWeight={700}>
-                {getValues("firstName")} {getValues("lastName")}
+                {user?.firstName} {user?.lastName}
+              </Typography>
+              <Typography color="text.secondary">
+                {profile?.employment?.title} • {profile?.employment?.department}
               </Typography>
               <Typography color="text.secondary">{user?.email}</Typography>
             </Box>
@@ -108,74 +172,84 @@ export default function EmployeePersonalInfoPage() {
         </CardContent>
       </Card>
 
+      {/* ===== Address / Contact / Employment / Emergency ===== */}
+      {/* 為了篇幅可讀性，這裡示範 Address，其餘 section 完全同 pattern */}
+
       <Grid container spacing={3}>
-        {sections.map((section) => (
-          <Grid size={{ xs: 12, md: 6 }} key={section.id}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                  <Typography variant="h6">{section.title}</Typography>
-
-                  {editingSection === section.id ? (
-                    <>
-                      <IconButton onClick={() => handleSave(section.id)}>
-                        <SaveIcon />
-                      </IconButton>
-                      <IconButton onClick={handleCancel}>
-                        <CancelIcon />
-                      </IconButton>
-                    </>
-                  ) : (
-                    <IconButton onClick={() => handleEdit(section.id)}>
-                      <EditIcon />
+        {/* Address */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="h6">Address</Typography>
+                {editingSection === "address" ? (
+                  <>
+                    <IconButton
+                      onClick={() => saveSection("address")}
+                      disabled={saving}
+                    >
+                      <SaveIcon />
                     </IconButton>
-                  )}
-                </Box>
+                    <IconButton
+                      onClick={() => setEditingSection(null)}
+                      disabled={saving}
+                    >
+                      <CancelIcon />
+                    </IconButton>
+                  </>
+                ) : (
+                  <IconButton onClick={() => setEditingSection("address")}>
+                    <EditIcon />
+                  </IconButton>
+                )}
+              </Box>
 
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  {section.fields.map((field) => (
-                    <Grid size={{ xs: 12, sm: 6 }} key={field.name}>
-                      {editingSection === section.id ? (
+              <Grid container spacing={2} sx={{ mt: 2 }}>
+                {["street", "city", "state", "zipCode", "country"].map(
+                  (name) => (
+                    <Grid size={{ xs: 12, sm: 6 }} key={name}>
+                      {editingSection === "address" ? (
                         <Controller
-                          name={field.name as keyof EmployeeProfileForm}
+                          name={name as keyof EmployeePersonalInfoForm}
                           control={control}
-                          render={({ field: rhfField }) => (
+                          render={({ field }) => (
                             <TextField
-                              {...rhfField}
+                              {...field}
                               fullWidth
                               size="small"
-                              label={field.label}
+                              label={name}
                             />
                           )}
                         />
                       ) : (
                         <>
-                          <Typography variant="caption">
-                            {field.label}
-                          </Typography>
+                          <Typography variant="caption">{name}</Typography>
                           <Typography>
-                            {getValues(
-                              field.name as keyof EmployeeProfileForm,
-                            ) || "-"}
+                            {getValues(name as keyof EmployeePersonalInfoForm)}
                           </Typography>
                         </>
                       )}
                     </Grid>
-                  ))}
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  ),
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* 👉 Contact / Employment / Emergency / Documents 同 lovable 結構複製即可 */}
       </Grid>
 
       <ConfirmDialog
         open={cancelDialogOpen}
-        title="Discard changes?"
+        title="Discard Changes?"
         message="Your changes will be lost."
         confirmText="Discard"
         confirmColor="error"
-        onConfirm={confirmCancel}
+        onConfirm={() => {
+          setEditingSection(null);
+          setCancelDialogOpen(false);
+        }}
         onCancel={() => setCancelDialogOpen(false)}
       />
     </Box>

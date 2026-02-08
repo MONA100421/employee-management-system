@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+// frontend/src/pages/employee/VisaStatus.tsx
+import React from "react";
 import type { Theme } from "@mui/material/styles";
 import {
   Box,
@@ -29,9 +30,8 @@ import FileUpload from "../../components/common/FileUpload";
 import StatusChip from "../../components/common/StatusChip";
 import type { BaseDocument } from "../../types/document";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { visaSchema, type VisaFormValues } from "./visa.schema";
+import { type VisaFormValues } from "./visa.schema";
+import { useVisaForm } from "../../hooks/useVisaForm";
 
 type StepStatus = "not-started" | "pending" | "approved" | "rejected";
 
@@ -92,25 +92,8 @@ const VisaStatus: React.FC = () => {
     };
   });
 
-  const { setValue, watch } = useForm<VisaFormValues>({
-    resolver: zodResolver(visaSchema),
-    defaultValues: {},
-    mode: "onTouched",
-  });
-
-  useEffect(() => {
-    if (!loading) {
-      steps.forEach((s) => {
-        if (s.doc?.fileName) {
-          setValue(s.type as keyof VisaFormValues, true, {
-            shouldDirty: false,
-            shouldTouch: false,
-            shouldValidate: false,
-          });
-        }
-      });
-    }
-  }, [loading, documents]);
+  // use custom RHF hook for visa flow (syncs backend docs -> RHF values)
+  const { setValue, isUploaded} = useVisaForm(documents, loading);
 
   const activeStep = steps.findIndex((s) => s.status !== "approved");
   const completed = steps.filter((s) => s.status === "approved").length;
@@ -169,7 +152,7 @@ const VisaStatus: React.FC = () => {
         Complete each step in order. The next step unlocks after HR approval.
       </Alert>
 
-      {/* Stepper */}
+      {/* ===== Stepper ===== */}
       <Card>
         <CardContent>
           <Stepper
@@ -177,20 +160,23 @@ const VisaStatus: React.FC = () => {
             orientation="vertical"
           >
             {steps.map((step, index) => {
-              // check previous step approval or frontend upload flag
+              // previous step info
               const prevStep = steps[index - 1];
               const prevApproved =
                 index === 0 ? true : prevStep?.status === "approved";
               const prevUploadedFrontend =
                 index === 0
                   ? true
-                  : !!watch(prevStep.type as keyof VisaFormValues); // true if setValue earlier
+                  : isUploaded(prevStep.type as keyof VisaFormValues);
 
               const disabled =
                 index > 0 && !(prevApproved || prevUploadedFrontend);
 
               return (
-                <Step key={step.type} completed={step.status === "approved"}>
+                <Step
+                  key={String(step.type)}
+                  completed={step.status === "approved"}
+                >
                   <StepLabel
                     icon={getStepIcon(step.status, theme)}
                     optional={<StatusChip status={step.status} size="small" />}
@@ -210,7 +196,7 @@ const VisaStatus: React.FC = () => {
                       </Alert>
                     )}
 
-                    {/* Uploaded */}
+                    {/* Uploaded view / upload control */}
                     {step.doc?.fileName && step.status !== "rejected" ? (
                       <Paper
                         sx={{
@@ -240,12 +226,14 @@ const VisaStatus: React.FC = () => {
                           label={`Upload ${step.title}`}
                           disabled={disabled}
                           onFileSelect={(file) => {
+                            // mark frontend RHF flag immediately (improves UX)
                             setValue(step.type as keyof VisaFormValues, true, {
                               shouldDirty: true,
                               shouldTouch: true,
                               shouldValidate: false,
                             });
-                            uploadDocument(step.type, file);
+                            // upload -> useDocuments will update backend docs cache & UI
+                            uploadDocument(String(step.type), file);
                           }}
                         />
                       )

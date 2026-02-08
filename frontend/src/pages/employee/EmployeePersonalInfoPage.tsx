@@ -121,14 +121,20 @@ function Section({
 
           {onEdit &&
             (editing ? (
-              <>
-                <IconButton size="small" onClick={onSave}>
-                  <SaveIcon />
+              <Box sx={{ display: "flex", gap: 0.3 }}>
+                <IconButton
+                  onClick={onSave}
+                  sx={{ color: theme.palette.success.main }}
+                >
+                  <SaveIcon fontSize="medium" />
                 </IconButton>
-                <IconButton size="small" onClick={onCancel}>
-                  <CancelIcon />
+                <IconButton
+                  onClick={onCancel}
+                  sx={{ color: theme.palette.error.main }}
+                >
+                  <CancelIcon fontSize="medium" />
                 </IconButton>
-              </>
+              </Box>
             ) : (
               <IconButton size="small" onClick={onEdit}>
                 <EditIcon />

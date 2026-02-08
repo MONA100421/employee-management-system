@@ -26,53 +26,104 @@ const Register = () => {
   const token = searchParams.get("token");
   const email = searchParams.get("email");
 
-  const [checkingToken, setCheckingToken] = useState(true);
-  const [tokenError, setTokenError] = useState<string | null>(null);
+  const missingToken = !token;
+
+  const [checkingToken, setCheckingToken] = useState<boolean>(!missingToken);
+  const [tokenError, setTokenError] = useState<string | null>(
+    missingToken ? "Missing registration token." : null,
+  );
 
   const {
     register,
     handleSubmit,
-    watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>();
 
-  const password = watch("password");
-
   useEffect(() => {
-    if (!token) {
-      setTokenError("Missing registration token");
-      setCheckingToken(false);
+    if (missingToken || !token) {
       return;
     }
+
+    let active = true;
 
     api
       .get(`/auth/registration/${token}`)
       .then(() => {
-        setTokenError(null);
+        if (active) setTokenError(null);
       })
-      .catch((err) => {
-        setTokenError(
-          err.response?.data?.message ?? "Invalid or expired registration link",
-        );
+      .catch((err: unknown) => {
+        if (!active) return;
+
+        if (
+          typeof err === "object" &&
+          err !== null &&
+          "response" in err &&
+          typeof (err as { response?: { data?: { message?: string } } })
+            .response?.data?.message === "string"
+        ) {
+          const message = (err as { response: { data: { message: string } } })
+            .response.data.message;
+
+          if (message === "Invalid token") {
+            setTokenError("Invalid invitation link.");
+          } else if (message === "Token already used") {
+            setTokenError("This invitation link has already been used.");
+          } else if (message === "Token expired") {
+            setTokenError("This invitation link has expired.");
+          } else {
+            setTokenError("Unable to validate invitation link.");
+          }
+        } else {
+          setTokenError("Unable to validate invitation link.");
+        }
       })
       .finally(() => {
-        setCheckingToken(false);
+        if (active) setCheckingToken(false);
       });
-  }, [token]);
+
+    return () => {
+      active = false;
+    };
+  }, [token, missingToken]);
 
   const onSubmit = async (data: RegisterFormValues) => {
     if (!token || !email) return;
 
-    await api.post("/auth/register", {
-      token,
-      email,
-      username: data.username,
-      password: data.password,
-    });
+    try {
+      await api.post("/auth/register", {
+        token,
+        email,
+        username: data.username,
+        password: data.password,
+      });
 
-    navigate("/login");
+      navigate("/login");
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        typeof (err as { response?: { data?: { message?: string } } }).response
+          ?.data?.message === "string"
+      ) {
+        const message = (err as { response: { data: { message: string } } })
+          .response.data.message;
+
+        if (message === "Email already registered") {
+          setTokenError("This email has already been registered.");
+        } else if (message === "Token already used") {
+          setTokenError("This invitation link has already been used.");
+        } else {
+          setTokenError("Registration failed.");
+        }
+      } else {
+        setTokenError("Registration failed.");
+      }
+    }
   };
 
+  // UI：loading
   if (checkingToken) {
     return (
       <Box sx={{ mt: 10, textAlign: "center" }}>
@@ -82,6 +133,7 @@ const Register = () => {
     );
   }
 
+  // UI：form
   return (
     <Box sx={{ mt: 10, display: "flex", justifyContent: "center" }}>
       <Card sx={{ width: 420 }}>
@@ -112,10 +164,7 @@ const Register = () => {
               disabled={!!tokenError}
               {...register("username", {
                 required: "Username is required",
-                minLength: {
-                  value: 3,
-                  message: "At least 3 characters",
-                },
+                minLength: { value: 3, message: "At least 3 characters" },
               })}
               error={!!errors.username}
               helperText={errors.username?.message}
@@ -129,10 +178,7 @@ const Register = () => {
               disabled={!!tokenError}
               {...register("password", {
                 required: "Password is required",
-                minLength: {
-                  value: 8,
-                  message: "At least 8 characters",
-                },
+                minLength: { value: 8, message: "At least 8 characters" },
               })}
               error={!!errors.password}
               helperText={errors.password?.message}
@@ -145,8 +191,8 @@ const Register = () => {
               margin="normal"
               disabled={!!tokenError}
               {...register("confirmPassword", {
-                validate: (value: string) =>
-                  value === password || "Passwords do not match",
+                validate: (value) =>
+                  value === getValues("password") || "Passwords do not match",
               })}
               error={!!errors.confirmPassword}
               helperText={errors.confirmPassword?.message}

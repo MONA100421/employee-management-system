@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Box,
   Card,
@@ -16,102 +16,93 @@ import {
   Person as PersonIcon,
   Phone as PhoneIcon,
 } from "@mui/icons-material";
+import { useForm, Controller } from "react-hook-form";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { useAuth } from "../../contexts/useAuth";
 
-interface SectionData {
-  [key: string]: string;
-}
+type EmployeeProfileForm = {
+  firstName: string;
+  lastName: string;
+  preferredName?: string;
+  phone?: string;
+};
 
-interface Section {
-  id: string;
-  title: string;
-  icon: React.ReactNode;
-  fields: { name: string; label: string; type?: string; disabled?: boolean }[];
-}
+const sections = [
+  {
+    id: "name",
+    title: "Name Information",
+    icon: <PersonIcon />,
+    fields: [
+      { name: "firstName", label: "First Name" },
+      { name: "lastName", label: "Last Name" },
+      { name: "preferredName", label: "Preferred Name" },
+    ],
+  },
+  {
+    id: "contact",
+    title: "Contact Information",
+    icon: <PhoneIcon />,
+    fields: [{ name: "phone", label: "Phone" }],
+  },
+] as const;
+
+type SectionId = (typeof sections)[number]["id"];
 
 export default function EmployeePersonalInfoPage() {
   const { user } = useAuth();
 
-  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editingSection, setEditingSection] = useState<SectionId | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [tempData, setTempData] = useState<SectionData>({});
 
-  const [formData, setFormData] = useState<Record<string, SectionData>>({
-    name: {
+  const defaultValues = useMemo<EmployeeProfileForm>(
+    () => ({
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       preferredName: "",
-    },
-    contact: {
-      email: user?.email || "",
       phone: "",
-    },
-  });
+    }),
+    [user],
+  );
 
-  const sections: Section[] = [
-    {
-      id: "name",
-      title: "Name Information",
-      icon: <PersonIcon />,
-      fields: [
-        { name: "firstName", label: "First Name" },
-        { name: "lastName", label: "Last Name" },
-        { name: "preferredName", label: "Preferred Name" },
-      ],
-    },
-    {
-      id: "contact",
-      title: "Contact Information",
-      icon: <PhoneIcon />,
-      fields: [
-        { name: "email", label: "Email", disabled: true },
-        { name: "phone", label: "Phone" },
-      ],
-    },
-  ];
+  const { control, handleSubmit, reset, getValues } =
+    useForm<EmployeeProfileForm>({
+      defaultValues,
+    });
 
-  const handleEdit = (sectionId: string) => {
+  const handleEdit = (sectionId: SectionId) => {
     setEditingSection(sectionId);
-    setTempData({ ...formData[sectionId] });
   };
 
-  const handleSave = (sectionId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [sectionId]: { ...tempData },
-    }));
-    setEditingSection(null);
-    setTempData({});
-  };
+  const handleSave = (sectionId: SectionId) =>
+    handleSubmit((data) => {
+      console.log("Save section:", sectionId, data);
+      setEditingSection(null);
+    })();
 
   const handleCancel = () => {
     setCancelDialogOpen(true);
   };
 
   const confirmCancel = () => {
+    reset(defaultValues);
     setEditingSection(null);
-    setTempData({});
     setCancelDialogOpen(false);
   };
 
   return (
     <Box>
-      {/* Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ py: 4 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
             <Avatar sx={{ width: 96, height: 96 }}>
-              {formData.name.firstName?.[0]}
-              {formData.name.lastName?.[0]}
+              {getValues("firstName")?.[0]}
+              {getValues("lastName")?.[0]}
             </Avatar>
             <Box>
               <Typography variant="h4" fontWeight={700}>
-                {formData.name.firstName} {formData.name.lastName}
+                {getValues("firstName")} {getValues("lastName")}
               </Typography>
-              <Typography color="text.secondary">
-                {formData.contact.email}
-              </Typography>
+              <Typography color="text.secondary">{user?.email}</Typography>
             </Box>
           </Box>
         </CardContent>
@@ -124,6 +115,7 @@ export default function EmployeePersonalInfoPage() {
               <CardContent>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography variant="h6">{section.title}</Typography>
+
                   {editingSection === section.id ? (
                     <>
                       <IconButton onClick={() => handleSave(section.id)}>
@@ -140,21 +132,21 @@ export default function EmployeePersonalInfoPage() {
                   )}
                 </Box>
 
-                <Grid container spacing={2}>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
                   {section.fields.map((field) => (
                     <Grid size={{ xs: 12, sm: 6 }} key={field.name}>
-                      {editingSection === section.id && !field.disabled ? (
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label={field.label}
-                          value={tempData[field.name] || ""}
-                          onChange={(e) =>
-                            setTempData((p) => ({
-                              ...p,
-                              [field.name]: e.target.value,
-                            }))
-                          }
+                      {editingSection === section.id ? (
+                        <Controller
+                          name={field.name as keyof EmployeeProfileForm}
+                          control={control}
+                          render={({ field: rhfField }) => (
+                            <TextField
+                              {...rhfField}
+                              fullWidth
+                              size="small"
+                              label={field.label}
+                            />
+                          )}
                         />
                       ) : (
                         <>
@@ -162,7 +154,9 @@ export default function EmployeePersonalInfoPage() {
                             {field.label}
                           </Typography>
                           <Typography>
-                            {formData[section.id][field.name] || "-"}
+                            {getValues(
+                              field.name as keyof EmployeeProfileForm,
+                            ) || "-"}
                           </Typography>
                         </>
                       )}

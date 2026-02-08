@@ -22,6 +22,8 @@ import DocumentList from "../../components/common/DocumentList";
 import { useDocuments } from "../../hooks/useDocuments";
 import type { BaseDocument, OnboardingDocument } from "../../types/document";
 import type { OnboardingFormValues } from "./onboarding.schema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { onboardingSchema } from "./onboarding.schema";
 
 const steps = [
   "Personal Info",
@@ -85,6 +87,7 @@ const Onboarding = () => {
       workAuthOther: "",
     },
     mode: "onTouched",
+    resolver: zodResolver(onboardingSchema),
   });
 
   useEffect(() => {

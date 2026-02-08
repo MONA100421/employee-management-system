@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import type { Theme } from "@mui/material/styles";
 import {
   Box,
@@ -28,15 +28,15 @@ import { useDocuments } from "../../hooks/useDocuments";
 import FileUpload from "../../components/common/FileUpload";
 import StatusChip from "../../components/common/StatusChip";
 import type { BaseDocument } from "../../types/document";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { visaSchema, type VisaFormValues } from "./visa.schema";
 
-
 type StepStatus = "not-started" | "pending" | "approved" | "rejected";
 
 type VisaStep = {
-  type: string;
+  type: keyof VisaFormValues | string;
   title: string;
   description: string;
   doc?: BaseDocument;
@@ -82,6 +82,7 @@ const VisaStatus: React.FC = () => {
   const theme = useTheme();
   const { documents, loading, uploadDocument } = useDocuments("visa");
 
+  // build steps with backend doc status
   const steps = VISA_FLOW.map((step) => {
     const doc = documents.find((d) => d.type === step.type);
     return {
@@ -91,11 +92,34 @@ const VisaStatus: React.FC = () => {
     };
   });
 
-  const { setValue } = useForm<VisaFormValues>({
+  // RHF: track which steps user has uploaded in this session / are present
+  const { setValue, watch } = useForm<VisaFormValues>({
     resolver: zodResolver(visaSchema),
     defaultValues: {},
+    mode: "onTouched",
   });
 
+  // watch returns a partial object or single keys; we'll read per-key
+  // we will call watch() without args only if needed; here we'll read per-key below
+
+  // Sync initial RHF values from backend documents when they exist
+  useEffect(() => {
+    if (!loading) {
+      steps.forEach((s) => {
+        if (s.doc?.fileName) {
+          // mark the corresponding RHF field as true (uploaded)
+          // TS: s.type may be string, cast to keyof VisaFormValues
+          setValue(s.type as keyof VisaFormValues, true, {
+            shouldDirty: false,
+            shouldTouch: false,
+            shouldValidate: false,
+          });
+        }
+      });
+    }
+    // we intentionally only depend on loading and documents
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, documents]);
 
   const activeStep = steps.findIndex((s) => s.status !== "approved");
   const completed = steps.filter((s) => s.status === "approved").length;
@@ -162,8 +186,17 @@ const VisaStatus: React.FC = () => {
             orientation="vertical"
           >
             {steps.map((step, index) => {
+              // check previous step approval or frontend upload flag
+              const prevStep = steps[index - 1];
+              const prevApproved =
+                index === 0 ? true : prevStep?.status === "approved";
+              const prevUploadedFrontend =
+                index === 0
+                  ? true
+                  : !!watch(prevStep.type as keyof VisaFormValues); // true if setValue earlier
+
               const disabled =
-                index > 0 && steps[index - 1].status !== "approved";
+                index > 0 && !(prevApproved || prevUploadedFrontend);
 
               return (
                 <Step key={step.type} completed={step.status === "approved"}>
@@ -216,9 +249,13 @@ const VisaStatus: React.FC = () => {
                           label={`Upload ${step.title}`}
                           disabled={disabled}
                           onFileSelect={(file) => {
+                            // mark frontend RHF flag immediately (improves UX)
                             setValue(step.type as keyof VisaFormValues, true, {
                               shouldDirty: true,
+                              shouldTouch: true,
+                              shouldValidate: false,
                             });
+                            // then call upload -> useDocuments will update backend docs
                             uploadDocument(step.type, file);
                           }}
                         />
@@ -227,7 +264,8 @@ const VisaStatus: React.FC = () => {
 
                     {disabled && (
                       <Alert severity="warning" sx={{ mt: 2 }}>
-                        Complete the previous step first.
+                        Complete the previous step (or wait for HR approval)
+                        before uploading this document.
                       </Alert>
                     )}
                   </StepContent>

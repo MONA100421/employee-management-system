@@ -126,7 +126,6 @@ function Section({
               <Box sx={{ display: "flex", gap: 0.3 }}>
                 <IconButton
                   onClick={onSave}
-                  disabled={!onSave}
                   sx={{ color: theme.palette.success.main }}
                 >
                   <SaveIcon fontSize="medium" />
@@ -172,25 +171,40 @@ function Field({
   getValues,
   disabled,
   type,
-  errors,
 }: FieldProps) {
-  return editing && !disabled ? (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field }) => (
-        <TextField
-          {...field}
-          fullWidth
-          size="small"
-          label={label}
-          type={type ?? "text"}
-          error={!!errors[name]}
-          helperText={errors[name]?.message}
-        />
-      )}
-    />
-  ) : (
+  if (disabled) {
+    return (
+      <TextField
+        fullWidth
+        size="small"
+        label={label}
+        value={String(getValues(name) ?? "")}
+        disabled
+      />
+    );
+  }
+
+  if (editing) {
+    return (
+      <Controller
+        name={name}
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            fullWidth
+            size="small"
+            label={label}
+            type={type ?? "text"}
+            error={!!fieldState.error}
+            helperText={fieldState.error?.message}
+          />
+        )}
+      />
+    );
+  }
+
+  return (
     <Box>
       <Typography variant="caption" color="text.secondary">
         {label}
@@ -216,7 +230,8 @@ export default function EmployeePersonalInfoPage() {
     reset,
     getValues,
     handleSubmit,
-    formState: { errors, isValid },
+    trigger,
+    formState: { errors},
   } = useForm<EmployeeProfileFormValues>({
     resolver: zodResolver(employeeProfileSchema),
     mode: "onTouched",
@@ -258,7 +273,32 @@ export default function EmployeePersonalInfoPage() {
     })();
   }, [reset]);
 
-  const save = (section: string) =>
+  const sectionFields: Record<
+    "name" | "address" | "contact" | "emergency",
+    (keyof EmployeeProfileFormValues)[]
+  > = {
+    name: ["firstName", "lastName", "middleName", "preferredName"],
+    address: ["street", "apt", "city", "state", "zipCode", "country"],
+    contact: ["email", "phone", "workPhone"],
+    emergency: [
+      "emergencyContactName",
+      "emergencyRelationship",
+      "emergencyPhone",
+      "emergencyEmail",
+    ],
+  };
+
+
+  const saveSection = async (section: keyof typeof sectionFields) => {
+    const fields = sectionFields[section];
+    if (fields.length > 0) {
+      const valid = await trigger(sectionFields[section]);
+      if (!valid) return;
+    }
+    await submitSection(section);
+  };
+
+  const submitSection = (section: string) =>
     handleSubmit(async (values) => {
       const payload: Partial<EmployeeProfile> = {};
 
@@ -331,7 +371,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<PersonIcon />}
             editing={editing === "name"}
             onEdit={() => setEditing("name")}
-            onSave={isValid ? () => void save("name") : undefined}
+            onSave={() => void saveSection("name")}
             onCancel={() => setConfirmOpen(true)}
           >
             <Grid size={{ xs: 6 }}>
@@ -387,7 +427,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<HomeIcon />}
             editing={editing === "address"}
             onEdit={() => setEditing("address")}
-            onSave={() => void save("address")}
+            onSave={() => void saveSection("address")}
             onCancel={() => setConfirmOpen(true)}
           >
             <Grid size={{ xs: 6 }}>
@@ -465,7 +505,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<PhoneIcon />}
             editing={editing === "contact"}
             onEdit={() => setEditing("contact")}
-            onSave={() => void save("contact")}
+            onSave={() => void saveSection("contact")}
             onCancel={() => setConfirmOpen(true)}
           >
             <Grid size={{ xs: 6 }}>
@@ -582,7 +622,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<EmergencyIcon />}
             editing={editing === "emergency"}
             onEdit={() => setEditing("emergency")}
-            onSave={() => void save("emergency")}
+            onSave={() => void saveSection("emergency")}
             onCancel={() => setConfirmOpen(true)}
           >
             <Grid size={{ xs: 6 }}>

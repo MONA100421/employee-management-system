@@ -36,3 +36,4 @@ export const employeeProfileSchema = z.object({
 });
 
 export type EmployeeProfileFormValues = z.infer<typeof employeeProfileSchema>;
+export default employeeProfileSchema;

@@ -41,6 +41,7 @@ type EmployeePersonalInfoForm = {
   middleName?: string;
   preferredName?: string;
 
+  email?: string;
   phone?: string;
   workPhone?: string;
 
@@ -213,6 +214,7 @@ export default function EmployeePersonalInfoPage() {
         lastName: res.user.lastName,
         preferredName: res.user.preferredName ?? "",
 
+        email: res.user.email,
         phone: res.employee?.phone ?? "",
 
         street: res.employee?.address?.street ?? "",
@@ -253,6 +255,7 @@ export default function EmployeePersonalInfoPage() {
 
       if (section === "contact") {
         payload.phone = values.phone;
+        payload.email = values.email;
       }
 
       if (section === "emergency") {
@@ -312,34 +315,45 @@ export default function EmployeePersonalInfoPage() {
             onSave={() => void save("name")}
             onCancel={() => setConfirmOpen(true)}
           >
-            <Field
-              name="firstName"
-              label="First Name"
-              control={control}
-              editing={editing === "name"}
-              getValues={getValues}
-            />
-            <Field
-              name="lastName"
-              label="Last Name"
-              control={control}
-              editing={editing === "name"}
-              getValues={getValues}
-            />
-            <Field
-              name="middleName"
-              label="Middle Name"
-              control={control}
-              editing={editing === "name"}
-              getValues={getValues}
-            />
-            <Field
-              name="preferredName"
-              label="Preferred Name"
-              control={control}
-              editing={editing === "name"}
-              getValues={getValues}
-            />
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="firstName"
+                label="First Name"
+                control={control}
+                editing={editing === "name"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="lastName"
+                label="Last Name"
+                control={control}
+                editing={editing === "name"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="middleName"
+                label="Middle Name"
+                control={control}
+                editing={editing === "name"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="preferredName"
+                label="Preferred Name"
+                control={control}
+                editing={editing === "name"}
+                getValues={getValues}
+              />
+            </Grid>
           </Section>
         </Grid>
 
@@ -353,48 +367,65 @@ export default function EmployeePersonalInfoPage() {
             onSave={() => void save("address")}
             onCancel={() => setConfirmOpen(true)}
           >
-            <Field
-              name="street"
-              label="Street Address"
-              control={control}
-              editing={editing === "address"}
-              getValues={getValues}
-            />
-            <Field
-              name="apt"
-              label="Apt / Suite"
-              control={control}
-              editing={editing === "address"}
-              getValues={getValues}
-            />
-            <Field
-              name="city"
-              label="City"
-              control={control}
-              editing={editing === "address"}
-              getValues={getValues}
-            />
-            <Field
-              name="state"
-              label="State"
-              control={control}
-              editing={editing === "address"}
-              getValues={getValues}
-            />
-            <Field
-              name="zipCode"
-              label="ZIP Code"
-              control={control}
-              editing={editing === "address"}
-              getValues={getValues}
-            />
-            <Field
-              name="country"
-              label="Country"
-              control={control}
-              editing={editing === "address"}
-              getValues={getValues}
-            />
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="street"
+                label="Street Address"
+                control={control}
+                editing={editing === "address"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="apt"
+                label="Apt / Suite"
+                control={control}
+                editing={editing === "address"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="city"
+                label="City"
+                control={control}
+                editing={editing === "address"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="state"
+                label="State"
+                control={control}
+                editing={editing === "address"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="zipCode"
+                label="ZIP Code"
+                control={control}
+                editing={editing === "address"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="country"
+                label="Country"
+                control={control}
+                editing={editing === "address"}
+                getValues={getValues}
+              />
+            </Grid>
           </Section>
         </Grid>
 
@@ -408,68 +439,101 @@ export default function EmployeePersonalInfoPage() {
             onSave={() => void save("contact")}
             onCancel={() => setConfirmOpen(true)}
           >
-            <Field
-              name="phone"
-              label="Personal Phone"
-              control={control}
-              editing={editing === "contact"}
-              getValues={getValues}
-            />
-            <Field
-              name="workPhone"
-              label="Work Phone"
-              control={control}
-              editing={false}
-              getValues={getValues}
-            />
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="email"
+                label="Email"
+                type="email"
+                control={control}
+                editing={editing === "contact"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="phone"
+                label="Personal Phone"
+                control={control}
+                editing={editing === "contact"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="workPhone"
+                label="Work Phone"
+                control={control}
+                editing={false}
+                getValues={getValues}
+              />
+            </Grid>
           </Section>
         </Grid>
 
         {/* Employment */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Section title="Employment" icon={<WorkIcon />} editing={false}>
-            <Field
-              name="employeeId"
-              label="Employee ID"
-              control={control}
-              editing={false}
-              getValues={getValues}
-            />
-            <Field
-              name="title"
-              label="Job Title"
-              control={control}
-              editing={false}
-              getValues={getValues}
-            />
-            <Field
-              name="department"
-              label="Department"
-              control={control}
-              editing={false}
-              getValues={getValues}
-            />
-            <Field
-              name="manager"
-              label="Manager"
-              control={control}
-              editing={false}
-              getValues={getValues}
-            />
-            <Field
-              name="startDate"
-              label="Start Date"
-              control={control}
-              editing={false}
-              getValues={getValues}
-            />
-            <Field
-              name="workAuthorization"
-              label="Work Authorization"
-              control={control}
-              editing={false}
-              getValues={getValues}
-            />
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="employeeId"
+                label="Employee ID"
+                control={control}
+                editing={false}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="title"
+                label="Job Title"
+                control={control}
+                editing={false}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="department"
+                label="Department"
+                control={control}
+                editing={false}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="manager"
+                label="Manager"
+                control={control}
+                editing={false}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="startDate"
+                label="Start Date"
+                control={control}
+                editing={false}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="workAuthorization"
+                label="Work Authorization"
+                control={control}
+                editing={false}
+                getValues={getValues}
+              />
+            </Grid>
           </Section>
         </Grid>
 
@@ -483,34 +547,45 @@ export default function EmployeePersonalInfoPage() {
             onSave={() => void save("emergency")}
             onCancel={() => setConfirmOpen(true)}
           >
-            <Field
-              name="emergencyContactName"
-              label="Contact Name"
-              control={control}
-              editing={editing === "emergency"}
-              getValues={getValues}
-            />
-            <Field
-              name="emergencyRelationship"
-              label="Relationship"
-              control={control}
-              editing={editing === "emergency"}
-              getValues={getValues}
-            />
-            <Field
-              name="emergencyPhone"
-              label="Phone"
-              control={control}
-              editing={editing === "emergency"}
-              getValues={getValues}
-            />
-            <Field
-              name="emergencyEmail"
-              label="Email"
-              control={control}
-              editing={editing === "emergency"}
-              getValues={getValues}
-            />
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="emergencyContactName"
+                label="Contact Name"
+                control={control}
+                editing={editing === "emergency"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="emergencyRelationship"
+                label="Relationship"
+                control={control}
+                editing={editing === "emergency"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="emergencyPhone"
+                label="Phone"
+                control={control}
+                editing={editing === "emergency"}
+                getValues={getValues}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Field
+                name="emergencyEmail"
+                label="Email"
+                control={control}
+                editing={editing === "emergency"}
+                getValues={getValues}
+              />
+            </Grid>
           </Section>
         </Grid>
 
@@ -519,11 +594,32 @@ export default function EmployeePersonalInfoPage() {
           <Card>
             <CardContent>
               <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 3,
+                }}
               >
-                <Typography variant="h6" fontWeight={600}>
-                  Documents
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      bgcolor: `${theme.palette.primary.main}15`,
+                      color: theme.palette.primary.main,
+                    }}
+                  >
+                    <DocumentIcon />
+                  </Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    Documents
+                  </Typography>
+                </Box>
                 <Button
                   startIcon={<UploadIcon />}
                   variant="outlined"

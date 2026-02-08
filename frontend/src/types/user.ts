@@ -9,6 +9,7 @@ export type User = {
 };
 
 export type EmployeeProfile = {
+  email?: string;
   address?: {
     street?: string;
     city?: string;

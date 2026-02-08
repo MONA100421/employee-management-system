@@ -28,6 +28,10 @@ import { useDocuments } from "../../hooks/useDocuments";
 import FileUpload from "../../components/common/FileUpload";
 import StatusChip from "../../components/common/StatusChip";
 import type { BaseDocument } from "../../types/document";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { visaSchema, type VisaFormValues } from "./visa.schema";
+
 
 type StepStatus = "not-started" | "pending" | "approved" | "rejected";
 
@@ -86,6 +90,12 @@ const VisaStatus: React.FC = () => {
       status: (doc?.status ?? "not-started") as StepStatus,
     };
   });
+
+  const { setValue } = useForm<VisaFormValues>({
+    resolver: zodResolver(visaSchema),
+    defaultValues: {},
+  });
+
 
   const activeStep = steps.findIndex((s) => s.status !== "approved");
   const completed = steps.filter((s) => s.status === "approved").length;
@@ -205,9 +215,12 @@ const VisaStatus: React.FC = () => {
                         <FileUpload
                           label={`Upload ${step.title}`}
                           disabled={disabled}
-                          onFileSelect={(file) =>
-                            uploadDocument(step.type, file)
-                          }
+                          onFileSelect={(file) => {
+                            setValue(step.type as keyof VisaFormValues, true, {
+                              shouldDirty: true,
+                            });
+                            uploadDocument(step.type, file);
+                          }}
                         />
                       )
                     )}

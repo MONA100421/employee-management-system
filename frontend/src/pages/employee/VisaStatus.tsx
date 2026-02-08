@@ -92,23 +92,16 @@ const VisaStatus: React.FC = () => {
     };
   });
 
-  // RHF: track which steps user has uploaded in this session / are present
   const { setValue, watch } = useForm<VisaFormValues>({
     resolver: zodResolver(visaSchema),
     defaultValues: {},
     mode: "onTouched",
   });
 
-  // watch returns a partial object or single keys; we'll read per-key
-  // we will call watch() without args only if needed; here we'll read per-key below
-
-  // Sync initial RHF values from backend documents when they exist
   useEffect(() => {
     if (!loading) {
       steps.forEach((s) => {
         if (s.doc?.fileName) {
-          // mark the corresponding RHF field as true (uploaded)
-          // TS: s.type may be string, cast to keyof VisaFormValues
           setValue(s.type as keyof VisaFormValues, true, {
             shouldDirty: false,
             shouldTouch: false,
@@ -117,8 +110,6 @@ const VisaStatus: React.FC = () => {
         }
       });
     }
-    // we intentionally only depend on loading and documents
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, documents]);
 
   const activeStep = steps.findIndex((s) => s.status !== "approved");
@@ -178,7 +169,7 @@ const VisaStatus: React.FC = () => {
         Complete each step in order. The next step unlocks after HR approval.
       </Alert>
 
-      {/* ===== Stepper ===== */}
+      {/* Stepper */}
       <Card>
         <CardContent>
           <Stepper
@@ -249,13 +240,11 @@ const VisaStatus: React.FC = () => {
                           label={`Upload ${step.title}`}
                           disabled={disabled}
                           onFileSelect={(file) => {
-                            // mark frontend RHF flag immediately (improves UX)
                             setValue(step.type as keyof VisaFormValues, true, {
                               shouldDirty: true,
                               shouldTouch: true,
                               shouldValidate: false,
                             });
-                            // then call upload -> useDocuments will update backend docs
                             uploadDocument(step.type, file);
                           }}
                         />

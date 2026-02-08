@@ -24,7 +24,7 @@ import {
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
 } from "@mui/icons-material";
-import { useForm, Controller, type Control } from "react-hook-form";
+import { useForm, Controller, type Control, type FieldErrors } from "react-hook-form";
 
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { useAuth } from "../../contexts/useAuth";
@@ -32,6 +32,8 @@ import { getMyEmployee, patchMyEmployee } from "../../lib/employees";
 import { useDocuments } from "../../hooks/useDocuments";
 import type { EmployeeProfile } from "../../types/user";
 import type { BaseDocument } from "../../types/document";
+import { employeeProfileSchema, type EmployeeProfileFormValues } from "./employeeProfile.schema";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 // Types
 
@@ -124,6 +126,7 @@ function Section({
               <Box sx={{ display: "flex", gap: 0.3 }}>
                 <IconButton
                   onClick={onSave}
+                  disabled={!onSave}
                   sx={{ color: theme.palette.success.main }}
                 >
                   <SaveIcon fontSize="medium" />
@@ -158,6 +161,7 @@ type FieldProps = {
   getValues: (name: keyof EmployeePersonalInfoForm) => unknown;
   disabled?: boolean;
   type?: string;
+  errors: FieldErrors<EmployeeProfileFormValues>;
 };
 
 function Field({
@@ -168,6 +172,7 @@ function Field({
   getValues,
   disabled,
   type,
+  errors,
 }: FieldProps) {
   return editing && !disabled ? (
     <Controller
@@ -180,6 +185,8 @@ function Field({
           size="small"
           label={label}
           type={type ?? "text"}
+          error={!!errors[name]}
+          helperText={errors[name]?.message}
         />
       )}
     />
@@ -204,10 +211,16 @@ export default function EmployeePersonalInfoPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { control, reset, getValues, handleSubmit } =
-    useForm<EmployeePersonalInfoForm>({
-      defaultValues: {},
-    });
+  const {
+    control,
+    reset,
+    getValues,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm<EmployeeProfileFormValues>({
+    resolver: zodResolver(employeeProfileSchema),
+    mode: "onTouched",
+  });
 
   // Load employee
   useEffect(() => {
@@ -318,7 +331,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<PersonIcon />}
             editing={editing === "name"}
             onEdit={() => setEditing("name")}
-            onSave={() => void save("name")}
+            onSave={isValid ? () => void save("name") : undefined}
             onCancel={() => setConfirmOpen(true)}
           >
             <Grid size={{ xs: 6 }}>
@@ -328,6 +341,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "name"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -338,6 +352,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "name"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -348,6 +363,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "name"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -358,6 +374,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "name"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
           </Section>
@@ -380,6 +397,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "address"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -390,6 +408,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "address"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -400,6 +419,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "address"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -410,6 +430,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "address"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -420,6 +441,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "address"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -430,6 +452,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "address"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
           </Section>
@@ -453,6 +476,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "contact"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -463,6 +487,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "contact"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -473,6 +498,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={false}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
           </Section>
@@ -488,6 +514,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={false}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -498,6 +525,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={false}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -508,6 +536,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={false}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -518,6 +547,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={false}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -528,6 +558,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={false}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -538,6 +569,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={false}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
           </Section>
@@ -560,6 +592,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "emergency"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -570,6 +603,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "emergency"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -580,6 +614,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "emergency"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
 
@@ -590,6 +625,7 @@ export default function EmployeePersonalInfoPage() {
                 control={control}
                 editing={editing === "emergency"}
                 getValues={getValues}
+                errors={errors}
               />
             </Grid>
           </Section>

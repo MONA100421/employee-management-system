@@ -1,128 +1,134 @@
-import React from "react";
-import { Grid, TextField } from "@mui/material";
-
-export type OnboardingForm = {
-  firstName: string;
-  lastName: string;
-  middleName?: string;
-  preferredName?: string;
-  ssn?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  phone?: string;
-  emergencyContact?: string;
-  emergencyPhone?: string;
-  emergencyRelationship?: string;
-  workAuthType?: string;
-  workAuthOther?: string;
-};
+import { Grid, TextField, MenuItem } from "@mui/material";
+import { Controller } from "react-hook-form";
+import type { Control, FieldErrors } from "react-hook-form";
+import type { OnboardingFormValues } from "./onboarding.schema";
 
 type Props = {
-  formData: OnboardingForm;
-  errors: Record<string, string>;
-  onChange: (
-    field: keyof OnboardingForm,
-  ) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+  control: Control<OnboardingFormValues>;
+  errors: FieldErrors<OnboardingFormValues>;
 };
 
-export default function PersonalInformation({
-  formData,
-  errors,
-  onChange,
-}: Props) {
+export default function PersonalInformation({ control, errors }: Props) {
   return (
     <Grid container spacing={3}>
+      {/* First Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField
-          fullWidth
-          label="First Name"
-          required
-          value={formData.firstName}
-          onChange={onChange("firstName")}
-          error={!!errors.firstName}
-          helperText={errors.firstName}
+        <Controller
+          name="firstName"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label="First Name"
+              required
+              error={!!errors.firstName}
+              helperText={errors.firstName?.message}
+            />
+          )}
         />
       </Grid>
 
+      {/* Last Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField
-          fullWidth
-          label="Last Name"
-          required
-          value={formData.lastName}
-          onChange={onChange("lastName")}
-          error={!!errors.lastName}
-          helperText={errors.lastName}
+        <Controller
+          name="lastName"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label="Last Name"
+              required
+              error={!!errors.lastName}
+              helperText={errors.lastName?.message}
+            />
+          )}
         />
       </Grid>
 
+      {/* Middle Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField
-          fullWidth
-          label="Middle Name"
-          value={formData.middleName || ""}
-          onChange={onChange("middleName")}
+        <Controller
+          name="middleName"
+          control={control}
+          render={({ field }) => (
+            <TextField {...field} fullWidth label="Middle Name" />
+          )}
         />
       </Grid>
 
+      {/* Preferred Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField
-          fullWidth
-          label="Preferred Name"
-          value={formData.preferredName || ""}
-          onChange={onChange("preferredName")}
+        <Controller
+          name="preferredName"
+          control={control}
+          render={({ field }) => (
+            <TextField {...field} fullWidth label="Preferred Name" />
+          )}
         />
       </Grid>
 
+      {/* SSN */}
       <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField
-          fullWidth
-          label="Social Security Number"
-          required
-          value={formData.ssn || ""}
-          onChange={onChange("ssn")}
-          error={!!errors.ssn}
-          helperText={errors.ssn}
-          placeholder="XXX-XX-XXXX"
+        <Controller
+          name="ssn"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label="Social Security Number"
+              placeholder="XXX-XX-XXXX"
+              required
+              error={!!errors.ssn}
+              helperText={errors.ssn?.message}
+            />
+          )}
         />
       </Grid>
 
+      {/* Date of Birth */}
       <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField
-          fullWidth
-          label="Date of Birth"
-          type="date"
-          required
-          value={formData.dateOfBirth || ""}
-          onChange={onChange("dateOfBirth")}
-          error={!!errors.dateOfBirth}
-          helperText={errors.dateOfBirth}
-          InputLabelProps={{ shrink: true }}
+        <Controller
+          name="dateOfBirth"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              fullWidth
+              type="date"
+              label="Date of Birth"
+              InputLabelProps={{ shrink: true }}
+              required
+              error={!!errors.dateOfBirth}
+              helperText={errors.dateOfBirth?.message}
+            />
+          )}
         />
       </Grid>
 
+      {/* Gender */}
       <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField
-          fullWidth
-          label="Gender"
-          select
-          InputLabelProps={{ shrink: true }}
-          SelectProps={{ native: true }}
-          value={formData.gender || ""}
-          onChange={onChange("gender")}
-        >
-          <option value="" disabled>
-            Select...
-          </option>{" "}
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-          <option value="prefer-not">Prefer not to say</option>
-        </TextField>
+        <Controller
+          name="gender"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              select
+              fullWidth
+              label="Gender"
+              InputLabelProps={{ shrink: true }}
+            >
+              <MenuItem value="">Select...</MenuItem>
+              <MenuItem value="male">Male</MenuItem>
+              <MenuItem value="female">Female</MenuItem>
+              <MenuItem value="other">Other</MenuItem>
+              <MenuItem value="prefer-not">Prefer not to say</MenuItem>
+            </TextField>
+          )}
+        />
       </Grid>
     </Grid>
   );

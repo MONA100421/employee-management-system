@@ -9,7 +9,7 @@ import {
   useTheme,
   Alert,
 } from "@mui/material";
-import type { OnboardingForm } from "./PersonalInformation";
+import type { OnboardingFormValues } from "./onboarding.schema";
 import type { OnboardingDocument } from "./types";
 import StatusChip from "../../components/common/StatusChip";
 import { Schedule as ScheduleIcon } from "@mui/icons-material";
@@ -17,7 +17,7 @@ import { Schedule as ScheduleIcon } from "@mui/icons-material";
 
 
 type Props = {
-  formData: OnboardingForm;
+  formData: OnboardingFormValues;
   documents: OnboardingDocument[];
   onFixDocument: (docId: string) => void;
 };

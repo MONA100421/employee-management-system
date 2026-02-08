@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -11,16 +11,17 @@ import {
   Divider,
   CircularProgress,
 } from "@mui/material";
+import { useForm } from "react-hook-form";
 
 import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
 import PersonalInformation from "./PersonalInformation";
-import type { OnboardingForm } from "./PersonalInformation";
 import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
 import DocumentList from "../../components/common/DocumentList";
 import { useDocuments } from "../../hooks/useDocuments";
 import type { BaseDocument, OnboardingDocument } from "../../types/document";
+import type { OnboardingFormValues } from "./onboarding.schema";
 
 const steps = [
   "Personal Info",
@@ -42,7 +43,7 @@ const toOnboardingDoc = (d: BaseDocument): OnboardingDocument => ({
           : d.type,
 });
 
-const Onboarding: React.FC = () => {
+const Onboarding = () => {
   const {
     documents: rawDocs,
     loading,
@@ -57,27 +58,34 @@ const Onboarding: React.FC = () => {
     null,
   );
 
-  const [formData, setFormData] = useState<OnboardingForm>({
-    firstName: "",
-    lastName: "",
-    middleName: "",
-    preferredName: "",
-    ssn: "",
-    dateOfBirth: "",
-    gender: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    phone: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    emergencyRelationship: "",
-    workAuthType: "",
-    workAuthOther: "",
+  const {
+    control,
+    formState: { errors },
+    trigger,
+    getValues,
+    reset,
+  } = useForm<OnboardingFormValues>({
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      middleName: "",
+      preferredName: "",
+      ssn: "",
+      dateOfBirth: "",
+      gender: "",
+      address: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      phone: "",
+      emergencyContact: "",
+      emergencyPhone: "",
+      emergencyRelationship: "",
+      workAuthType: "",
+      workAuthOther: "",
+    },
+    mode: "onTouched",
   });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -86,38 +94,34 @@ const Onboarding: React.FC = () => {
       setRejectionFeedback(app.hrFeedback ?? null);
 
       if (app.formData) {
-        setFormData((prev) => ({ ...prev, ...app.formData }));
+        reset(app.formData);
       }
     };
+
     load();
-  }, []);
+  }, [reset]);
 
-  const handleChange =
-    (field: keyof OnboardingForm) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: "" }));
-      }
-    };
+  const handleNext = async () => {
+    if (activeStep === 0) {
+      const valid = await trigger([
+        "firstName",
+        "lastName",
+        "ssn",
+        "dateOfBirth",
+      ]);
 
-  const validateStep = (step: number) => {
-    const errs: Record<string, string> = {};
-    if (step === 0) {
-      if (!formData.firstName) errs.firstName = "Required";
-      if (!formData.lastName) errs.lastName = "Required";
-      if (!formData.ssn) errs.ssn = "Required";
-      if (!formData.dateOfBirth) errs.dateOfBirth = "Required";
+      if (!valid) return;
     }
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+
+    setActiveStep((s) => s + 1);
   };
 
-  const handleNext = () =>
-    validateStep(activeStep) && setActiveStep((s) => s + 1);
-  const handleBack = () => setActiveStep((s) => Math.max(0, s - 1));
+  const handleBack = () => {
+    setActiveStep((s) => Math.max(0, s - 1));
+  };
 
   const handleSubmit = async () => {
+    const formData = getValues();
     const res = await submitOnboarding(formData);
     if (res.ok) setStatus(res.status);
   };
@@ -157,11 +161,7 @@ const Onboarding: React.FC = () => {
           <Divider sx={{ my: 4 }} />
 
           {activeStep === 0 && (
-            <PersonalInformation
-              formData={formData}
-              errors={errors}
-              onChange={handleChange}
-            />
+            <PersonalInformation control={control} errors={errors} />
           )}
 
           {activeStep === 2 && <VisaStatus />}
@@ -170,9 +170,10 @@ const Onboarding: React.FC = () => {
             <DocumentList documents={documents} onUpload={uploadDocument} />
           )}
 
+
           {activeStep === 4 && (
             <OnboardingReview
-              formData={formData}
+              formData={getValues()}
               documents={documents}
               onFixDocument={() => setActiveStep(3)}
             />
@@ -184,6 +185,7 @@ const Onboarding: React.FC = () => {
             <Button onClick={handleBack} disabled={activeStep === 0}>
               Back
             </Button>
+
             {activeStep === steps.length - 1 ? (
               <Button
                 variant="contained"

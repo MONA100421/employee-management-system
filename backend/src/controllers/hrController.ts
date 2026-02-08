@@ -32,10 +32,6 @@ export const inviteEmployee = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
 
-    if (!user || user.role !== "hr") {
-      return res.status(403).json({ ok: false, message: "Forbidden" });
-    }
-
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ ok: false, message: "Email is required" });

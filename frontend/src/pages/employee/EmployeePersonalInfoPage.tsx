@@ -8,32 +8,42 @@ import {
   TextField,
   Avatar,
   IconButton,
+  Button,
   useTheme,
 } from "@mui/material";
 import {
   Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
+  Person as PersonIcon,
+  Home as HomeIcon,
+  Phone as PhoneIcon,
+  Work as WorkIcon,
+  ContactEmergency as EmergencyIcon,
+  Description as DocumentIcon,
+  CloudUpload as UploadIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type Control } from "react-hook-form";
+
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { useAuth } from "../../contexts/useAuth";
 import { getMyEmployee, patchMyEmployee } from "../../lib/employees";
+import { useDocuments } from "../../hooks/useDocuments";
 import type { EmployeeProfile } from "../../types/user";
+import type { BaseDocument } from "../../types/document";
 
-/* ---------- Form type (THIS PAGE ONLY) ---------- */
+// Types
+
 type EmployeePersonalInfoForm = {
-  // name (User)
   firstName: string;
   lastName: string;
   middleName?: string;
   preferredName?: string;
 
-  // contact
   phone?: string;
   workPhone?: string;
 
-  // address
   street?: string;
   apt?: string;
   city?: string;
@@ -41,7 +51,6 @@ type EmployeePersonalInfoForm = {
   zipCode?: string;
   country?: string;
 
-  // employment (read-only)
   employeeId?: string;
   title?: string;
   department?: string;
@@ -49,29 +58,151 @@ type EmployeePersonalInfoForm = {
   startDate?: string;
   workAuthorization?: string;
 
-  // emergency
   emergencyContactName?: string;
   emergencyRelationship?: string;
   emergencyPhone?: string;
   emergencyEmail?: string;
 };
 
+// Reusable UI components
+
+type SectionProps = {
+  title: string;
+  icon: React.ReactNode;
+  editing: boolean;
+  onEdit?: () => void;
+  onSave?: () => void;
+  onCancel?: () => void;
+  children: React.ReactNode;
+};
+
+function Section({
+  title,
+  icon,
+  editing,
+  onEdit,
+  onSave,
+  onCancel,
+  children,
+}: SectionProps) {
+  const theme = useTheme();
+
+  return (
+    <Card sx={{ height: "100%" }}>
+      <CardContent>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 3,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {icon}
+            </Box>
+            <Typography variant="h6" fontWeight={600}>
+              {title}
+            </Typography>
+          </Box>
+
+          {onEdit &&
+            (editing ? (
+              <>
+                <IconButton size="small" onClick={onSave}>
+                  <SaveIcon />
+                </IconButton>
+                <IconButton size="small" onClick={onCancel}>
+                  <CancelIcon />
+                </IconButton>
+              </>
+            ) : (
+              <IconButton size="small" onClick={onEdit}>
+                <EditIcon />
+              </IconButton>
+            ))}
+        </Box>
+
+        <Grid container spacing={2}>
+          {children}
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+}
+
+type FieldProps = {
+  name: keyof EmployeePersonalInfoForm;
+  label: string;
+  control: Control<EmployeePersonalInfoForm>;
+  editing: boolean;
+  getValues: (name: keyof EmployeePersonalInfoForm) => unknown;
+  disabled?: boolean;
+  type?: string;
+};
+
+function Field({
+  name,
+  label,
+  control,
+  editing,
+  getValues,
+  disabled,
+  type,
+}: FieldProps) {
+  return editing && !disabled ? (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <TextField
+          {...field}
+          fullWidth
+          size="small"
+          label={label}
+          type={type ?? "text"}
+        />
+      )}
+    />
+  ) : (
+    <Box>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography fontWeight={500}>{String(getValues(name) ?? "-")}</Typography>
+    </Box>
+  );
+}
+
+// Page
+
 export default function EmployeePersonalInfoPage() {
   const theme = useTheme();
   const { user } = useAuth();
+  const { documents } = useDocuments("all");
 
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
-  const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  /* ---------- RHF ---------- */
   const { control, reset, getValues, handleSubmit } =
     useForm<EmployeePersonalInfoForm>({
       defaultValues: {},
     });
 
-  /* ---------- Load data ---------- */
+  // Load employee
   useEffect(() => {
     (async () => {
       const res = await getMyEmployee();
@@ -81,6 +212,7 @@ export default function EmployeePersonalInfoPage() {
         firstName: res.user.firstName,
         lastName: res.user.lastName,
         preferredName: res.user.preferredName ?? "",
+
         phone: res.employee?.phone ?? "",
 
         street: res.employee?.address?.street ?? "",
@@ -105,16 +237,9 @@ export default function EmployeePersonalInfoPage() {
     })();
   }, [reset]);
 
-  /* ---------- Save ---------- */
-  const saveSection = (section: string) =>
+  const save = (section: string) =>
     handleSubmit(async (values) => {
-      setSaving(true);
-
       const payload: Partial<EmployeeProfile> = {};
-
-      if (section === "contact") {
-        payload.phone = values.phone;
-      }
 
       if (section === "address") {
         payload.address = {
@@ -124,6 +249,10 @@ export default function EmployeePersonalInfoPage() {
           zipCode: values.zipCode,
           country: values.country,
         };
+      }
+
+      if (section === "contact") {
+        payload.phone = values.phone;
       }
 
       if (section === "emergency") {
@@ -136,17 +265,17 @@ export default function EmployeePersonalInfoPage() {
       }
 
       await patchMyEmployee(payload);
-      setEditingSection(null);
-      setSaving(false);
+      setEditing(null);
     })();
 
-  /* ---------- UI ---------- */
+  // UI
+
   return (
     <Box>
-      {/* ===== Profile Header ===== */}
+      {/* Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ py: 4 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <Box sx={{ display: "flex", gap: 3 }}>
             <Avatar
               sx={{
                 width: 100,
@@ -172,85 +301,281 @@ export default function EmployeePersonalInfoPage() {
         </CardContent>
       </Card>
 
-      {/* ===== Address / Contact / Employment / Emergency ===== */}
-      {/* 為了篇幅可讀性，這裡示範 Address，其餘 section 完全同 pattern */}
-
       <Grid container spacing={3}>
+        {/* Name */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Section
+            title="Name Information"
+            icon={<PersonIcon />}
+            editing={editing === "name"}
+            onEdit={() => setEditing("name")}
+            onSave={() => void save("name")}
+            onCancel={() => setConfirmOpen(true)}
+          >
+            <Field
+              name="firstName"
+              label="First Name"
+              control={control}
+              editing={editing === "name"}
+              getValues={getValues}
+            />
+            <Field
+              name="lastName"
+              label="Last Name"
+              control={control}
+              editing={editing === "name"}
+              getValues={getValues}
+            />
+            <Field
+              name="middleName"
+              label="Middle Name"
+              control={control}
+              editing={editing === "name"}
+              getValues={getValues}
+            />
+            <Field
+              name="preferredName"
+              label="Preferred Name"
+              control={control}
+              editing={editing === "name"}
+              getValues={getValues}
+            />
+          </Section>
+        </Grid>
+
         {/* Address */}
         <Grid size={{ xs: 12, md: 6 }}>
+          <Section
+            title="Address"
+            icon={<HomeIcon />}
+            editing={editing === "address"}
+            onEdit={() => setEditing("address")}
+            onSave={() => void save("address")}
+            onCancel={() => setConfirmOpen(true)}
+          >
+            <Field
+              name="street"
+              label="Street Address"
+              control={control}
+              editing={editing === "address"}
+              getValues={getValues}
+            />
+            <Field
+              name="apt"
+              label="Apt / Suite"
+              control={control}
+              editing={editing === "address"}
+              getValues={getValues}
+            />
+            <Field
+              name="city"
+              label="City"
+              control={control}
+              editing={editing === "address"}
+              getValues={getValues}
+            />
+            <Field
+              name="state"
+              label="State"
+              control={control}
+              editing={editing === "address"}
+              getValues={getValues}
+            />
+            <Field
+              name="zipCode"
+              label="ZIP Code"
+              control={control}
+              editing={editing === "address"}
+              getValues={getValues}
+            />
+            <Field
+              name="country"
+              label="Country"
+              control={control}
+              editing={editing === "address"}
+              getValues={getValues}
+            />
+          </Section>
+        </Grid>
+
+        {/* Contact */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Section
+            title="Contact Information"
+            icon={<PhoneIcon />}
+            editing={editing === "contact"}
+            onEdit={() => setEditing("contact")}
+            onSave={() => void save("contact")}
+            onCancel={() => setConfirmOpen(true)}
+          >
+            <Field
+              name="phone"
+              label="Personal Phone"
+              control={control}
+              editing={editing === "contact"}
+              getValues={getValues}
+            />
+            <Field
+              name="workPhone"
+              label="Work Phone"
+              control={control}
+              editing={false}
+              getValues={getValues}
+            />
+          </Section>
+        </Grid>
+
+        {/* Employment */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Section title="Employment" icon={<WorkIcon />} editing={false}>
+            <Field
+              name="employeeId"
+              label="Employee ID"
+              control={control}
+              editing={false}
+              getValues={getValues}
+            />
+            <Field
+              name="title"
+              label="Job Title"
+              control={control}
+              editing={false}
+              getValues={getValues}
+            />
+            <Field
+              name="department"
+              label="Department"
+              control={control}
+              editing={false}
+              getValues={getValues}
+            />
+            <Field
+              name="manager"
+              label="Manager"
+              control={control}
+              editing={false}
+              getValues={getValues}
+            />
+            <Field
+              name="startDate"
+              label="Start Date"
+              control={control}
+              editing={false}
+              getValues={getValues}
+            />
+            <Field
+              name="workAuthorization"
+              label="Work Authorization"
+              control={control}
+              editing={false}
+              getValues={getValues}
+            />
+          </Section>
+        </Grid>
+
+        {/* Emergency */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Section
+            title="Emergency Contact"
+            icon={<EmergencyIcon />}
+            editing={editing === "emergency"}
+            onEdit={() => setEditing("emergency")}
+            onSave={() => void save("emergency")}
+            onCancel={() => setConfirmOpen(true)}
+          >
+            <Field
+              name="emergencyContactName"
+              label="Contact Name"
+              control={control}
+              editing={editing === "emergency"}
+              getValues={getValues}
+            />
+            <Field
+              name="emergencyRelationship"
+              label="Relationship"
+              control={control}
+              editing={editing === "emergency"}
+              getValues={getValues}
+            />
+            <Field
+              name="emergencyPhone"
+              label="Phone"
+              control={control}
+              editing={editing === "emergency"}
+              getValues={getValues}
+            />
+            <Field
+              name="emergencyEmail"
+              label="Email"
+              control={control}
+              editing={editing === "emergency"}
+              getValues={getValues}
+            />
+          </Section>
+        </Grid>
+
+        {/* Documents */}
+        <Grid size={{ xs: 12 }}>
           <Card>
             <CardContent>
-              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                <Typography variant="h6">Address</Typography>
-                {editingSection === "address" ? (
-                  <>
-                    <IconButton
-                      onClick={() => saveSection("address")}
-                      disabled={saving}
-                    >
-                      <SaveIcon />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => setEditingSection(null)}
-                      disabled={saving}
-                    >
-                      <CancelIcon />
-                    </IconButton>
-                  </>
-                ) : (
-                  <IconButton onClick={() => setEditingSection("address")}>
-                    <EditIcon />
-                  </IconButton>
-                )}
+              <Box
+                sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}
+              >
+                <Typography variant="h6" fontWeight={600}>
+                  Documents
+                </Typography>
+                <Button
+                  startIcon={<UploadIcon />}
+                  variant="outlined"
+                  size="small"
+                >
+                  Upload New
+                </Button>
               </Box>
 
-              <Grid container spacing={2} sx={{ mt: 2 }}>
-                {["street", "city", "state", "zipCode", "country"].map(
-                  (name) => (
-                    <Grid size={{ xs: 12, sm: 6 }} key={name}>
-                      {editingSection === "address" ? (
-                        <Controller
-                          name={name as keyof EmployeePersonalInfoForm}
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              {...field}
-                              fullWidth
-                              size="small"
-                              label={name}
-                            />
-                          )}
-                        />
-                      ) : (
-                        <>
-                          <Typography variant="caption">{name}</Typography>
-                          <Typography>
-                            {getValues(name as keyof EmployeePersonalInfoForm)}
-                          </Typography>
-                        </>
-                      )}
-                    </Grid>
-                  ),
-                )}
+              <Grid container spacing={2}>
+                {documents.map((doc: BaseDocument) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={doc.id}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        border: `1px solid ${theme.palette.divider}`,
+                        borderRadius: 2,
+                        display: "flex",
+                        gap: 2,
+                        alignItems: "center",
+                      }}
+                    >
+                      <DocumentIcon color="error" />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={500}>{doc.fileName}</Typography>
+                        <Typography variant="caption">
+                          {doc.type} • {doc.uploadedAt}
+                        </Typography>
+                      </Box>
+                      <IconButton size="small">
+                        <DownloadIcon />
+                      </IconButton>
+                    </Box>
+                  </Grid>
+                ))}
               </Grid>
             </CardContent>
           </Card>
         </Grid>
-
-        {/* 👉 Contact / Employment / Emergency / Documents 同 lovable 結構複製即可 */}
       </Grid>
 
       <ConfirmDialog
-        open={cancelDialogOpen}
+        open={confirmOpen}
         title="Discard Changes?"
         message="Your changes will be lost."
         confirmText="Discard"
         confirmColor="error"
         onConfirm={() => {
-          setEditingSection(null);
-          setCancelDialogOpen(false);
+          setEditing(null);
+          setConfirmOpen(false);
         }}
-        onCancel={() => setCancelDialogOpen(false)}
+        onCancel={() => setConfirmOpen(false)}
       />
     </Box>
   );

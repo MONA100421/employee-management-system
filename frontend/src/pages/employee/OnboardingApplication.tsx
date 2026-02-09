@@ -126,10 +126,21 @@ const Onboarding = () => {
   const handleSubmit = async () => {
     const formData = getValues();
     const res = await submitOnboarding(formData);
-    if (res.ok) setStatus(res.status);
+
+    if (res.ok) {
+      setStatus(res.status);
+      setRejectionFeedback(null);
+      setActiveStep(0);
+    }
   };
 
+  // Submission conditions
+  
   const hasIncompleteDocuments = documents.some((d) => d.status !== "approved");
+
+  const canSubmit =
+    !hasIncompleteDocuments &&
+    (status === "never-submitted" || status === "rejected");
 
   if (loading) {
     return (
@@ -148,7 +159,17 @@ const Onboarding = () => {
         <Alert severity="success">Application Approved</Alert>
       )}
       {status === "rejected" && (
-        <Alert severity="error">{rejectionFeedback}</Alert>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <strong>Your application was rejected.</strong>
+          <br />
+          Please review the feedback below, fix the issues, and resubmit.
+          {rejectionFeedback && (
+            <>
+              <br />
+              <strong>HR Feedback:</strong> {rejectionFeedback}
+            </>
+          )}
+        </Alert>
       )}
 
       <Card>
@@ -173,7 +194,6 @@ const Onboarding = () => {
             <DocumentList documents={documents} onUpload={uploadDocument} />
           )}
 
-
           {activeStep === 4 && (
             <OnboardingReview
               formData={getValues()}
@@ -193,9 +213,9 @@ const Onboarding = () => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={hasIncompleteDocuments}
+                disabled={!canSubmit}
               >
-                Submit
+                {status === "rejected" ? "Resubmit" : "Submit"}
               </Button>
             ) : (
               <Button variant="contained" onClick={handleNext}>

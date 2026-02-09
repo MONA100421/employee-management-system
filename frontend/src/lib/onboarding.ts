@@ -48,3 +48,19 @@ export async function reviewOnboarding(
 
   return resp.data;
 }
+
+// HR only
+export type HROnboardingListItem = {
+  id: string;
+  employee: {
+    username: string;
+    email: string;
+  } | null;
+  status: UIOnboardingStatus;
+  submittedAt: string;
+};
+
+export async function getHROnboardings(): Promise<HROnboardingListItem[]> {
+  const res = await api.get("/hr/onboarding");
+  return res.data.applications;
+}

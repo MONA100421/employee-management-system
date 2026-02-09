@@ -1,5 +1,9 @@
 export type DocumentCategory = "onboarding" | "visa";
 
+export type UserRef = {
+  id: string;
+  username: string;
+};
 export type DocumentStatus =
   | "not-started"
   | "pending"
@@ -13,7 +17,10 @@ export type BaseDocument = {
   status: DocumentStatus;
   fileName?: string;
   uploadedAt?: string;
-  hrFeedback?: string;
+  // HR review
+  reviewedAt?: string | null;
+  reviewedBy?: UserRef | null;
+  hrFeedback?: string | null;
 };
 
 export type OnboardingDocument = BaseDocument & {

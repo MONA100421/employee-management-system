@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import OnboardingApplication from '../models/OnboardingApplication';
+import Document from "../models/Document";
 
 
 const dbToUIStatus = (s: string | undefined) => {
@@ -149,6 +150,21 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
 
     if (app.status !== 'pending') {
       return res.status(400).json({ ok: false, message: 'Only pending applications can be reviewed' });
+    }
+
+    if (decision === "approved") {
+      const pendingDocs = await Document.find({
+        user: app.user,
+        category: "onboarding",
+        status: { $ne: "approved" },
+      });
+
+      if (pendingDocs.length > 0) {
+        return res.status(400).json({
+          ok: false,
+          message: "All onboarding documents must be approved first",
+        });
+      }
     }
 
     if (decision === 'approved') {

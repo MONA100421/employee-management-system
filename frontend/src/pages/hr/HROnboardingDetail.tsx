@@ -24,14 +24,13 @@ import { getDocumentsForHR, reviewDocument } from "../../lib/documents";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
 import StatusChip from "../../components/common/StatusChip";
 import OnboardingReview from "../employee/OnboardingReview";
-import DocumentList from "../../components/common/DocumentList";
+import HRDocumentReviewPanel from "../../components/common/HRDocumentReviewPanel";
 
 import { toOnboardingDoc } from "../../utils/documentMapping";
 import type { BaseDocument } from "../../types/document";
 import type { OnboardingDocument } from "../employee/types";
 import type { OnboardingFormValues } from "../employee/onboarding.schema";
 
-// HR Onboarding Detail Page
 const HROnboardingDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -40,89 +39,85 @@ const HROnboardingDetailPage = () => {
   const [application, setApplication] = useState<HROnboardingDetail | null>(
     null,
   );
+  const [approveError, setApproveError] = useState<string | null>(null);
 
+  // raw documents (backend BaseDocument)
   const [baseDocuments, setBaseDocuments] = useState<BaseDocument[]>([]);
-
+  // mapped for onboarding review UI (has title)
   const [reviewDocuments, setReviewDocuments] = useState<OnboardingDocument[]>(
     [],
   );
 
+  const unapprovedDocs = reviewDocuments.filter((d) => d.status !== "approved");
+
   const [feedbackDialog, setFeedbackDialog] = useState<{
     open: boolean;
     type: "approve" | "reject";
-    docId: string | null; // null = whole application
-  }>({
-    open: false,
-    type: "approve",
-    docId: null,
-  });
+    docId: string | null;
+  }>({ open: false, type: "approve", docId: null });
 
-  // Load onboarding + documents
+  const loadAll = async (appId?: string) => {
+    if (!appId) return;
+    setLoading(true);
+    try {
+      const app = await getHROnboardingDetail(appId);
+      setApplication(app);
+
+      if (app.employee?.id) {
+        const docs = await getDocumentsForHR(app.employee.id);
+        const onboardingDocs = docs.filter((d) => d.category === "onboarding");
+        setBaseDocuments(onboardingDocs);
+        setReviewDocuments(onboardingDocs.map(toOnboardingDoc));
+      } else {
+        setBaseDocuments([]);
+        setReviewDocuments([]);
+      }
+    } catch (err) {
+      console.error("Failed to load HR onboarding detail", err);
+      setApplication(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!id) return;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const app = await getHROnboardingDetail(id);
-        setApplication(app);
-
-        if (app.employee?.id) {
-          const docs = await getDocumentsForHR(app.employee.id);
-
-          const onboardingDocs = docs.filter(
-            (d) => d.category === "onboarding",
-          );
-
-          setBaseDocuments(onboardingDocs);
-          setReviewDocuments(onboardingDocs.map(toOnboardingDoc));
-        } else {
-          setBaseDocuments([]);
-          setReviewDocuments([]);
-        }
-      } catch (err) {
-        console.error("Failed to load HR onboarding detail", err);
-        setApplication(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+    loadAll(id);
   }, [id]);
 
-  // Document review handlers
+  /* Document approve/reject - use API then refresh via loadAll */
   const handleApproveDoc = async (docId: string) => {
-    await reviewDocument(docId, "approved");
-
-    setBaseDocuments((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, status: "approved" } : d)),
-    );
-    setReviewDocuments((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, status: "approved" } : d)),
-    );
+    try {
+      await reviewDocument(docId, "approved");
+      if (application?.employee?.id) await loadAll(application?.id);
+    } catch (err) {
+      console.error("approve doc failed", err);
+    }
   };
 
   const handleRejectDoc = async (docId: string, feedback: string) => {
-    await reviewDocument(docId, "rejected", feedback);
-
-    setBaseDocuments((prev) =>
-      prev.map((d) =>
-        d.id === docId ? { ...d, status: "rejected", hrFeedback: feedback } : d,
-      ),
-    );
-    setReviewDocuments((prev) =>
-      prev.map((d) =>
-        d.id === docId ? { ...d, status: "rejected", feedback } : d,
-      ),
-    );
+    try {
+      await reviewDocument(docId, "rejected", feedback);
+      if (application?.employee?.id) await loadAll(application?.id);
+    } catch (err) {
+      console.error("reject doc failed", err);
+    }
   };
 
-  // Application review handlers
+  /* Application review */
   const handleApproveApp = async () => {
     if (!application) return;
-    await reviewOnboarding(application.id, "approved");
-    navigate("/hr/hiring");
+    try {
+      setApproveError(null);
+      await reviewOnboarding(application.id, "approved");
+      navigate("/hr/hiring");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unable to approve application. Please try again.";
+      setApproveError(message);
+    }
   };
 
   const handleRejectApp = async (feedback: string) => {
@@ -131,7 +126,6 @@ const HROnboardingDetailPage = () => {
     navigate("/hr/hiring");
   };
 
-  // Render states
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
@@ -148,7 +142,6 @@ const HROnboardingDetailPage = () => {
 
   return (
     <Box>
-      {/* Header */}
       <Stack direction="row" justifyContent="space-between" mb={3}>
         <Box>
           <Typography variant="h5" fontWeight={700}>
@@ -162,7 +155,6 @@ const HROnboardingDetailPage = () => {
         <StatusChip status={application.status} />
       </Stack>
 
-      {/* Previous HR feedback */}
       {application.status === "rejected" && application.hrFeedback && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <strong>Previous HR feedback:</strong>
@@ -171,7 +163,6 @@ const HROnboardingDetailPage = () => {
         </Alert>
       )}
 
-      {/* Read-only onboarding review */}
       <OnboardingReview
         formData={application.formData as OnboardingFormValues}
         documents={reviewDocuments}
@@ -181,23 +172,37 @@ const HROnboardingDetailPage = () => {
 
       <Divider sx={{ my: 4 }} />
 
-      {/* HR document review */}
       <Typography variant="h6" fontWeight={600} mb={2}>
         Onboarding Documents
       </Typography>
 
-      <DocumentList
+      <HRDocumentReviewPanel
         documents={baseDocuments}
-        readonly
-        onApprove={(docId) => handleApproveDoc(docId)}
-        onReject={(docId) =>
-          setFeedbackDialog({ open: true, type: "reject", docId })
-        }
+        readonly={false}
+        onApprove={handleApproveDoc}
+        onReject={handleRejectDoc}
+        onRefresh={() => loadAll(application.id)}
       />
 
       <Divider sx={{ my: 4 }} />
 
-      {/* Application actions */}
+      {approveError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {approveError}
+        </Alert>
+      )}
+
+      {approveError && unapprovedDocs.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          The following documents are not approved yet:
+          <ul>
+            {unapprovedDocs.map((d) => (
+              <li key={d.id}>{d.title}</li>
+            ))}
+          </ul>
+        </Alert>
+      )}
+
       {application.status === "pending" && (
         <Stack direction="row" spacing={2}>
           <Button
@@ -228,7 +233,6 @@ const HROnboardingDetailPage = () => {
         </Stack>
       )}
 
-      {/* Feedback Dialog */}
       <FeedbackDialog
         open={feedbackDialog.open}
         type={feedbackDialog.type}

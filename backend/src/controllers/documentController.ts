@@ -167,7 +167,9 @@ export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
 
   const { userId } = req.params;
 
-  const docs = await Document.find({ user: userId }).lean();
+  const docs = await Document.find({ user: userId })
+    .populate("reviewedBy", "username")
+    .lean();
 
   return res.json({
     ok: true,
@@ -178,6 +180,13 @@ export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
       status: dbToUIStatus(d.status),
       fileName: d.fileName ?? null,
       uploadedAt: d.uploadedAt ?? null,
+      reviewedAt: d.reviewedAt ?? null,
+      reviewedBy: d.reviewedBy
+        ? {
+            id: (d.reviewedBy as any)._id,
+            username: (d.reviewedBy as any).username,
+          }
+        : null,
       hrFeedback: d.hrFeedback ?? null,
     })),
   });

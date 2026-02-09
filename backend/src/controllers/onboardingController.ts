@@ -190,3 +190,34 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, message: 'Server error' });
   }
 };
+
+// HR onboarding detail API
+export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!user || user.role !== "hr") {
+    return res.status(403).json({ ok: false });
+  }
+
+  const { id } = req.params;
+
+  const app = await OnboardingApplication.findById(id)
+    .populate("user", "username email")
+    .lean();
+
+  if (!app) {
+    return res.status(404).json({ ok: false, message: "Not found" });
+  }
+
+  return res.json({
+    ok: true,
+    application: {
+      id: app._id,
+      status: app.status,
+      formData: app.formData || {},
+      hrFeedback: app.hrFeedback || null,
+      submittedAt: app.submittedAt ?? null,
+      reviewedAt: app.reviewedAt ?? null,
+      employee: app.user,
+    },
+  });
+};

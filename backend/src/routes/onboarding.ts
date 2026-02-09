@@ -3,9 +3,11 @@ import {
   getMyOnboarding,
   submitOnboarding,
   listOnboardingsForHR,
-  reviewOnboarding
+  reviewOnboarding,
+  getOnboardingDetailForHR
 } from '../controllers/onboardingController';
 import { authMiddleware } from '../utils/authMiddleware';
+import { requireRole } from '../utils/requireRole';
 
 const router = Router();
 
@@ -20,5 +22,12 @@ router.get('/hr/onboarding', authMiddleware, listOnboardingsForHR);
 
 // HR: review
 router.post('/hr/onboarding/:id/review', authMiddleware, reviewOnboarding);
+
+router.get(
+  "/hr/onboarding/:id",
+  authMiddleware,
+  requireRole("hr"),
+  getOnboardingDetailForHR,
+);
 
 export default router;

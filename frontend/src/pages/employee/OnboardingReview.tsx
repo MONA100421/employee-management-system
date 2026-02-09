@@ -14,12 +14,11 @@ import type { OnboardingDocument } from "./types";
 import StatusChip from "../../components/common/StatusChip";
 import { Schedule as ScheduleIcon } from "@mui/icons-material";
 
-
-
 type Props = {
   formData: OnboardingFormValues;
   documents: OnboardingDocument[];
-  onFixDocument: (docId: string) => void;
+  onFixDocument?: (docId: string) => void;
+  readOnly?: boolean;
 };
 
 function InfoBlock({
@@ -41,7 +40,12 @@ function InfoBlock({
   );
 }
 
-export default function OnboardingReview({ formData, documents, onFixDocument }: Props) {
+export default function OnboardingReview({
+  formData,
+  documents,
+  onFixDocument,
+  readOnly = false,
+}: Props) {
   const theme = useTheme();
 
   return (
@@ -54,8 +58,7 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
         variant="body2"
         sx={{ color: theme.palette.text.secondary, mb: 3 }}
       >
-        Please review your information carefully before submitting. You can go
-        back to any step to make changes.
+        Please review your information carefully before submitting.
       </Typography>
 
       <Grid container spacing={3}>
@@ -70,14 +73,14 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
               <strong>Date of Birth:</strong> {formData.dateOfBirth || "—"}
             </Typography>
             <Typography variant="body2">
-              <strong>SSN:</strong> ***-**-
-              {formData.ssn?.slice(-4) || "****"}
+              <strong>SSN:</strong> ***-**-{formData.ssn?.slice(-4) || "****"}
             </Typography>
             <Typography variant="body2">
               <strong>Gender:</strong> {formData.gender || "—"}
             </Typography>
           </InfoBlock>
         </Grid>
+
         {/* Address */}
         <Grid size={{ xs: 12, md: 6 }}>
           <InfoBlock title="Address">
@@ -88,16 +91,16 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
           </InfoBlock>
         </Grid>
 
-        {/* Documents Summary */}
+        {/* Documents */}
         <Grid size={{ xs: 12 }}>
           <InfoBlock title="Documents">
             <Grid container spacing={2}>
-              {documents.map((doc: OnboardingDocument) => (
+              {documents.map((doc) => (
                 <Grid size={{ xs: 12, md: 6 }} key={doc.id}>
                   <Box
                     onClick={
-                      doc.status === "rejected"
-                        ? () => onFixDocument(doc.id)
+                      !readOnly && doc.status === "rejected"
+                        ? () => onFixDocument?.(doc.id)
                         : undefined
                     }
                     sx={{
@@ -109,63 +112,38 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
                       justifyContent: "space-between",
                       alignItems: "center",
                       gap: 2,
-                      cursor: doc.status === "rejected" ? "pointer" : "default",
+                      cursor:
+                        !readOnly && doc.status === "rejected"
+                          ? "pointer"
+                          : "default",
                       bgcolor:
                         doc.status === "rejected"
-                          ? "rgba(198, 40, 40, 0.06)"
+                          ? "rgba(198,40,40,0.06)"
                           : "transparent",
-                      "&:hover":
-                        doc.status === "rejected"
-                          ? { backgroundColor: "rgba(198, 40, 40, 0.12)" }
-                          : {},
                     }}
                   >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography fontWeight={600} noWrap>
-                        {doc.title}
-                      </Typography>
-
+                    <Box>
+                      <Typography fontWeight={600}>{doc.title}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         {doc.fileName
                           ? `Uploaded ${doc.uploadedAt}`
                           : "Not uploaded"}
                       </Typography>
 
-                      {doc.status === "rejected" && (
+                      {!readOnly && doc.status === "rejected" && (
                         <Typography variant="caption" color="error">
                           Click to re-upload
                         </Typography>
                       )}
 
-                      {doc.status === "pending" && (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.5,
-                            "@keyframes pulse": {
-                              "0%": { opacity: 0.5 },
-                              "50%": { opacity: 1 },
-                              "100%": { opacity: 0.5 },
-                            },
-                          }}
-                        >
-                          <ScheduleIcon
-                            fontSize="inherit"
-                            sx={{
-                              color: "warning.main",
-                              animation: "pulse 1.5s infinite",
-                            }}
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{ color: "warning.main", fontWeight: 500 }}
-                          >
-                            Re-uploaded, pending HR review
+                      {!readOnly && doc.status === "pending" && (
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <ScheduleIcon fontSize="inherit" color="warning" />
+                          <Typography variant="caption" color="warning.main">
+                            Pending HR review
                           </Typography>
                         </Box>
                       )}
-
                     </Box>
 
                     <StatusChip status={doc.status} size="small" />
@@ -173,52 +151,22 @@ export default function OnboardingReview({ formData, documents, onFixDocument }:
 
                   {doc.status === "rejected" && doc.feedback && (
                     <Alert severity="error" sx={{ mt: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        Feedback:
-                      </Typography>
-                      <Typography variant="body2">{doc.feedback}</Typography>
+                      <strong>Feedback:</strong> {doc.feedback}
                     </Alert>
                   )}
                 </Grid>
               ))}
             </Grid>
-
-            {documents.some(
-              (d: OnboardingDocument) => d.status !== "approved",
-            ) && (
-              <Alert severity="warning" sx={{ mt: 3 }}>
-                All required documents must be uploaded and approved before
-                submission.
-              </Alert>
-            )}
-          </InfoBlock>
-        </Grid>
-
-        {/* Work Authorization */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <InfoBlock title="Work Authorization">
-            <Typography variant="body2">
-              <strong>Type:</strong> {formData.workAuthType || "—"}
-            </Typography>
-            {formData.workAuthType === "other" && (
-              <Typography variant="body2">
-                <strong>Details:</strong> {formData.workAuthOther || "—"}
-              </Typography>
-            )}
           </InfoBlock>
         </Grid>
       </Grid>
 
       <Divider sx={{ my: 4 }} />
 
-      <Typography
-        variant="caption"
-        sx={{ color: theme.palette.text.secondary }}
-      >
+      <Typography variant="caption" sx={{ color: "text.secondary" }}>
         By submitting, you confirm that the information provided is accurate and
         complete.
       </Typography>
     </Box>
   );
 }
-

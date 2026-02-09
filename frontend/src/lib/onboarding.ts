@@ -64,3 +64,24 @@ export async function getHROnboardings(): Promise<HROnboardingListItem[]> {
   const res = await api.get("/hr/onboarding");
   return res.data.applications;
 }
+
+export interface HROnboardingDetail {
+  id: string;
+  status: UIOnboardingStatus;
+  formData: Record<string, unknown>;
+  hrFeedback: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  employee: {
+    username: string;
+    email: string;
+  };
+}
+
+export async function getHROnboardingDetail(
+  onboardingId: string,
+): Promise<HROnboardingDetail> {
+  const res = await api.get(`/hr/onboarding/${onboardingId}`);
+  return res.data.application;
+}
+

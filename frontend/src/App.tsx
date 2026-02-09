@@ -23,23 +23,24 @@ import HiringManagement from "./pages/hr/HiringManagement";
 import VisaManagement from "./pages/hr/VisaManagement";
 import OnboardingApplication from "./pages/employee/OnboardingApplication";
 import EmployeePersonalInfoPage from "./pages/employee/EmployeePersonalInfoPage";
+import HROnboardingDetail from "./pages/hr/HROnboardingDetail";
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* ===== Public ===== */}
+          {/* Public */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* ===== Protected ===== */}
+          {/* Protected */}
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
-              {/* ===== Employee Routes ===== */}
+              {/* Employee Routes */}
               <Route path="/employee" element={<RequireRole role="employee" />}>
-                {/* ========== EMPLOYEE ========== */}
+                {/* EMPLOYEE */}
                 <Route
                   path="/employee/dashboard"
                   element={<EmployeeDashboard />}
@@ -55,7 +56,7 @@ export default function App() {
                 <Route path="/employee/visa-status" element={<VisaStatus />} />
               </Route>
 
-              {/* ===== HR Routes ===== */}
+              {/* HR Routes */}
               <Route path="/hr" element={<RequireRole role="hr" />}>
                 <Route path="dashboard" element={<HRDashboard />} />
                 <Route path="employees" element={<EmployeeProfiles />} />
@@ -65,11 +66,12 @@ export default function App() {
                 />
                 <Route path="visa-management" element={<VisaManagement />} />
                 <Route path="hiring" element={<HiringManagement />} />
+                <Route path="onboarding/:id" element={<HROnboardingDetail />} />
               </Route>
             </Route>
           </Route>
 
-          {/* ===== Fallback ===== */}
+          {/* Fallback */}
           <Route path="*" element={<h2>Page not found</h2>} />
         </Routes>
       </BrowserRouter>

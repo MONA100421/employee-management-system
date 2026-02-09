@@ -1,10 +1,7 @@
 import { Request, Response } from 'express';
 import OnboardingApplication from '../models/OnboardingApplication';
-import mongoose from 'mongoose';
 
-/**
- * Helpers to map DB status (snake_case) <-> UI status (kebab-case)
- */
+
 const dbToUIStatus = (s: string | undefined) => {
   switch (s) {
     case 'never_submitted': return 'never-submitted';
@@ -24,11 +21,7 @@ const uiToDBStatus = (s: string) => {
   }
 };
 
-/**
- * GET /api/onboarding/me
- * Return current user's onboarding application (if none, return default never-submitted shape)
- * Requires auth middleware that sets req.user = { id, username, role }
- */
+// GET /api/onboarding/me
 export const getMyOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -72,12 +65,7 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
 };
 
 
-/**
- * POST /api/onboarding
- * Create or update the current user's onboarding application.
- * Body: { formData: {...} }
- * Allowed when current status is never_submitted or rejected.
- */
+// POST /api/onboarding
 export const submitOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -88,7 +76,6 @@ export const submitOnboarding = async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, message: 'Missing formData' });
     }
 
-    // find existing
     let app = await OnboardingApplication.findOne({ user: user.id });
 
     if (!app) {
@@ -99,7 +86,6 @@ export const submitOnboarding = async (req: Request, res: Response) => {
         submittedAt: new Date(),
       });
     } else {
-      // allow resubmit only if never_submitted or rejected
       if (!['never_submitted', 'rejected'].includes(app.status)) {
         return res.status(400).json({ ok: false, message: `Cannot submit when status is ${app.status}` });
       }
@@ -117,10 +103,7 @@ export const submitOnboarding = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * GET /api/hr/onboarding
- * HR-only: list applications (brief)
- */
+// GET /api/hr/onboarding
 export const listOnboardingsForHR = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -148,10 +131,7 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * POST /api/hr/onboarding/:id/review
- * HR-only: decision = 'approved' | 'rejected', feedback optional for rejected
- */
+// POST /api/hr/onboarding/:id/review
 export const reviewOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -177,8 +157,6 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     } else {
       app.status = 'rejected';
       app.reviewedAt = new Date();
-      // store feedback in uploadedFiles/hrFeedback for now or as field
-      // here we add hrFeedback top-level (if you prefer), set hrFeedback field
       (app as any).hrFeedback = feedback || '';
     }
 
@@ -212,7 +190,7 @@ export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
     ok: true,
     application: {
       id: app._id,
-      status: app.status,
+      status: dbToUIStatus(app.status),
       formData: app.formData || {},
       hrFeedback: app.hrFeedback || null,
       submittedAt: app.submittedAt ?? null,

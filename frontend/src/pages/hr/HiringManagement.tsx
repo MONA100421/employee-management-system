@@ -28,20 +28,22 @@ import {
   Cancel as RejectIcon,
   Email as EmailIcon,
   Link as LinkIcon,
+  Visibility as ViewIcon,
 } from "@mui/icons-material";
 import StatusChip from "../../components/common/StatusChip";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
-
 import {
   getHROnboardings,
   reviewOnboarding,
   type HROnboardingListItem,
 } from "../../lib/onboarding";
+import { useNavigate } from "react-router-dom";
 
 // Component
 
 const HiringManagement: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const [tabValue, setTabValue] = useState(0);
 
@@ -304,6 +306,16 @@ const HiringManagement: React.FC = () => {
                                 onClick={() => handleReject(app)}
                               >
                                 <RejectIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="View Application">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  navigate(`/hr/onboarding/${app.id}`)
+                                }
+                              >
+                                <ViewIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           </>

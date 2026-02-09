@@ -157,3 +157,28 @@ export const reviewDocument = async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false });
   }
 };
+
+// GET /api/hr/documents/:userId
+export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!user || user.role !== "hr") {
+    return res.status(403).json({ ok: false });
+  }
+
+  const { userId } = req.params;
+
+  const docs = await Document.find({ user: userId }).lean();
+
+  return res.json({
+    ok: true,
+    documents: docs.map((d) => ({
+      id: d._id,
+      type: d.type,
+      category: d.category,
+      status: dbToUIStatus(d.status),
+      fileName: d.fileName ?? null,
+      uploadedAt: d.uploadedAt ?? null,
+      hrFeedback: d.hrFeedback ?? null,
+    })),
+  });
+};

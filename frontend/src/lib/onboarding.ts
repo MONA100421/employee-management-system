@@ -53,6 +53,7 @@ export async function reviewOnboarding(
 export type HROnboardingListItem = {
   id: string;
   employee: {
+    id?: string;
     username: string;
     email: string;
   } | null;
@@ -73,6 +74,7 @@ export interface HROnboardingDetail {
   submittedAt: string | null;
   reviewedAt: string | null;
   employee: {
+    id: string;
     username: string;
     email: string;
   };

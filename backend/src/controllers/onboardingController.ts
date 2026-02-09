@@ -195,7 +195,11 @@ export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
       hrFeedback: app.hrFeedback || null,
       submittedAt: app.submittedAt ?? null,
       reviewedAt: app.reviewedAt ?? null,
-      employee: app.user,
+      employee: {
+        id: (app.user as any)._id,
+        username: (app.user as any).username,
+        email: (app.user as any).email,
+      },
     },
   });
 };

@@ -26,7 +26,7 @@ type Props = {
   /** employee / onboarding */
   onUpload?: (type: string, file: File) => void;
 
-  /** hr */
+  /** hr (legacy, but still supported) */
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
 
@@ -105,7 +105,17 @@ const DocumentList = ({
                 </Typography>
               )}
 
-              {/* ===== HR feedback (tooltip) ===== */}
+              {/* ===== Review info (Employee can see who reviewed) ===== */}
+              {doc.reviewedBy && (
+                <Typography variant="caption" color="text.secondary">
+                  Reviewed by {doc.reviewedBy.username}
+                  {doc.reviewedAt
+                    ? ` • ${new Date(doc.reviewedAt).toLocaleString()}`
+                    : ""}
+                </Typography>
+              )}
+
+              {/* ===== HR feedback ===== */}
               {doc.hrFeedback && (
                 <Tooltip title={doc.hrFeedback} arrow placement="top">
                   <Box
@@ -144,7 +154,7 @@ const DocumentList = ({
                 </Box>
               )}
 
-              {/* ===== HR Actions ===== */}
+              {/* ===== HR Actions (legacy, usually hidden now) ===== */}
               {doc.status === "pending" && (onApprove || onReject) && (
                 <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
                   {onApprove && (

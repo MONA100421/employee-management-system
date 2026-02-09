@@ -19,7 +19,11 @@ export default function DocumentCard({ doc, onUpload }: Props) {
         p: 2,
         borderRadius: 2,
         border: "1px solid",
-        borderColor: "divider",
+        borderColor: doc.status === "rejected" ? "error.main" : "divider",
+        bgcolor:
+          doc.status === "rejected"
+            ? "rgba(198,40,40,0.04)"
+            : "background.paper",
         display: "flex",
         alignItems: "center",
         gap: 2,
@@ -50,6 +54,12 @@ export default function DocumentCard({ doc, onUpload }: Props) {
           {doc.type}
           {doc.uploadedAt && ` • Uploaded ${doc.uploadedAt}`}
         </Typography>
+
+        {doc.status === "rejected" && doc.feedback && (
+          <Typography variant="caption" color="error" display="block">
+            HR feedback: {doc.feedback}
+          </Typography>
+        )}
       </Box>
 
       {/* Status */}

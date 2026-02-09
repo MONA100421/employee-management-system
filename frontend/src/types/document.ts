@@ -10,6 +10,13 @@ export type DocumentStatus =
   | "approved"
   | "rejected";
 
+export type AuditEntry = {
+  action: "approved" | "rejected";
+  at: string; // ISO date string
+  feedback?: string | null;
+  by?: UserRef | null;
+};
+
 export type BaseDocument = {
   id: string;
   type: string;
@@ -21,6 +28,7 @@ export type BaseDocument = {
   reviewedAt?: string | null;
   reviewedBy?: UserRef | null;
   hrFeedback?: string | null;
+  audit?: AuditEntry[];
 };
 
 export type OnboardingDocument = BaseDocument & {

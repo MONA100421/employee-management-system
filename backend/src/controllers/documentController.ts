@@ -38,18 +38,33 @@ export const getMyDocuments = async (req: Request, res: Response) => {
       return res.status(401).json({ ok: false });
     }
 
-    const docs = await Document.find({ user: user.id }).lean();
+    const docs = await Document.find({ user: user.id })
+      .populate("reviewedBy", "username")
+      .lean();
 
     return res.json({
       ok: true,
-      documents: docs.map((d) => ({
+      documents: docs.map((d: any) => ({
         id: d._id,
         type: d.type,
         category: d.category,
         status: dbToUIStatus(d.status),
         fileName: d.fileName ?? null,
         uploadedAt: d.uploadedAt ?? null,
+        reviewedAt: d.reviewedAt ?? null,
+        reviewedBy: d.reviewedBy
+          ? {
+              id: (d.reviewedBy as any)._id,
+              username: (d.reviewedBy as any).username,
+            }
+          : null,
         hrFeedback: d.hrFeedback ?? null,
+        audit: (d.audit || []).map((a: any) => ({
+          action: a.action,
+          at: a.at,
+          feedback: a.feedback ?? null,
+          by: a.by ? { id: a.by, username: a.username } : null,
+        })),
       })),
     });
   } catch (err) {
@@ -101,17 +116,16 @@ export const uploadDocument = async (req: Request, res: Response) => {
     await doc.save();
 
     return res.json({
-    ok: true,
-    document: {
+      ok: true,
+      document: {
         id: doc._id,
         type: doc.type,
         status: dbToUIStatus(doc.status),
         fileName: doc.fileName,
         uploadedAt: doc.uploadedAt,
         hrFeedback: doc.hrFeedback ?? null,
-    },
+      },
     });
-
   } catch (err) {
     console.error("uploadDocument error", err);
     return res.status(500).json({ ok: false });
@@ -141,10 +155,21 @@ export const reviewDocument = async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, message: "Not pending" });
     }
 
-    doc.status = decision === "approved" ? "approved" : "rejected";
+    const newStatus = decision === "approved" ? "approved" : "rejected";
+    doc.status = newStatus;
     doc.reviewedAt = new Date();
     doc.reviewedBy = user.id;
     doc.hrFeedback = decision === "rejected" ? feedback : undefined;
+
+    // append audit entry
+    doc.audit = doc.audit || [];
+    doc.audit.push({
+      action: newStatus,
+      by: user.id,
+      username: (user as any).username || null,
+      at: new Date(),
+      feedback: decision === "rejected" ? feedback || null : null,
+    });
 
     await doc.save();
 
@@ -173,7 +198,7 @@ export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
 
   return res.json({
     ok: true,
-    documents: docs.map((d) => ({
+    documents: docs.map((d: any) => ({
       id: d._id,
       type: d.type,
       category: d.category,
@@ -188,6 +213,12 @@ export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
           }
         : null,
       hrFeedback: d.hrFeedback ?? null,
+      audit: (d.audit || []).map((a: any) => ({
+        action: a.action,
+        at: a.at,
+        feedback: a.feedback ?? null,
+        by: a.by ? { id: a.by, username: a.username } : null,
+      })),
     })),
   });
 };

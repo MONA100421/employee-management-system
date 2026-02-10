@@ -1,18 +1,18 @@
-import {
-  Box,
-  Button,
-  Typography,
-} from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Box, Button, Typography } from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
-import { useDocuments } from "../../hooks/useDocuments";
 import DocumentList from "../../components/common/DocumentList";
+import api from "../../lib/api";
+import type { BaseDocument } from "../../types/document";
 
 const EmployeeProfileDetail = () => {
   const navigate = useNavigate();
-  const { documents, loading, reviewDocument } = useDocuments("all");
+  const { id } = useParams<{ id: string }>();
+
+  const [documents, setDocuments] = useState<BaseDocument[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(
@@ -20,19 +20,30 @@ const EmployeeProfileDetail = () => {
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  if (loading) {
-    return <Typography>Loading documents…</Typography>;
-  }
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/documents/hr/${id}`);
+        setDocuments(res.data.documents);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [id]);
 
-  const handleConfirmApprove = async () => {
-    if (!reviewingId) return;
-
-    await reviewDocument(reviewingId, "approved");
-
-    setReviewingId(null);
-    setDecision(null);
-    setConfirmOpen(false);
+  const reviewDocument = async (
+    docId: string,
+    decision: "approved" | "rejected",
+    feedback?: string,
+  ) => {
+    await api.post(`/documents/${docId}/review`, { decision, feedback });
+    const res = await api.get(`/documents/hr/${id}`);
+    setDocuments(res.data.documents);
   };
+
+  if (loading) return <Typography>Loading documents…</Typography>;
 
   return (
     <Box>
@@ -46,39 +57,34 @@ const EmployeeProfileDetail = () => {
 
       <DocumentList
         documents={documents}
-        readonly
-        onApprove={(id) => {
-          setReviewingId(id);
+        onApprove={(docId) => {
+          setReviewingId(docId);
           setDecision("approved");
           setConfirmOpen(true);
         }}
-        onReject={(id) => {
-          setReviewingId(id);
+        onReject={(docId) => {
+          setReviewingId(docId);
           setDecision("rejected");
         }}
       />
 
-      {/* Reject dialog (needs feedback) */}
       <FeedbackDialog
         open={!!reviewingId && decision === "rejected"}
-        title="Reject Document"
         type="reject"
         requireFeedback
+        title="Reject Document"
         onCancel={() => {
           setReviewingId(null);
           setDecision(null);
         }}
-        onSubmit={async (value) => {
+        onSubmit={async (feedback) => {
           if (!reviewingId) return;
-
-          await reviewDocument(reviewingId, "rejected", value);
-
+          await reviewDocument(reviewingId, "rejected", feedback);
           setReviewingId(null);
           setDecision(null);
         }}
       />
 
-      {/* Approve confirm */}
       <ConfirmDialog
         open={confirmOpen && decision === "approved"}
         title="Approve Document"
@@ -90,7 +96,13 @@ const EmployeeProfileDetail = () => {
           setReviewingId(null);
           setDecision(null);
         }}
-        onConfirm={handleConfirmApprove}
+        onConfirm={async () => {
+          if (!reviewingId) return;
+          await reviewDocument(reviewingId, "approved");
+          setConfirmOpen(false);
+          setReviewingId(null);
+          setDecision(null);
+        }}
       />
     </Box>
   );

@@ -212,6 +212,8 @@ export default function EmployeePersonalInfoPage() {
       const res = await getMyEmployee();
       setProfile(res.employee);
 
+      setEditing(null);
+
       reset({
         firstName: res.user.firstName,
         lastName: res.user.lastName,

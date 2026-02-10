@@ -178,7 +178,8 @@ const VisaStatus: React.FC = () => {
         <CardContent>
           <Stepper activeStep={activeStep} orientation="vertical">
             {steps.map((step, index) => {
-              const locked = index > activeStep;
+              const isCurrentActive = index === activeStep;
+              const isLocked = index > activeStep;
 
               return (
                 <Step key={step.type} completed={step.status === "approved"}>
@@ -231,7 +232,7 @@ const VisaStatus: React.FC = () => {
                         </IconButton>
                       </Paper>
                     ) : (
-                      !locked && (
+                      isCurrentActive && (
                         <FileUpload
                           label={`Upload ${step.title}`}
                           disabled={isUploading}
@@ -242,7 +243,7 @@ const VisaStatus: React.FC = () => {
                       )
                     )}
 
-                    {locked && (
+                    {isLocked && (
                       <Typography variant="caption" color="error">
                         Waiting for previous step approval.
                       </Typography>

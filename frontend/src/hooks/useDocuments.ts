@@ -5,7 +5,16 @@ import { uploadFilePresigned } from "../lib/upload";
 
 export type UseDocumentsScope = DocumentCategory | "all";
 
-let documentsCache: BaseDocument[] = [];
+/**
+ * ⚠️ 注意：
+ * 這個 cache 只存在於 module scope，
+ * 用於「登入期間」避免重複 fetch
+ */
+let internalCache: BaseDocument[] | null = null;
+
+export const resetDocumentsCache = () => {
+  internalCache = null;
+};
 
 export const useDocuments = (scope: UseDocumentsScope) => {
   const [documents, setDocuments] = useState<BaseDocument[]>([]);
@@ -21,11 +30,11 @@ export const useDocuments = (scope: UseDocumentsScope) => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (documentsCache.length === 0) {
+      if (!internalCache) {
         const res = await api.get("/documents/me");
-        documentsCache = res.data.documents;
+        internalCache = res.data.documents || [];
       }
-      setDocuments(applyScope(documentsCache));
+      setDocuments(applyScope(internalCache ?? []));
     } catch (err) {
       console.error("Failed to load documents", err);
     } finally {
@@ -39,10 +48,15 @@ export const useDocuments = (scope: UseDocumentsScope) => {
 
   const refresh = async () => {
     setLoading(true);
-    const res = await api.get("/documents/me");
-    documentsCache = res.data.documents;
-    setDocuments(applyScope(documentsCache));
-    setLoading(false);
+    try {
+      const res = await api.get("/documents/me");
+      internalCache = res.data.documents || [];
+      setDocuments(applyScope(internalCache ?? []));
+    } catch (err) {
+      console.error("Failed to refresh documents", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const uploadDocument = async (type: string, file: File) => {
@@ -51,32 +65,13 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     }
 
     setIsUploading(true);
-
     try {
-      documentsCache = documentsCache.map((d) =>
-        d.type === type
-          ? {
-              ...d,
-              status: "pending",
-              fileName: file.name,
-              uploadedAt: new Date().toISOString().split("T")[0],
-            }
-          : d,
-      );
-      setDocuments(applyScope(documentsCache));
-
-      const res = await uploadFilePresigned({
+      await uploadFilePresigned({
         file,
         type,
         category: scope,
       });
-
       await refresh();
-
-      return res;
-    } catch (err) {
-      console.error("Upload failed:", err);
-      throw err;
     } finally {
       setIsUploading(false);
     }
@@ -88,10 +83,7 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     feedback?: string,
   ) => {
     await api.post(`/documents/${id}/review`, { decision, feedback });
-    documentsCache = documentsCache.map((d) =>
-      d.id === id ? { ...d, status: decision, hrFeedback: feedback } : d,
-    );
-    setDocuments(applyScope(documentsCache));
+    await refresh();
   };
 
   return {
@@ -102,8 +94,4 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     reviewDocument,
     refresh,
   };
-};
-
-export const resetDocumentsCache = () => {
-  documentsCache = [];
 };

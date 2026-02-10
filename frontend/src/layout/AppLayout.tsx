@@ -34,6 +34,8 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../contexts/useAuth";
 import { NavLink } from "../components/ui/NavLink";
+import HeaderNotifications from "./HeaderNotifications";
+
 
 const drawerWidth = 260;
 
@@ -243,6 +245,7 @@ const AppLayout: React.FC = () => {
             {menuItems.find((item) => item.path === location.pathname)?.text ||
               "Dashboard"}
           </Typography>
+          <HeaderNotifications />
           <IconButton onClick={handleProfileMenuOpen} size="small">
             <Avatar
               sx={{

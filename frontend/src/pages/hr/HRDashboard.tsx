@@ -16,6 +16,7 @@ import {
 } from "@mui/icons-material";
 import { useDocuments } from "../../hooks/useDocuments";
 import DocumentList from "../../components/common/DocumentList";
+import HRDashboardMetrics from "./HRDashboardMetrics";
 
 const HRDashboard: React.FC = () => {
   const theme = useTheme();
@@ -114,6 +115,13 @@ const HRDashboard: React.FC = () => {
         ))}
       </Grid>
 
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+          Performance Metrics
+        </Typography>
+        <HRDashboardMetrics />
+      </Box>
+      
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
@@ -127,7 +135,6 @@ const HRDashboard: React.FC = () => {
           )}
 
           <DocumentList documents={pendingDocs} readonly />
-
         </CardContent>
       </Card>
     </Box>

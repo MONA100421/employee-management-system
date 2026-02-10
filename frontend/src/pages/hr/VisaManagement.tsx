@@ -29,10 +29,7 @@ import StatusChip from "../../components/common/StatusChip";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
 import api from "../../lib/api";
 
-/**
- * HR-facing document shape returned by GET /documents/hr/visa
- * （對應 backend getVisaDocumentsForHR）
- */
+// HR-facing document shape returned by GET /documents/hr/visa
 type HRVisaDocument = {
   id: string;
   type: string;

@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import type { Theme } from "@mui/material/styles";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -11,12 +10,14 @@ import {
   StepContent,
   Alert,
   Chip,
+  useTheme,
   Paper,
   IconButton,
-  useTheme,
+  CircularProgress,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
+  Visibility as PreviewIcon,
   CheckCircle as CheckIcon,
   Schedule as PendingIcon,
   Cancel as RejectedIcon,
@@ -24,32 +25,18 @@ import {
   Info as InfoIcon,
 } from "@mui/icons-material";
 
-import { useDocuments } from "../../hooks/useDocuments";
-import FileUpload from "../../components/common/FileUpload";
 import StatusChip from "../../components/common/StatusChip";
-import DocumentList from "../../components/common/DocumentList";
-import type { BaseDocument } from "../../types/document";
+import FileUpload from "../../components/common/FileUpload";
+import PreviewDialog from "../../components/common/PreviewDialog";
+import { useDocuments } from "../../hooks/useDocuments";
+import { getPresignedGet } from "../../lib/upload";
+import { forceDownloadPresigned } from "../../lib/download";
 
-import { type VisaFormValues } from "./visa.schema";
-import { useVisaForm } from "../../hooks/useVisaForm";
-import { useLocation } from "react-router-dom";
-
-// Types
-
-type StepStatus = "not-started" | "pending" | "approved" | "rejected";
-
-type LocationState = {
-  scrollTo?: string;
-};
-
-type VisaStep = {
-  type: keyof VisaFormValues | string;
-  title: string;
-  description: string;
-  doc?: BaseDocument;
-};
-
-const VISA_FLOW: VisaStep[] = [
+/**
+ * Visa step definition (UI only)
+ * ❗不是資料來源
+ */
+const VISA_FLOW = [
   {
     type: "opt_receipt",
     title: "OPT Receipt",
@@ -63,7 +50,7 @@ const VISA_FLOW: VisaStep[] = [
   {
     type: "i_983",
     title: "I-983 Form",
-    description: "Download, complete, and upload the I-983 Training Plan",
+    description: "Download, complete, and upload the I-983 Training Plan form",
   },
   {
     type: "i_20",
@@ -72,66 +59,73 @@ const VISA_FLOW: VisaStep[] = [
   },
 ];
 
-const getStepIcon = (status: StepStatus, theme: Theme) => {
-  switch (status) {
-    case "approved":
-      return <CheckIcon sx={{ color: theme.palette.success.main }} />;
-    case "pending":
-      return <PendingIcon sx={{ color: theme.palette.warning.main }} />;
-    case "rejected":
-      return <RejectedIcon sx={{ color: theme.palette.error.main }} />;
-    default:
-      return <DocIcon sx={{ color: theme.palette.grey[400] }} />;
-  }
-};
-
-// Component
-
 const VisaStatus: React.FC = () => {
   const theme = useTheme();
-  const location = useLocation();
-  const state = (location.state || {}) as LocationState;
-  const scrollTo = state.scrollTo;
 
-  const { documents, loading, uploadDocument } = useDocuments("visa");
-  const { setValue, isUploaded } = useVisaForm(documents, loading);
+  const { documents, loading, isUploading, uploadDocument } =
+    useDocuments("visa");
 
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>();
+  const [previewName, setPreviewName] = useState<string>();
 
-  /* Notification → scroll + highlight */
-  useEffect(() => {
-    if (!scrollTo) return;
+  /**
+   * 將 documents → stepper steps（純 UI 映射）
+   */
+  const steps = useMemo(() => {
+    return VISA_FLOW.map((step) => {
+      const doc = documents.find((d) => d.type === step.type);
 
-    const t = setTimeout(() => {
-      const el = document.querySelector<HTMLElement>(
-        `[data-docid="${scrollTo}"]`,
-      );
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setHighlightId(scrollTo);
-        setTimeout(() => setHighlightId(null), 3000);
-      }
-    }, 200);
+      return {
+        ...step,
+        status: doc?.status ?? "not-started",
+        fileName: doc?.fileName,
+        uploadedAt: doc?.uploadedAt,
+        fileUrl: doc?.fileUrl,
+        hrFeedback: doc?.hrFeedback,
+      };
+    });
+  }, [documents]);
 
-    return () => clearTimeout(t);
-  }, [scrollTo]);
+  const completedSteps = steps.filter((s) => s.status === "approved").length;
+  const activeStepIndex = steps.findIndex((s) => s.status !== "approved");
+  const activeStep = activeStepIndex === -1 ? steps.length : activeStepIndex;
 
-  /* Build steps */
-  const steps = VISA_FLOW.map((step) => {
-    const doc = documents.find((d) => d.type === step.type);
-    return {
-      ...step,
-      doc,
-      status: (doc?.status ?? "not-started") as StepStatus,
-    };
-  });
+  const handlePreview = async (
+    fileUrl?: string | null,
+    fileName?: string | null,
+  ) => {
+    if (!fileUrl) return; 
+    const res = await getPresignedGet({ fileUrl });
+    setPreviewUrl(res.downloadUrl);
+    setPreviewName(fileName ?? undefined);
+    setPreviewOpen(true);
+  };
 
-  const activeStep = steps.findIndex((s) => s.status !== "approved");
-  const completed = steps.filter((s) => s.status === "approved").length;
-  const progress = (completed / steps.length) * 100;
+  const handleDownload = async (fileUrl?: string, fileName?: string) => {
+    if (!fileUrl) return;
+    await forceDownloadPresigned(fileUrl, fileName);
+  };
+
+  const getStepIcon = (status: string) => {
+    switch (status) {
+      case "approved":
+        return <CheckIcon sx={{ color: theme.palette.success.main }} />;
+      case "pending":
+        return <PendingIcon sx={{ color: theme.palette.warning.main }} />;
+      case "rejected":
+        return <RejectedIcon sx={{ color: theme.palette.error.main }} />;
+      default:
+        return <DocIcon sx={{ color: theme.palette.grey[400] }} />;
+    }
+  };
 
   if (loading) {
-    return <Typography>Loading visa status…</Typography>;
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
@@ -142,35 +136,32 @@ const VisaStatus: React.FC = () => {
           <Typography variant="h5" fontWeight={700}>
             Visa Status Management
           </Typography>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            Track and manage your OPT / STEM Extension documents
+          <Typography color="text.secondary">
+            Track your OPT / STEM Extension documents
           </Typography>
 
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Chip label="OPT" variant="outlined" color="primary" />
-            <Chip label="STEM Eligible" variant="outlined" color="success" />
+          <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+            <Chip label="OPT" variant="outlined" />
+            <Chip
+              label="STEM Extension Eligible"
+              color="success"
+              variant="outlined"
+            />
           </Box>
 
-          {/* Progress */}
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" fontWeight={600}>
-              Overall Progress: {completed} / {steps.length}
+              Overall Progress: {completedSteps} / {steps.length}
             </Typography>
             <Box
-              sx={{
-                mt: 1,
-                height: 8,
-                borderRadius: 4,
-                bgcolor: theme.palette.grey[200],
-                overflow: "hidden",
-              }}
+              sx={{ mt: 1, height: 8, bgcolor: "grey.200", borderRadius: 4 }}
             >
               <Box
                 sx={{
                   height: "100%",
-                  width: `${progress}%`,
-                  bgcolor: theme.palette.success.main,
-                  transition: "width 0.3s ease",
+                  width: `${(completedSteps / steps.length) * 100}%`,
+                  bgcolor: "success.main",
+                  borderRadius: 4,
                 }}
               />
             </Box>
@@ -179,35 +170,20 @@ const VisaStatus: React.FC = () => {
       </Card>
 
       <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 3 }}>
-        Complete each step in order. The next step unlocks after HR approval.
+        You must complete each step in order. The next step unlocks after HR
+        approval.
       </Alert>
 
-      {/* Stepper */}
       <Card>
         <CardContent>
-          <Stepper
-            activeStep={activeStep === -1 ? steps.length : activeStep}
-            orientation="vertical"
-          >
+          <Stepper activeStep={activeStep} orientation="vertical">
             {steps.map((step, index) => {
-              const prevStep = steps[index - 1];
-              const prevApproved =
-                index === 0 ? true : prevStep?.status === "approved";
-              const prevUploadedFrontend =
-                index === 0
-                  ? true
-                  : isUploaded(prevStep.type as keyof VisaFormValues);
-
-              const disabled =
-                index > 0 && !(prevApproved || prevUploadedFrontend);
+              const locked = index > activeStep;
 
               return (
-                <Step
-                  key={String(step.type)}
-                  completed={step.status === "approved"}
-                >
+                <Step key={step.type} completed={step.status === "approved"}>
                   <StepLabel
-                    icon={getStepIcon(step.status, theme)}
+                    icon={getStepIcon(step.status)}
                     optional={<StatusChip status={step.status} size="small" />}
                   >
                     <Typography fontWeight={600}>{step.title}</Typography>
@@ -218,44 +194,58 @@ const VisaStatus: React.FC = () => {
                       {step.description}
                     </Typography>
 
-                    {step.status === "rejected" && step.doc?.hrFeedback && (
+                    {step.status === "rejected" && step.hrFeedback && (
                       <Alert severity="error" sx={{ mb: 2 }}>
-                        {step.doc.hrFeedback}
+                        {step.hrFeedback}
                       </Alert>
                     )}
 
-                    {step.doc?.fileName && step.status !== "rejected" ? (
-                      <Paper sx={{ p: 2, display: "flex", gap: 2, mb: 2 }}>
+                    {step.fileName ? (
+                      <Paper sx={{ p: 2, display: "flex", gap: 2 }}>
                         <DocIcon />
                         <Box sx={{ flex: 1 }}>
-                          <Typography fontWeight={500}>
-                            {step.doc.fileName}
-                          </Typography>
+                          <Typography>{step.fileName}</Typography>
                           <Typography variant="caption">
-                            Uploaded at {step.doc.uploadedAt}
+                            Uploaded at {step.uploadedAt}
                           </Typography>
                         </Box>
-                        <IconButton>
+                        <IconButton
+                          onClick={() =>
+                            handlePreview(
+                              step.fileUrl ?? undefined,
+                              step.fileName ?? undefined,
+                            )
+                          }
+                        >
+                          <PreviewIcon />
+                        </IconButton>
+                        <IconButton
+                          onClick={() =>
+                            handleDownload(
+                              step.fileUrl ?? undefined,
+                              step.fileName ?? undefined,
+                            )
+                          }
+                        >
                           <DownloadIcon />
                         </IconButton>
                       </Paper>
                     ) : (
-                      !disabled && (
+                      !locked && (
                         <FileUpload
                           label={`Upload ${step.title}`}
-                          disabled={disabled}
-                          onFileSelect={(file) => {
-                            setValue(step.type as keyof VisaFormValues, true);
-                            uploadDocument(String(step.type), file);
-                          }}
+                          disabled={isUploading}
+                          onFileSelect={(file) =>
+                            uploadDocument(step.type, file)
+                          }
                         />
                       )
                     )}
 
-                    {disabled && (
-                      <Alert severity="warning" sx={{ mt: 2 }}>
-                        Complete the previous step (or wait for HR approval).
-                      </Alert>
+                    {locked && (
+                      <Typography variant="caption" color="error">
+                        Waiting for previous step approval.
+                      </Typography>
                     )}
                   </StepContent>
                 </Step>
@@ -265,19 +255,14 @@ const VisaStatus: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Document list (for scroll target)*/}
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-          All Visa Documents
-        </Typography>
-        <DocumentList
-          documents={documents}
-          readonly
-          highlightId={highlightId}
-        />
-      </Box>
+      <PreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        fileUrl={previewUrl}
+        fileName={previewName}
+      />
     </Box>
   );
-};
+};;
 
 export default VisaStatus;

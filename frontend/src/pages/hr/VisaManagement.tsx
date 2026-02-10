@@ -27,14 +27,17 @@ import {
 } from "@mui/icons-material";
 import StatusChip from "../../components/common/StatusChip";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
-import api from "../../lib/api";
 
-// HR-facing document shape returned by GET /documents/hr/visa
+import PreviewDialog from "../../components/common/PreviewDialog";
+import { getPresignedGet } from "../../lib/upload";
+import { forceDownloadPresigned } from "../../lib/download";
+
 type HRVisaDocument = {
   id: string;
   type: string;
   status: "pending" | "approved" | "rejected";
   fileName?: string;
+  fileUrl?: string;
   uploadedAt?: string;
   hrFeedback?: string | null;
   user: {
@@ -44,38 +47,33 @@ type HRVisaDocument = {
   } | null;
 };
 
-type VisaRecord = {
-  id: string;
-  employeeName: string;
-  email: string;
-  visaType: string;
-  currentStep: string;
-  stepStatus: "pending" | "approved" | "rejected";
-};
-
 const VisaManagement: React.FC = () => {
   const theme = useTheme();
   const [documents, setDocuments] = useState<HRVisaDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
 
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>();
+  const [previewName, setPreviewName] = useState<string | undefined>();
+
   const [feedbackDialog, setFeedbackDialog] = useState<{
     open: boolean;
     type: "approve" | "reject";
-    record: VisaRecord | null;
+    record: HRVisaDocument | null;
   }>({
     open: false,
     type: "approve",
     record: null,
   });
 
-  // load visa documents for HR
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await api.get("/documents/hr/visa");
-        setDocuments(res.data.documents ?? []);
+        const res = await fetch("/api/documents/hr/visa");
+        const data = await res.json();
+        setDocuments(data.documents ?? []);
       } catch (err) {
         console.error("Failed to load visa documents", err);
         setDocuments([]);
@@ -86,45 +84,76 @@ const VisaManagement: React.FC = () => {
     load();
   }, []);
 
-  // map backend docs -> UI rows
-  const records: VisaRecord[] = documents.map((d) => ({
-    id: d.id,
-    employeeName: d.user?.username ?? "Unknown",
-    email: d.user?.email ?? "",
-    visaType: d.type,
-    currentStep: d.type,
-    stepStatus: d.status,
-  }));
-
-  const inProgress = records.filter((r) => r.stepStatus === "pending");
-  const shownRecords = tabValue === 0 ? inProgress : records;
-
-  const handleApprove = (record: VisaRecord) => {
+  const handleApprove = (record: HRVisaDocument) => {
     setFeedbackDialog({ open: true, type: "approve", record });
   };
 
-  const handleReject = (record: VisaRecord) => {
+  const handleReject = (record: HRVisaDocument) => {
     setFeedbackDialog({ open: true, type: "reject", record });
   };
 
   const handleFeedbackSubmit = async (feedback: string) => {
     if (!feedbackDialog.record) return;
-
     try {
-      await api.post(`/documents/${feedbackDialog.record.id}/review`, {
-        decision: feedbackDialog.type === "approve" ? "approved" : "rejected",
-        feedback,
+      await fetch(`/api/documents/${feedbackDialog.record.id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision: feedbackDialog.type === "approve" ? "approved" : "rejected",
+          feedback,
+        }),
       });
-
       // reload
-      const res = await api.get("/documents/hr/visa");
-      setDocuments(res.data.documents ?? []);
+      const res = await fetch("/api/documents/hr/visa");
+      const data = await res.json();
+      setDocuments(data.documents ?? []);
     } catch (err) {
       console.error("Failed to review document", err);
     } finally {
       setFeedbackDialog({ open: false, type: "approve", record: null });
     }
   };
+
+  // Preview / Download handlers for HR
+  const handlePreview = async (doc: HRVisaDocument) => {
+    if (!doc.fileUrl) {
+      console.warn("No fileUrl for preview");
+      return;
+    }
+    try {
+      const res = await getPresignedGet({ fileUrl: doc.fileUrl });
+      setPreviewUrl(res.downloadUrl);
+      setPreviewName(doc.fileName);
+      setPreviewOpen(true);
+    } catch (err) {
+      console.error("Failed to get preview URL", err);
+      if ((doc.fileUrl || "").startsWith("http")) {
+        window.open(doc.fileUrl, "_blank");
+      }
+    }
+  };
+
+  const handleDownload = async (doc: HRVisaDocument) => {
+    if (!doc.fileUrl) {
+      console.warn("No fileUrl for download");
+      return;
+    }
+    try {
+      await forceDownloadPresigned(doc.fileUrl, doc.fileName);
+    } catch (err) {
+      console.error("Download failed", err);
+      try {
+        const res = await getPresignedGet({ fileUrl: doc.fileUrl });
+        window.open(res.downloadUrl, "_blank");
+      } catch (err2) {
+        console.error("Fallback failed", err2);
+      }
+    }
+  };
+
+  // UI mapping
+  const inProgress = documents.filter((d) => d.status === "pending");
+  const shownRecords = tabValue === 0 ? inProgress : documents;
 
   return (
     <Box>
@@ -148,7 +177,7 @@ const VisaManagement: React.FC = () => {
         <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
             <Tab label={`In Progress (${inProgress.length})`} />
-            <Tab label={`All (${records.length})`} />
+            <Tab label={`All (${documents.length})`} />
           </Tabs>
         </Box>
 
@@ -169,46 +198,48 @@ const VisaManagement: React.FC = () => {
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                        {record.employeeName
-                          .split(" ")
+                        {record.user?.username
+                          ?.split(" ")
                           .map((n) => n[0])
                           .join("")}
                       </Avatar>
                       <Box>
                         <Typography fontWeight={500}>
-                          {record.employeeName}
+                          {record.user?.username ?? "Unknown"}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {record.email}
+                          {record.user?.email}
                         </Typography>
                       </Box>
                     </Box>
                   </TableCell>
 
                   <TableCell>
-                    <Chip
-                      label={record.visaType}
-                      size="small"
-                      variant="outlined"
-                    />
+                    <Chip label={record.type} size="small" variant="outlined" />
                   </TableCell>
 
-                  <TableCell>{record.currentStep}</TableCell>
+                  <TableCell>{record.type}</TableCell>
 
                   <TableCell>
-                    <StatusChip status={record.stepStatus} size="small" />
+                    <StatusChip status={record.status} size="small" />
                   </TableCell>
 
                   <TableCell align="right">
-                    {record.stepStatus === "pending" && (
+                    {record.status === "pending" && (
                       <Box sx={{ display: "flex", gap: 0.5 }}>
-                        <Tooltip title="View">
-                          <IconButton size="small">
+                        <Tooltip title="Preview document">
+                          <IconButton
+                            size="small"
+                            onClick={() => handlePreview(record)}
+                          >
                             <ViewIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Download">
-                          <IconButton size="small">
+                        <Tooltip title="Download document">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDownload(record)}
+                          >
                             <DownloadIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -230,7 +261,7 @@ const VisaManagement: React.FC = () => {
                             <RejectIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        {record.currentStep === "i_983" && (
+                        {record.type === "i_983" && (
                           <Tooltip title="Send Notification">
                             <IconButton size="small" color="primary">
                               <SendIcon fontSize="small" />
@@ -255,6 +286,17 @@ const VisaManagement: React.FC = () => {
         )}
       </Card>
 
+      <PreviewDialog
+        open={previewOpen}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPreviewUrl(undefined);
+          setPreviewName(undefined);
+        }}
+        fileUrl={previewUrl}
+        fileName={previewName}
+      />
+
       <FeedbackDialog
         open={feedbackDialog.open}
         type={feedbackDialog.type}
@@ -265,7 +307,7 @@ const VisaManagement: React.FC = () => {
         }
         itemName={
           feedbackDialog.record
-            ? `${feedbackDialog.record.employeeName} - ${feedbackDialog.record.currentStep}`
+            ? `${feedbackDialog.record.user?.username} - ${feedbackDialog.record.type}`
             : ""
         }
         requireFeedback={feedbackDialog.type === "reject"}

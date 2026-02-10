@@ -1,5 +1,4 @@
-// frontend/src/pages/employee/VisaStatus.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import type { Theme } from "@mui/material/styles";
 import {
   Box,
@@ -28,12 +27,20 @@ import {
 import { useDocuments } from "../../hooks/useDocuments";
 import FileUpload from "../../components/common/FileUpload";
 import StatusChip from "../../components/common/StatusChip";
+import DocumentList from "../../components/common/DocumentList";
 import type { BaseDocument } from "../../types/document";
 
 import { type VisaFormValues } from "./visa.schema";
 import { useVisaForm } from "../../hooks/useVisaForm";
+import { useLocation } from "react-router-dom";
+
+// Types
 
 type StepStatus = "not-started" | "pending" | "approved" | "rejected";
+
+type LocationState = {
+  scrollTo?: string;
+};
 
 type VisaStep = {
   type: keyof VisaFormValues | string;
@@ -78,11 +85,38 @@ const getStepIcon = (status: StepStatus, theme: Theme) => {
   }
 };
 
+// Component
+
 const VisaStatus: React.FC = () => {
   const theme = useTheme();
-  const { documents, loading, uploadDocument } = useDocuments("visa");
+  const location = useLocation();
+  const state = (location.state || {}) as LocationState;
+  const scrollTo = state.scrollTo;
 
-  // build steps with backend doc status
+  const { documents, loading, uploadDocument } = useDocuments("visa");
+  const { setValue, isUploaded } = useVisaForm(documents, loading);
+
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  /* Notification → scroll + highlight */
+  useEffect(() => {
+    if (!scrollTo) return;
+
+    const t = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-docid="${scrollTo}"]`,
+      );
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightId(scrollTo);
+        setTimeout(() => setHighlightId(null), 3000);
+      }
+    }, 200);
+
+    return () => clearTimeout(t);
+  }, [scrollTo]);
+
+  /* Build steps */
   const steps = VISA_FLOW.map((step) => {
     const doc = documents.find((d) => d.type === step.type);
     return {
@@ -91,9 +125,6 @@ const VisaStatus: React.FC = () => {
       status: (doc?.status ?? "not-started") as StepStatus,
     };
   });
-
-  // use custom RHF hook for visa flow (syncs backend docs -> RHF values)
-  const { setValue, isUploaded} = useVisaForm(documents, loading);
 
   const activeStep = steps.findIndex((s) => s.status !== "approved");
   const completed = steps.filter((s) => s.status === "approved").length;
@@ -105,7 +136,7 @@ const VisaStatus: React.FC = () => {
 
   return (
     <Box>
-      {/* ===== Header ===== */}
+      {/* Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h5" fontWeight={700}>
@@ -147,12 +178,11 @@ const VisaStatus: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Info */}
       <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 3 }}>
         Complete each step in order. The next step unlocks after HR approval.
       </Alert>
 
-      {/* ===== Stepper ===== */}
+      {/* Stepper */}
       <Card>
         <CardContent>
           <Stepper
@@ -160,7 +190,6 @@ const VisaStatus: React.FC = () => {
             orientation="vertical"
           >
             {steps.map((step, index) => {
-              // previous step info
               const prevStep = steps[index - 1];
               const prevApproved =
                 index === 0 ? true : prevStep?.status === "approved";
@@ -189,24 +218,14 @@ const VisaStatus: React.FC = () => {
                       {step.description}
                     </Typography>
 
-                    {/* Rejected feedback */}
                     {step.status === "rejected" && step.doc?.hrFeedback && (
                       <Alert severity="error" sx={{ mb: 2 }}>
                         {step.doc.hrFeedback}
                       </Alert>
                     )}
 
-                    {/* Uploaded view / upload control */}
                     {step.doc?.fileName && step.status !== "rejected" ? (
-                      <Paper
-                        sx={{
-                          p: 2,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 2,
-                          mb: 2,
-                        }}
-                      >
+                      <Paper sx={{ p: 2, display: "flex", gap: 2, mb: 2 }}>
                         <DocIcon />
                         <Box sx={{ flex: 1 }}>
                           <Typography fontWeight={500}>
@@ -226,13 +245,7 @@ const VisaStatus: React.FC = () => {
                           label={`Upload ${step.title}`}
                           disabled={disabled}
                           onFileSelect={(file) => {
-                            // mark frontend RHF flag immediately (improves UX)
-                            setValue(step.type as keyof VisaFormValues, true, {
-                              shouldDirty: true,
-                              shouldTouch: true,
-                              shouldValidate: false,
-                            });
-                            // upload -> useDocuments will update backend docs cache & UI
+                            setValue(step.type as keyof VisaFormValues, true);
                             uploadDocument(String(step.type), file);
                           }}
                         />
@@ -241,8 +254,7 @@ const VisaStatus: React.FC = () => {
 
                     {disabled && (
                       <Alert severity="warning" sx={{ mt: 2 }}>
-                        Complete the previous step (or wait for HR approval)
-                        before uploading this document.
+                        Complete the previous step (or wait for HR approval).
                       </Alert>
                     )}
                   </StepContent>
@@ -250,19 +262,20 @@ const VisaStatus: React.FC = () => {
               );
             })}
           </Stepper>
-
-          {completed === steps.length && (
-            <Box sx={{ textAlign: "center", mt: 4 }}>
-              <CheckIcon
-                sx={{ fontSize: 64, color: theme.palette.success.main }}
-              />
-              <Typography variant="h5" fontWeight={600}>
-                All Steps Completed!
-              </Typography>
-            </Box>
-          )}
         </CardContent>
       </Card>
+
+      {/* Document list (for scroll target)*/}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+          All Visa Documents
+        </Typography>
+        <DocumentList
+          documents={documents}
+          readonly
+          highlightId={highlightId}
+        />
+      </Box>
     </Box>
   );
 };

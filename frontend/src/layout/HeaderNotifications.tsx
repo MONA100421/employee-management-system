@@ -24,7 +24,6 @@ export default function HeaderNotifications() {
   const navigate = useNavigate();
   const pollRef = useRef<number | null>(null);
 
-  // load unread count initially and start short polling
   useEffect(() => {
     let mounted = true;
     const loadCount = async () => {
@@ -32,14 +31,12 @@ export default function HeaderNotifications() {
         const c = await fetchUnreadCount();
         if (mounted) setCount(c);
       } catch {
-        // ignore errors
+        /* ignore */
       }
     };
     loadCount();
 
-    // polling every 30s
     pollRef.current = window.setInterval(loadCount, 30_000);
-
     return () => {
       mounted = false;
       if (pollRef.current) window.clearInterval(pollRef.current);
@@ -51,7 +48,6 @@ export default function HeaderNotifications() {
     try {
       const list = await fetchNotifications();
       setItems(list);
-      // optional: you could mark all read here, but we'll mark per-item on click
     } catch (err) {
       console.error("Failed to fetch notifications", err);
       setItems([]);
@@ -62,11 +58,11 @@ export default function HeaderNotifications() {
 
   const handleItemClick = async (n: Notification) => {
     try {
+      // mark read if unread
       if (!n.readAt && n.id) {
         await markNotificationRead(n.id);
         const c = await fetchUnreadCount();
         setCount(c);
-        // update local item state quickly
         setItems((prev) =>
           prev.map((it) =>
             it.id === n.id ? { ...it, readAt: new Date().toISOString() } : it,
@@ -77,19 +73,22 @@ export default function HeaderNotifications() {
       console.error("Failed to mark notification read", err);
     }
 
-    // navigate: use n.data to find target
-    // convention: data.documentId and data.documentType
+    // If notification references a document, navigate with state for scrolling
     if (n.data?.documentId && n.data?.documentType) {
-      // choose route depending on type. Example:
-      if (n.data.documentType === "onboarding") {
-        navigate(`/employee/onboarding`); // adjust to specific doc view if exists
-      } else {
-        // visa / generic: go to employee profile or visa page
-        navigate(`/employee/visa-status`);
-      }
-    }
+      const docId = String(n.data.documentId);
+      const type = n.data.documentType;
 
-    closeMenu();
+      // route mapping (adjust if you have more precise routes)
+      if (type === "onboarding") {
+        navigate("/employee/onboarding", { state: { scrollTo: docId } });
+      } else {
+        // default: visa / generic documents -> visa page
+        navigate("/employee/visa-status", { state: { scrollTo: docId } });
+      }
+    } else {
+      // fallback: just close
+      closeMenu();
+    }
   };
 
   return (

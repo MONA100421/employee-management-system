@@ -23,14 +23,15 @@ import type { JSX } from "@emotion/react/jsx-dev-runtime";
 type Props = {
   documents: BaseDocument[];
 
-  /** employee / onboarding */
+  // employee / onboarding
   onUpload?: (type: string, file: File) => void;
 
-  /** hr (legacy, but still supported) */
+  // hr
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
 
   readonly?: boolean;
+  highlightId?: string | null;
 };
 
 const typeIconMap: Record<string, JSX.Element> = {
@@ -186,5 +187,6 @@ const DocumentList = ({
     </Grid>
   );
 };
+
 
 export default DocumentList;

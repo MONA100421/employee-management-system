@@ -50,6 +50,7 @@ const Onboarding = () => {
     documents: rawDocs,
     loading,
     uploadDocument,
+    refresh, // ✅ 这里本来就有
   } = useDocuments("onboarding");
 
   const documents = rawDocs.map(toOnboardingDoc);
@@ -134,8 +135,6 @@ const Onboarding = () => {
     }
   };
 
-  // Submission conditions
-  
   const hasIncompleteDocuments = documents.some((d) => d.status !== "approved");
 
   const canSubmit =
@@ -191,7 +190,11 @@ const Onboarding = () => {
           {activeStep === 2 && <VisaStatus />}
 
           {activeStep === 3 && (
-            <DocumentList documents={documents} onUpload={uploadDocument} />
+            <DocumentList
+              documents={documents}
+              onUpload={uploadDocument}
+              onRefresh={refresh}  
+            />
           )}
 
           {activeStep === 4 && (

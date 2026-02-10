@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
+import { uploadWithPresign } from "../lib/upload";
+
 import type { BaseDocument, DocumentCategory } from "../types/document";
 
 export type UseDocumentsScope = DocumentCategory | "all";
@@ -38,17 +40,25 @@ export const useDocuments = (scope: UseDocumentsScope) => {
 
   const refresh = async () => {
     setLoading(true);
-    const res = await api.get("/documents/me");
-    documentsCache = res.data.documents;
-    setDocuments(applyScope(documentsCache));
-    setLoading(false);
+    try {
+      const res = await api.get("/documents/me");
+      documentsCache = res.data.documents;
+      setDocuments(applyScope(documentsCache));
+    } finally {
+      setLoading(false);
+    }
   };
 
+  /**
+   * 阶段 B：使用 presigned URL 上传文件
+   * （当前 presign 为 mock，AWS 就绪后无需改 UI）
+   */
   const uploadDocument = async (type: string, file: File) => {
     if (scope === "all") {
       throw new Error("Cannot upload document in 'all' scope");
     }
 
+    // ① 乐观更新：立刻显示 Pending
     documentsCache = documentsCache.map((d) =>
       d.type === type
         ? {
@@ -62,17 +72,15 @@ export const useDocuments = (scope: UseDocumentsScope) => {
 
     setDocuments(applyScope(documentsCache));
 
-    const res = await api.post("/documents", {
+    // ② 阶段 B：presign → PUT（mock）→ POST /documents
+    await uploadWithPresign({
+      file,
       type,
       category: scope,
-      fileName: file.name,
     });
 
-    const saved: BaseDocument = res.data.document;
-
-    documentsCache = documentsCache.map((d) => (d.id === saved.id ? saved : d));
-
-    setDocuments(applyScope(documentsCache));
+    // ③ 从后端重新拉一次，保证最终一致
+    await refresh();
   };
 
   const reviewDocument = async (

@@ -1,190 +1,179 @@
+import { useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
-  Button,
   Grid,
+  IconButton,
   Tooltip,
-  Skeleton,
+  Paper,
+  CircularProgress,
 } from "@mui/material";
-import {
-  Badge as IdIcon,
-  Work as WorkIcon,
-  Photo as PhotoIcon,
-  Description as DocIcon,
-  ErrorOutline as ErrorIcon,
-} from "@mui/icons-material";
-import StatusChip from "./StatusChip";
-import FileUpload from "./FileUpload";
+import UploadIcon from "@mui/icons-material/Upload";
+import DownloadIcon from "@mui/icons-material/Download";
+import DeleteIcon from "@mui/icons-material/Delete";
+
 import type { BaseDocument } from "../../types/document";
-import type { JSX } from "@emotion/react/jsx-dev-runtime";
+import StatusChip from "./StatusChip";
+import { deleteDocument } from "../../lib/documents";
 
 type Props = {
   documents: BaseDocument[];
+  readOnly?: boolean;
 
-  /** employee / onboarding */
-  onUpload?: (type: string, file: File) => void;
+  /**
+   * 上传回调（阶段 A：只上传 metadata）
+   * 由父组件（useDocuments）提供
+   */
+  onUpload: (type: string, file: File) => Promise<void>;
 
-  /** hr (legacy, but still supported) */
-  onApprove?: (id: string) => void;
-  onReject?: (id: string) => void;
-
-  readonly?: boolean;
+  onDownload?: (doc: BaseDocument) => void;
+  onRefresh?: () => Promise<void>;
 };
 
-const typeIconMap: Record<string, JSX.Element> = {
-  id_card: <IdIcon fontSize="small" />,
-  work_auth: <WorkIcon fontSize="small" />,
-  profile_photo: <PhotoIcon fontSize="small" />,
-  opt_ead: <DocIcon fontSize="small" />,
-  opt_receipt: <DocIcon fontSize="small" />,
-  i_983: <DocIcon fontSize="small" />,
-  i_20: <DocIcon fontSize="small" />,
-};
-
-const mapStatusToUploadStatus = (status: BaseDocument["status"]) => {
-  switch (status) {
-    case "pending":
-      return "uploading";
-    case "approved":
-      return "success";
-    case "rejected":
-      return "error";
-    default:
-      return "idle";
-  }
-};
-
-const DocumentList = ({
+export default function DocumentList({
   documents,
+  readOnly = false,
   onUpload,
-  onApprove,
-  onReject,
-  readonly,
-}: Props) => {
-  return (
-    <Grid container spacing={3}>
-      {documents.map((doc) => (
-        <Grid key={doc.id} size={{ xs: 12, md: 6 }}>
-          <Card
-            sx={{
-              border:
-                doc.status === "rejected"
-                  ? "1px solid"
-                  : "1px solid transparent",
-              borderColor: doc.status === "rejected" ? "error.main" : "divider",
-              bgcolor:
-                doc.status === "rejected"
-                  ? "rgba(198,40,40,0.04)"
-                  : "background.paper",
-            }}
-          >
-            <CardContent>
-              {/* ===== Header ===== */}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 1,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {typeIconMap[doc.type] ?? <DocIcon fontSize="small" />}
-                  <Typography fontWeight={600}>{doc.type}</Typography>
-                </Box>
+  onDownload,
+  onRefresh,
+}: Props) {
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
 
-                <StatusChip status={doc.status} size="small" />
+  /**
+   * 上传文件（阶段 A：只通知父层）
+   */
+  const handleUpload = async (doc: BaseDocument, file: File) => {
+    setLoadingMap((m) => ({ ...m, [doc.id]: true }));
+    try {
+      await onUpload(doc.type, file);
+      await onRefresh?.();
+    } catch (err) {
+      console.error("upload failed", err);
+      alert("Upload failed");
+    } finally {
+      setLoadingMap((m) => ({ ...m, [doc.id]: false }));
+    }
+  };
+
+  /**
+   * 删除 document（DB 层，阶段 A）
+   */
+  const handleDelete = async (docId: string) => {
+    if (!window.confirm("Are you sure you want to delete this document?")) {
+      return;
+    }
+
+    setLoadingMap((m) => ({ ...m, [docId]: true }));
+    try {
+      await deleteDocument(docId);
+      await onRefresh?.();
+    } catch (err) {
+      console.error("delete failed", err);
+      alert("Failed to delete document");
+    } finally {
+      setLoadingMap((m) => ({ ...m, [docId]: false }));
+    }
+  };
+
+  return (
+    <Grid container spacing={2}>
+      {documents.map((doc) => {
+        const loading = !!loadingMap[doc.id];
+
+        return (
+          <Grid size={{ xs: 12, md: 6 }} key={doc.id}>
+            <Paper
+              sx={{
+                p: 2,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              {/* 左侧：文档信息 */}
+              <Box>
+                <Typography fontWeight={600}>{doc.type}</Typography>
+
+                <Typography variant="caption" color="text.secondary">
+                  {doc.fileName
+                    ? `Uploaded ${doc.uploadedAt}`
+                    : "Not uploaded"}
+                </Typography>
+
+                {doc.status === "pending" && (
+                  <Typography variant="caption" color="warning.main">
+                    Pending HR review
+                  </Typography>
+                )}
+
+                {doc.status === "rejected" && doc.hrFeedback && (
+                  <Typography variant="caption" color="error">
+                    Feedback: {doc.hrFeedback}
+                  </Typography>
+                )}
               </Box>
 
-              {/* ===== File info ===== */}
-              {doc.fileName && (
-                <Typography variant="body2" color="text.secondary">
-                  File: {doc.fileName}
-                </Typography>
-              )}
+              {/* 右侧：操作区 */}
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <StatusChip status={doc.status} size="small" />
 
-              {/* ===== Review info (Employee can see who reviewed) ===== */}
-              {doc.reviewedBy && (
-                <Typography variant="caption" color="text.secondary">
-                  Reviewed by {doc.reviewedBy.username}
-                  {doc.reviewedAt
-                    ? ` • ${new Date(doc.reviewedAt).toLocaleString()}`
-                    : ""}
-                </Typography>
-              )}
-
-              {/* ===== HR feedback ===== */}
-              {doc.hrFeedback && (
-                <Tooltip title={doc.hrFeedback} arrow placement="top">
-                  <Box
-                    sx={{
-                      mt: 0.5,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.5,
-                      color: "error.main",
-                      cursor: "help",
-                    }}
-                  >
-                    <ErrorIcon fontSize="small" />
-                    <Typography variant="caption">HR feedback</Typography>
-                  </Box>
-                </Tooltip>
-              )}
-
-              {/* ===== Pending skeleton ===== */}
-              {doc.status === "pending" && (
-                <Box sx={{ mt: 2 }}>
-                  <Skeleton variant="rectangular" height={48} />
-                </Box>
-              )}
-
-              {/* ===== Upload (Employee / Onboarding) ===== */}
-              {!readonly && onUpload && doc.status !== "pending" && (
-                <Box sx={{ mt: 2 }}>
-                  <FileUpload
-                    label="Upload document"
-                    fileName={doc.fileName}
-                    status={mapStatusToUploadStatus(doc.status)}
-                    disabled={doc.status === "approved"}
-                    onFileSelect={(file) => onUpload(doc.type, file)}
-                  />
-                </Box>
-              )}
-
-              {/* ===== HR Actions (legacy, usually hidden now) ===== */}
-              {doc.status === "pending" && (onApprove || onReject) && (
-                <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
-                  {onApprove && (
-                    <Button
+                {doc.fileName && (
+                  <Tooltip title="Download">
+                    <IconButton
                       size="small"
-                      color="success"
-                      variant="contained"
-                      onClick={() => onApprove(doc.id)}
+                      onClick={() => onDownload?.(doc)}
+                      disabled={loading}
                     >
-                      Approve
-                    </Button>
-                  )}
-                  {onReject && (
-                    <Button
+                      <DownloadIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+
+                {doc.fileName && !readOnly && (
+                  <Tooltip title="Delete">
+                    <IconButton
                       size="small"
                       color="error"
-                      variant="outlined"
-                      onClick={() => onReject(doc.id)}
+                      onClick={() => handleDelete(doc.id)}
+                      disabled={loading}
                     >
-                      Reject
-                    </Button>
-                  )}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      ))}
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+
+                {!readOnly && (
+                  <Tooltip title="Upload file">
+                    <IconButton
+                      component="label"
+                      size="small"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <CircularProgress size={18} />
+                      ) : (
+                        <UploadIcon />
+                      )}
+                      <input
+                        type="file"
+                        hidden
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleUpload(doc, file);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+        );
+      })}
     </Grid>
   );
-};
-
-export default DocumentList;
+}

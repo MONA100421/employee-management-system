@@ -1,21 +1,36 @@
 import api from "./api";
 
-export async function uploadFileToServer(
-  file: File,
-): Promise<{ fileName: string; fileUrl?: string }> {
-  const fd = new FormData();
-  fd.append("file", file);
+/**
+ * 使用 S3 presigned URL 上传文件
+ */
+export async function uploadWithPresign(args: {
+  file: File;
+  type: string;
+  category: string;
+}) {
+  const { file, type, category } = args;
 
-  const res = await api.post("/upload", fd, {
-    headers: { "Content-Type": "multipart/form-data" },
+  const presignRes = await api.post("/documents/uploads/presign", {
+    fileName: file.name,
+    contentType: file.type,
+    type,
+    category,
   });
 
-  if (!res.data || !res.data.ok) {
-    throw new Error("Upload failed");
+  const { uploadUrl, fileUrl } = presignRes.data;
+  console.log("【REAL uploadUrl】", uploadUrl);
+
+  const uploadRes = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+    },
+    body: file,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error("Failed to upload file to S3");
   }
 
-  return {
-    fileName: res.data.fileName,
-    fileUrl: res.data.fileUrl,
-  };
+  return { fileUrl };
 }

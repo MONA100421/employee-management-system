@@ -245,7 +245,11 @@ const AppLayout: React.FC = () => {
             {menuItems.find((item) => item.path === location.pathname)?.text ||
               "Dashboard"}
           </Typography>
+
+          {/* Notifications */}
           <HeaderNotifications />
+
+          {/* Profile */}
           <IconButton onClick={handleProfileMenuOpen} size="small">
             <Avatar
               sx={{
@@ -258,6 +262,7 @@ const AppLayout: React.FC = () => {
               {user?.lastName?.[0]}
             </Avatar>
           </IconButton>
+          
           <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}

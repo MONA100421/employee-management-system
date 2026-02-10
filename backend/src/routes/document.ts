@@ -6,6 +6,7 @@ import {
   uploadDocument,
   reviewDocument,
   getDocumentsForHRByUser,
+  getVisaDocumentsForHR,
 } from "../controllers/documentController";
 
 const router = Router();
@@ -20,6 +21,13 @@ router.get(
   authMiddleware,
   requireRole("hr"),
   getDocumentsForHRByUser,
+);
+
+router.get(
+  "/hr/visa",
+  authMiddleware,
+  requireRole("hr"),
+  getVisaDocumentsForHR,
 );
 
 router.post("/:id/review", authMiddleware, requireRole("hr"), reviewDocument);

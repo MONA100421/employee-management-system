@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Document from "../models/Document";
+import { reviewDocumentService } from "../services/documentReviewService";
 
 const dbToUIStatus = (s: string) => {
   switch (s) {
@@ -140,43 +141,31 @@ export const reviewDocument = async (req: Request, res: Response) => {
     }
 
     const { id } = req.params;
+    const docId = String(id); // ensure string
     const { decision, feedback } = req.body;
 
     if (!["approved", "rejected"].includes(decision)) {
       return res.status(400).json({ ok: false });
     }
 
-    const doc = await Document.findById(id);
-    if (!doc) {
-      return res.status(404).json({ ok: false });
+    // call service to perform review + audit append
+    try {
+      const updatedDoc = await reviewDocumentService({
+        docId,
+        decision,
+        reviewer: { id: user.id, username: (user as any).username },
+        feedback,
+      });
+
+      return res.json({
+        ok: true,
+        status: dbToUIStatus(updatedDoc.status),
+      });
+    } catch (e: any) {
+      return res
+        .status(400)
+        .json({ ok: false, message: e.message || "Bad request" });
     }
-
-    if (doc.status !== "pending") {
-      return res.status(400).json({ ok: false, message: "Not pending" });
-    }
-
-    const newStatus = decision === "approved" ? "approved" : "rejected";
-    doc.status = newStatus;
-    doc.reviewedAt = new Date();
-    doc.reviewedBy = user.id;
-    doc.hrFeedback = decision === "rejected" ? feedback : undefined;
-
-    // append audit entry
-    doc.audit = doc.audit || [];
-    doc.audit.push({
-      action: newStatus,
-      by: user.id,
-      username: (user as any).username || null,
-      at: new Date(),
-      feedback: decision === "rejected" ? feedback || null : null,
-    });
-
-    await doc.save();
-
-    return res.json({
-      ok: true,
-      status: dbToUIStatus(doc.status),
-    });
   } catch (err) {
     console.error("reviewDocument error", err);
     return res.status(500).json({ ok: false });
@@ -219,6 +208,43 @@ export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
         feedback: a.feedback ?? null,
         by: a.by ? { id: a.by, username: a.username } : null,
       })),
+    })),
+  });
+};
+
+// GET /api/hr/documents/visa
+export const getVisaDocumentsForHR = async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!user || user.role !== "hr") {
+    return res.status(403).json({ ok: false });
+  }
+
+  const docs = await Document.find({ category: "visa" })
+    .populate("user", "username email")
+    .populate("reviewedBy", "username")
+    .lean();
+
+  return res.json({
+    ok: true,
+    documents: docs.map((d: any) => ({
+      id: d._id,
+      type: d.type,
+      category: d.category,
+      status: dbToUIStatus(d.status),
+      fileName: d.fileName ?? null,
+      uploadedAt: d.uploadedAt ?? null,
+      reviewedAt: d.reviewedAt ?? null,
+      reviewedBy: d.reviewedBy
+        ? {
+            id: (d.reviewedBy as any)._id,
+            username: (d.reviewedBy as any).username,
+          }
+        : null,
+      hrFeedback: d.hrFeedback ?? null,
+      // include user so frontend HR view can show employee name/email
+      user: d.user
+        ? { id: d.user._id, username: d.user.username, email: d.user.email }
+        : null,
     })),
   });
 };

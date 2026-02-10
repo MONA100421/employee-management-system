@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -27,90 +27,41 @@ import {
 } from "@mui/icons-material";
 import StatusChip from "../../components/common/StatusChip";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
+import api from "../../lib/api";
 
-interface VisaRecord {
+/**
+ * HR-facing document shape returned by GET /documents/hr/visa
+ * （對應 backend getVisaDocumentsForHR）
+ */
+type HRVisaDocument = {
+  id: string;
+  type: string;
+  status: "pending" | "approved" | "rejected";
+  fileName?: string;
+  uploadedAt?: string;
+  hrFeedback?: string | null;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+  } | null;
+};
+
+type VisaRecord = {
   id: string;
   employeeName: string;
   email: string;
   visaType: string;
-  startDate: string;
-  endDate: string;
-  daysRemaining: number;
   currentStep: string;
   stepStatus: "pending" | "approved" | "rejected";
-  nextAction: string;
-}
-
-const mockInProgressRecords: VisaRecord[] = [
-  {
-    id: "1",
-    employeeName: "John Doe",
-    email: "john.doe@company.com",
-    visaType: "OPT",
-    startDate: "2024-01-15",
-    endDate: "2025-01-14",
-    daysRemaining: 280,
-    currentStep: "EAD Card",
-    stepStatus: "pending",
-    nextAction: "Review EAD document",
-  },
-  {
-    id: "2",
-    employeeName: "David Lee",
-    email: "david.lee@company.com",
-    visaType: "OPT STEM",
-    startDate: "2023-06-01",
-    endDate: "2024-05-31",
-    daysRemaining: 15,
-    currentStep: "I-20",
-    stepStatus: "pending",
-    nextAction: "Review I-20 document",
-  },
-  {
-    id: "3",
-    employeeName: "Emma Chen",
-    email: "emma.chen@company.com",
-    visaType: "OPT",
-    startDate: "2024-02-01",
-    endDate: "2025-01-31",
-    daysRemaining: 320,
-    currentStep: "I-983",
-    stepStatus: "pending",
-    nextAction: "Review I-983 form",
-  },
-];
-
-const mockAllRecords: VisaRecord[] = [
-  ...mockInProgressRecords,
-  {
-    id: "4",
-    employeeName: "Sarah Miller",
-    email: "sarah.miller@company.com",
-    visaType: "Green Card",
-    startDate: "2020-03-15",
-    endDate: "2030-03-14",
-    daysRemaining: 2200,
-    currentStep: "Complete",
-    stepStatus: "approved",
-    nextAction: "-",
-  },
-  {
-    id: "5",
-    employeeName: "Michael Chen",
-    email: "michael.chen@company.com",
-    visaType: "H1-B",
-    startDate: "2022-10-01",
-    endDate: "2025-09-30",
-    daysRemaining: 600,
-    currentStep: "Complete",
-    stepStatus: "approved",
-    nextAction: "-",
-  },
-];
+};
 
 const VisaManagement: React.FC = () => {
   const theme = useTheme();
+  const [documents, setDocuments] = useState<HRVisaDocument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
+
   const [feedbackDialog, setFeedbackDialog] = useState<{
     open: boolean;
     type: "approve" | "reject";
@@ -121,7 +72,35 @@ const VisaManagement: React.FC = () => {
     record: null,
   });
 
-  const records = tabValue === 0 ? mockInProgressRecords : mockAllRecords;
+  // load visa documents for HR
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get("/documents/hr/visa");
+        setDocuments(res.data.documents ?? []);
+      } catch (err) {
+        console.error("Failed to load visa documents", err);
+        setDocuments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // map backend docs → UI rows
+  const records: VisaRecord[] = documents.map((d) => ({
+    id: d.id,
+    employeeName: d.user?.username ?? "Unknown",
+    email: d.user?.email ?? "",
+    visaType: d.type,
+    currentStep: d.type,
+    stepStatus: d.status,
+  }));
+
+  const inProgress = records.filter((r) => r.stepStatus === "pending");
+  const shownRecords = tabValue === 0 ? inProgress : records;
 
   const handleApprove = (record: VisaRecord) => {
     setFeedbackDialog({ open: true, type: "approve", record });
@@ -131,20 +110,23 @@ const VisaManagement: React.FC = () => {
     setFeedbackDialog({ open: true, type: "reject", record });
   };
 
-  const handleFeedbackSubmit = (feedback: string) => {
-    console.log(
-      `${feedbackDialog.type}d:`,
-      feedbackDialog.record?.employeeName,
-      "Feedback:",
-      feedback,
-    );
-    setFeedbackDialog({ open: false, type: "approve", record: null });
-  };
+  const handleFeedbackSubmit = async (feedback: string) => {
+    if (!feedbackDialog.record) return;
 
-  const getDaysRemainingColor = (days: number) => {
-    if (days <= 30) return theme.palette.error.main;
-    if (days <= 90) return theme.palette.warning.main;
-    return theme.palette.success.main;
+    try {
+      await api.post(`/documents/${feedbackDialog.record.id}/review`, {
+        decision: feedbackDialog.type === "approve" ? "approved" : "rejected",
+        feedback,
+      });
+
+      // reload
+      const res = await api.get("/documents/hr/visa");
+      setDocuments(res.data.documents ?? []);
+    } catch (err) {
+      console.error("Failed to review document", err);
+    } finally {
+      setFeedbackDialog({ open: false, type: "approve", record: null });
+    }
   };
 
   return (
@@ -168,8 +150,8 @@ const VisaManagement: React.FC = () => {
       <Card>
         <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-            <Tab label={`In Progress (${mockInProgressRecords.length})`} />
-            <Tab label={`All (${mockAllRecords.length})`} />
+            <Tab label={`In Progress (${inProgress.length})`} />
+            <Tab label={`All (${records.length})`} />
           </Tabs>
         </Box>
 
@@ -179,44 +161,33 @@ const VisaManagement: React.FC = () => {
               <TableRow>
                 <TableCell>Employee</TableCell>
                 <TableCell>Visa Type</TableCell>
-                <TableCell>Start Date</TableCell>
-                <TableCell>End Date</TableCell>
-                <TableCell>Days Remaining</TableCell>
                 <TableCell>Current Step</TableCell>
-                <TableCell>Next Action</TableCell>
+                <TableCell>Status</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {records.map((record) => (
+              {shownRecords.map((record) => (
                 <TableRow key={record.id} hover>
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <Avatar
-                        sx={{
-                          bgcolor: theme.palette.primary.main,
-                          width: 36,
-                          height: 36,
-                        }}
-                      >
+                      <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
                         {record.employeeName
                           .split(" ")
                           .map((n) => n[0])
                           .join("")}
                       </Avatar>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        <Typography fontWeight={500}>
                           {record.employeeName}
                         </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{ color: theme.palette.text.secondary }}
-                        >
+                        <Typography variant="caption" color="text.secondary">
                           {record.email}
                         </Typography>
                       </Box>
                     </Box>
                   </TableCell>
+
                   <TableCell>
                     <Chip
                       label={record.visaType}
@@ -224,45 +195,17 @@ const VisaManagement: React.FC = () => {
                       variant="outlined"
                     />
                   </TableCell>
-                  <TableCell>{record.startDate}</TableCell>
-                  <TableCell>{record.endDate}</TableCell>
+
+                  <TableCell>{record.currentStep}</TableCell>
+
                   <TableCell>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        color: getDaysRemainingColor(record.daysRemaining),
-                      }}
-                    >
-                      {record.daysRemaining} days
-                    </Typography>
+                    <StatusChip status={record.stepStatus} size="small" />
                   </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Typography variant="body2">
-                        {record.currentStep}
-                      </Typography>
-                      <StatusChip status={record.stepStatus} size="small" />
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      sx={{ color: theme.palette.text.secondary }}
-                    >
-                      {record.nextAction}
-                    </Typography>
-                  </TableCell>
+
                   <TableCell align="right">
                     {record.stepStatus === "pending" && (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          gap: 0.5,
-                          justifyContent: "flex-end",
-                        }}
-                      >
-                        <Tooltip title="View Document">
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Tooltip title="View">
                           <IconButton size="small">
                             <ViewIcon fontSize="small" />
                           </IconButton>
@@ -290,7 +233,7 @@ const VisaManagement: React.FC = () => {
                             <RejectIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        {record.currentStep === "I-983" && (
+                        {record.currentStep === "i_983" && (
                           <Tooltip title="Send Notification">
                             <IconButton size="small" color="primary">
                               <SendIcon fontSize="small" />
@@ -306,13 +249,10 @@ const VisaManagement: React.FC = () => {
           </Table>
         </TableContainer>
 
-        {records.length === 0 && (
+        {shownRecords.length === 0 && (
           <Box sx={{ p: 4, textAlign: "center" }}>
-            <Typography
-              variant="body1"
-              sx={{ color: theme.palette.text.secondary }}
-            >
-              No records found
+            <Typography color="text.secondary">
+              {loading ? "Loading..." : "No records found"}
             </Typography>
           </Box>
         )}

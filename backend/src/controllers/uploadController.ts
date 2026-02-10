@@ -14,32 +14,27 @@ if (!REGION) {
 // POST /api/uploads/presign
 export const presignUpload = async (req: Request, res: Response) => {
   try {
-    // Authentication check
     const user = (req as any).user;
     if (!user) {
       return res.status(401).json({ ok: false, message: "Unauthorized" });
     }
 
-    // Configuration check
     if (!BUCKET) {
-      console.error("AWS_BUCKET_NAME is not set in environment variables");
       return res.status(500).json({
         ok: false,
         message: "S3 bucket not configured on server",
       });
     }
 
-    // Validation of input fields
     const { fileName, contentType, type, category } = req.body || {};
     if (!fileName || !contentType || !type || !category) {
       return res.status(400).json({
         ok: false,
-        message:
-          "Missing required fields: fileName, contentType, type, or category",
+        message: "Missing required fields",
       });
     }
 
-    // Validate category and document type
+    // Validate category → document type mapping
     const validMap: Record<string, string[]> = {
       onboarding: ["id_card", "work_auth", "profile_photo"],
       visa: ["opt_receipt", "opt_ead", "i_983", "i_20"],
@@ -48,20 +43,29 @@ export const presignUpload = async (req: Request, res: Response) => {
     if (!validMap[category]?.includes(type)) {
       return res.status(400).json({
         ok: false,
-        message: `Invalid document type "${type}" for category "${category}"`,
+        message: "Invalid document type for category",
       });
     }
 
-    // Generate a unique and safe S3 Key
+    // Allowed MIME types must match frontend FileUpload accept list
+    const allowedContentTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg",
+      "image/png",
+    ];
+
+    if (!allowedContentTypes.includes(contentType)) {
+      return res.status(400).json({
+        ok: false,
+        message: "Unsupported file type",
+      });
+    }
+
+    // Build a safe and unique S3 object key
     const safeFileName = String(fileName).replace(/[^a-zA-Z0-9.\-_]/g, "_");
     const key = `${user.id}/${category}/${randomUUID()}_${safeFileName}`;
-
-    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-    if (!allowedTypes.includes(contentType)) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Unsupported file type" });
-    }
 
     const putCommand = new PutObjectCommand({
       Bucket: BUCKET,
@@ -69,21 +73,20 @@ export const presignUpload = async (req: Request, res: Response) => {
       ContentType: contentType,
     });
 
+    // Presigned PUT URL (5 minutes)
+    const uploadUrl = await getSignedUrl(s3Client, putCommand, {
+      expiresIn: 300,
+    });
 
-    // Generate Presigned URL (Expires in 5 minutes)
-    const expiresIn = 300;
-    const uploadUrl = await getSignedUrl(s3Client, putCommand, { expiresIn });
+    // Store a private S3 reference (NOT a public URL)
+    const fileUrl = `s3://${BUCKET}/${key}`;
 
-    // Generate the standard HTTPS URL for database storage and HR preview
-    const fileUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
-
-    // Return response to frontend
     return res.json({
       ok: true,
       uploadUrl,
       fileUrl,
       key,
-      expiresIn,
+      expiresIn: 300,
     });
   } catch (err) {
     console.error("presignUpload error:", err);
@@ -94,6 +97,7 @@ export const presignUpload = async (req: Request, res: Response) => {
   }
 };
 
+// POST /api/uploads/presign-get
 export const presignGet = async (req: Request, res: Response) => {
   try {
     const { fileUrl } = req.body;
@@ -101,13 +105,21 @@ export const presignGet = async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, message: "Missing fileUrl" });
     }
 
-    let key = "";
-    if (fileUrl.startsWith("s3://")) {
-      key = fileUrl.split("/").slice(3).join("/");
-    } else {
+    if (!BUCKET) {
+      return res.status(500).json({
+        ok: false,
+        message: "S3 bucket not configured on server",
+      });
+    }
 
-      const urlParts = new URL(fileUrl);
-      key = urlParts.pathname.substring(1); 
+    // Extract S3 object key from stored fileUrl
+    let key: string;
+
+    if (fileUrl.startsWith("s3://")) {
+      key = fileUrl.replace(`s3://${BUCKET}/`, "");
+    } else {
+      const url = new URL(fileUrl);
+      key = url.pathname.slice(1);
     }
 
     const getCommand = new GetObjectCommand({
@@ -116,7 +128,7 @@ export const presignGet = async (req: Request, res: Response) => {
     });
 
     const downloadUrl = await getSignedUrl(s3Client, getCommand, {
-      expiresIn: 3600,
+      expiresIn: 3600, // 1 hour
     });
 
     return res.json({

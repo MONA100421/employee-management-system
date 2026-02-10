@@ -3,6 +3,7 @@ export type DocumentCategory = "onboarding" | "visa";
 export type UserRef = {
   id: string;
   username: string;
+  email?: string;
 };
 export type DocumentStatus =
   | "not-started"
@@ -12,7 +13,7 @@ export type DocumentStatus =
 
 export type AuditEntry = {
   action: "approved" | "rejected";
-  at: string; // ISO date string
+  at: string;
   feedback?: string | null;
   by?: UserRef | null;
 };
@@ -23,7 +24,8 @@ export type BaseDocument = {
   category: DocumentCategory;
   status: DocumentStatus;
   fileName?: string;
-  uploadedAt?: string;
+  fileUrl?: string | null;
+  uploadedAt?: string | null;
   // HR review
   reviewedAt?: string | null;
   reviewedBy?: UserRef | null;

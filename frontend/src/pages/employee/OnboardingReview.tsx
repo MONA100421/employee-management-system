@@ -10,7 +10,7 @@ import {
   Alert,
 } from "@mui/material";
 import type { OnboardingFormValues } from "./onboarding.schema";
-import type { OnboardingDocument } from "./types";
+import type { OnboardingDocument } from "../../types/document";
 import StatusChip from "../../components/common/StatusChip";
 import { Schedule as ScheduleIcon } from "@mui/icons-material";
 
@@ -149,9 +149,9 @@ export default function OnboardingReview({
                     <StatusChip status={doc.status} size="small" />
                   </Box>
 
-                  {doc.status === "rejected" && doc.feedback && (
+                  {doc.status === "rejected" && doc.hrFeedback && (
                     <Alert severity="error" sx={{ mt: 1 }}>
-                      <strong>Feedback:</strong> {doc.feedback}
+                      <strong>Feedback:</strong> {doc.hrFeedback}
                     </Alert>
                   )}
                 </Grid>

@@ -5,7 +5,7 @@ import {
   Description as DocIcon,
 } from "@mui/icons-material";
 import StatusChip from "../../components/common/StatusChip";
-import type { OnboardingDocument } from "./types";
+import type { OnboardingDocument } from "../../types/document";
 
 type Props = {
   doc: OnboardingDocument;
@@ -55,9 +55,9 @@ export default function DocumentCard({ doc, onUpload }: Props) {
           {doc.uploadedAt && ` • Uploaded ${doc.uploadedAt}`}
         </Typography>
 
-        {doc.status === "rejected" && doc.feedback && (
+        {doc.status === "rejected" && doc.hrFeedback && (
           <Typography variant="caption" color="error" display="block">
-            HR feedback: {doc.feedback}
+            HR feedback: {doc.hrFeedback}
           </Typography>
         )}
       </Box>

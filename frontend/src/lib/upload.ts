@@ -4,6 +4,8 @@ type PresignResponse = {
   ok: boolean;
   uploadUrl: string;
   fileUrl: string;
+  key: string;
+  expiresIn?: number;
 };
 
 type UploadResult = {
@@ -31,15 +33,17 @@ export async function uploadFilePresigned({
     category,
   });
 
-  if (!presignRes.data.ok) {
-    throw new Error("Failed to presign");
+  if (!presignRes.data || !presignRes.data.ok) {
+    throw new Error("Failed to get presigned URL");
   }
 
   const { uploadUrl, fileUrl } = presignRes.data;
 
   const putRes = await fetch(uploadUrl, {
     method: "PUT",
-    headers: { "Content-Type": file.type },
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+    },
     body: file,
   });
 
@@ -54,12 +58,27 @@ export async function uploadFilePresigned({
     fileUrl,
   });
 
-  if (!registerRes.data?.ok) {
-    throw new Error("Failed to register document");
+  if (!registerRes.data || !registerRes.data.ok) {
+    throw new Error("Failed to register uploaded document");
   }
 
   return {
     ok: true,
     document: registerRes.data.document,
   };
+}
+
+// Get presigned GET url for a stored object key (or fileUrl in s3:// form)
+export async function getPresignedGet({
+  key,
+  fileUrl,
+}: {
+  key?: string;
+  fileUrl?: string;
+}): Promise<{ downloadUrl: string }> {
+  const res = await api.post("/uploads/presign-get", { key, fileUrl });
+  if (!res.data || !res.data.ok) {
+    throw new Error("Failed to get download URL");
+  }
+  return { downloadUrl: res.data.downloadUrl };
 }

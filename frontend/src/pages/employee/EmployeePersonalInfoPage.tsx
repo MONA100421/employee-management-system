@@ -34,38 +34,7 @@ import type { EmployeeProfile } from "../../types/user";
 import type { BaseDocument } from "../../types/document";
 import { employeeProfileSchema, type EmployeeProfileFormValues } from "./employeeProfile.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-
-// Types
-
-type EmployeePersonalInfoForm = {
-  firstName: string;
-  lastName: string;
-  middleName?: string;
-  preferredName?: string;
-
-  email?: string;
-  phone?: string;
-  workPhone?: string;
-
-  street?: string;
-  apt?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  country?: string;
-
-  employeeId?: string;
-  title?: string;
-  department?: string;
-  manager?: string;
-  startDate?: string;
-  workAuthorization?: string;
-
-  emergencyContactName?: string;
-  emergencyRelationship?: string;
-  emergencyPhone?: string;
-  emergencyEmail?: string;
-};
+import type {EmployeePersonalInfoForm} from "./types";
 
 // Reusable UI components
 

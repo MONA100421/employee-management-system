@@ -7,6 +7,10 @@ import {
   Grid,
   Tooltip,
   Skeleton,
+  IconButton,
+  CircularProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   Badge as IdIcon,
@@ -14,11 +18,14 @@ import {
   Photo as PhotoIcon,
   Description as DocIcon,
   ErrorOutline as ErrorIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
 import StatusChip from "./StatusChip";
 import FileUpload from "./FileUpload";
 import type { BaseDocument } from "../../types/document";
 import type { JSX } from "@emotion/react/jsx-dev-runtime";
+import { getPresignedGet } from "../../lib/upload";
+import { useState } from "react";
 
 type Props = {
   documents: BaseDocument[];
@@ -60,33 +67,69 @@ const DocumentList = ({
   readonly,
   highlightId,
 }: Props) => {
-  return (
-    <Grid container spacing={3}>
-      {documents.map((doc) => {
-        const isHighlighted = doc.id === highlightId;
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-        return (
+  const handleDownload = async (doc: BaseDocument) => {
+    if (!doc.fileUrl) {
+      setErrorMsg("No downloadable link available for this document.");
+      return;
+    }
+
+    setDownloadingId(doc.id);
+    try {
+      const { downloadUrl } = await getPresignedGet({ fileUrl: doc.fileUrl });
+
+      const resp = await fetch(downloadUrl);
+      if (!resp.ok) throw new Error(`Download failed (HTTP ${resp.status})`);
+
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.fileName ?? "download";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      // error handling
+      console.error("Download error", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "An error occurred during download. Please try again later.";
+      setErrorMsg(message);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  return (
+    <>
+      <Grid container spacing={3}>
+        {documents.map((doc) => (
           <Grid key={doc.id} size={{ xs: 12, md: 6 }}>
             <Card
-              data-docid={doc.id}
               sx={{
-                border: isHighlighted
-                  ? "2px solid"
-                  : doc.status === "rejected"
+                border:
+                  doc.status === "rejected"
                     ? "1px solid"
                     : "1px solid transparent",
-                borderColor: isHighlighted
-                  ? "primary.main"
-                  : doc.status === "rejected"
-                    ? "error.main"
-                    : "divider",
-                bgcolor: isHighlighted
-                  ? "rgba(25,118,210,0.08)"
-                  : doc.status === "rejected"
+                borderColor:
+                  doc.status === "rejected" ? "error.main" : "divider",
+                bgcolor:
+                  doc.status === "rejected"
                     ? "rgba(198,40,40,0.04)"
                     : "background.paper",
-                transition: "all 0.3s ease",
+                ...(highlightId === doc.id
+                  ? {
+                      boxShadow: (theme) =>
+                        `0 0 0 4px ${theme.palette.primary.light}`,
+                    }
+                  : {}),
               }}
+              data-docid={doc.id}
             >
               <CardContent>
                 {/* Header */}
@@ -102,13 +145,41 @@ const DocumentList = ({
                     {typeIconMap[doc.type] ?? <DocIcon fontSize="small" />}
                     <Typography fontWeight={600}>{doc.type}</Typography>
                   </Box>
+
                   <StatusChip status={doc.status} size="small" />
                 </Box>
 
-                {/* File info */}
-                {doc.fileName && (
+                {/* File info + Download */}
+                {doc.fileName ? (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ flex: 1 }}
+                    >
+                      File: {doc.fileName}
+                    </Typography>
+
+                    <Tooltip title="Download file">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownload(doc)}
+                          disabled={!doc.fileUrl || Boolean(downloadingId)}
+                          aria-label="download"
+                        >
+                          {downloadingId === doc.id ? (
+                            <CircularProgress size={20} />
+                          ) : (
+                            <DownloadIcon />
+                          )}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </Box>
+                ) : (
                   <Typography variant="body2" color="text.secondary">
-                    File: {doc.fileName}
+                    No file uploaded
                   </Typography>
                 )}
 
@@ -124,7 +195,7 @@ const DocumentList = ({
 
                 {/* HR feedback */}
                 {doc.hrFeedback && (
-                  <Tooltip title={doc.hrFeedback} arrow>
+                  <Tooltip title={doc.hrFeedback} arrow placement="top">
                     <Box
                       sx={{
                         mt: 0.5,
@@ -148,12 +219,12 @@ const DocumentList = ({
                   </Box>
                 )}
 
-                {/* Upload */}
+                {/* Upload control (employee) */}
                 {!readonly && onUpload && doc.status !== "pending" && (
                   <Box sx={{ mt: 2 }}>
                     <FileUpload
                       label="Upload document"
-                      fileName={doc.fileName}
+                      fileName={doc.fileName ?? undefined}
                       status={mapStatusToUploadStatus(doc.status)}
                       disabled={doc.status === "approved"}
                       onFileSelect={(file) => onUpload(doc.type, file)}
@@ -161,7 +232,7 @@ const DocumentList = ({
                   </Box>
                 )}
 
-                {/* HR actions (legacy) */}
+                {/* HR actions */}
                 {doc.status === "pending" && (onApprove || onReject) && (
                   <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
                     {onApprove && (
@@ -189,9 +260,23 @@ const DocumentList = ({
               </CardContent>
             </Card>
           </Grid>
-        );
-      })}
-    </Grid>
+        ))}
+      </Grid>
+
+      <Snackbar
+        open={!!errorMsg}
+        autoHideDuration={6000}
+        onClose={() => setErrorMsg(null)}
+      >
+        <Alert
+          onClose={() => setErrorMsg(null)}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {errorMsg}
+        </Alert>
+      </Snackbar>
+    </>
   );
 };
 

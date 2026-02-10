@@ -1,8 +1,9 @@
-import type { BaseDocument } from "../types/document";
-import type { OnboardingDocument } from "../pages/employee/types";
+import type { BaseDocument, OnboardingDocument } from "../types/document";
 
 export const toOnboardingDoc = (d: BaseDocument): OnboardingDocument => ({
   ...d,
+  uploadedAt: d.uploadedAt ?? undefined,
+
   title:
     d.type === "id_card"
       ? "Driver's License / State ID"

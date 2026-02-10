@@ -1,15 +1,29 @@
-export type DocumentStatus =
-  | "not-started"
-  | "pending"
-  | "approved"
-  | "rejected";
+export type EmployeePersonalInfoForm = {
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  preferredName?: string;
 
-export type OnboardingDocument = {
-  id: string;
-  title: string;
-  type: string;
-  status: DocumentStatus;
-  fileName?: string;
-  uploadedAt?: string;
-  feedback?: string;
+  email?: string;
+  phone?: string;
+  workPhone?: string;
+
+  street?: string;
+  apt?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  country?: string;
+
+  employeeId?: string;
+  title?: string;
+  department?: string;
+  manager?: string;
+  startDate?: string;
+  workAuthorization?: string;
+
+  emergencyContactName?: string;
+  emergencyRelationship?: string;
+  emergencyPhone?: string;
+  emergencyEmail?: string;
 };

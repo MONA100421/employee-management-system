@@ -28,7 +28,7 @@ import HRDocumentReviewPanel from "../../components/common/HRDocumentReviewPanel
 
 import { toOnboardingDoc } from "../../utils/documentMapping";
 import type { BaseDocument } from "../../types/document";
-import type { OnboardingDocument } from "../employee/types";
+import type { OnboardingDocument } from "../../types/document";
 import type { OnboardingFormValues } from "../employee/onboarding.schema";
 
 const HROnboardingDetailPage = () => {

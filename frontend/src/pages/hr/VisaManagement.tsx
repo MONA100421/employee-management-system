@@ -86,7 +86,7 @@ const VisaManagement: React.FC = () => {
     load();
   }, []);
 
-  // map backend docs → UI rows
+  // map backend docs -> UI rows
   const records: VisaRecord[] = documents.map((d) => ({
     id: d.id,
     employeeName: d.user?.username ?? "Unknown",

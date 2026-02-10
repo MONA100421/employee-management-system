@@ -7,7 +7,6 @@ import employeeRoutes from "./routes/employee";
 import onboardingRoutes from "./routes/onboarding";
 import documentRoutes from "./routes/document";
 import notificationRouter from "./routes/notification";
-import metricsRouter from "./routes/metrics";
 
 const app = express();
 
@@ -30,8 +29,5 @@ app.use("/api/documents", documentRoutes);
 
 // make notifications under /api/notifications
 app.use("/api/notifications", notificationRouter);
-
-// metrics
-app.use("/api/metrics", metricsRouter);
 
 export default app;

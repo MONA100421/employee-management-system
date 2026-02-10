@@ -1,11 +1,5 @@
-import React from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  useTheme,
-} from "@mui/material";
+import React, { useMemo, useState, useEffect } from "react";
+import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
   People as PeopleIcon,
@@ -15,27 +9,57 @@ import {
   TrendingUp as TrendingIcon,
 } from "@mui/icons-material";
 import { useDocuments } from "../../hooks/useDocuments";
-import DocumentList from "../../components/common/DocumentList";
-import HRDashboardMetrics from "./HRDashboardMetrics";
+import api from "../../lib/api";
 
 const HRDashboard: React.FC = () => {
   const theme = useTheme();
 
+  // Documents (real data)
   const { documents, loading } = useDocuments("all");
 
-  const pendingDocs = documents.filter((d) => d.status === "pending");
+  const [now] = useState<number>(() => Date.now());
+
+  // Pending
+  const pendingDocs = useMemo(
+    () => documents.filter((d) => d.status === "pending"),
+    [documents],
+  );
+
   const pendingOnboardingCount = pendingDocs.filter(
     (d) => d.category === "onboarding",
   ).length;
+
   const pendingVisaCount = pendingDocs.filter(
     (d) => d.category === "visa",
   ).length;
 
+  // Approved this week (last 7 days)
+  const approvedThisWeek = useMemo(() => {
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+    return documents.filter((d) => {
+      if (d.status !== "approved" || !d.reviewedAt) return false;
+      const reviewedTime = new Date(d.reviewedAt).getTime();
+      return now - reviewedTime <= sevenDaysMs;
+    }).length;
+  }, [documents, now]);
+
+  // Total employees (real API)
+  const [totalEmployees, setTotalEmployees] = useState<number | null>(null);
+
+  useEffect(() => {
+    api
+      .get("/hr/employees")
+      .then((res) => setTotalEmployees(res.data.employees.length))
+      .catch(() => setTotalEmployees(null));
+  }, []);
+
+  // Dashboard cards
   const stats = [
     {
       title: "Total Employees",
-      value: "156",
-      change: "+12 this month",
+      value: totalEmployees ?? "—",
+      change: "Live data",
       icon: <PeopleIcon sx={{ fontSize: 28 }} />,
       color: theme.palette.primary.main,
     },
@@ -50,15 +74,15 @@ const HRDashboard: React.FC = () => {
     },
     {
       title: "Visa Expiring Soon",
-      value: "5",
-      change: "Within 90 days",
+      value: "—",
+      change: "Coming soon",
       icon: <BadgeIcon sx={{ fontSize: 28 }} />,
       color: theme.palette.error.main,
     },
     {
       title: "Approved This Week",
-      value: "12",
-      change: "+20% vs last week",
+      value: approvedThisWeek.toString(),
+      change: "Last 7 days",
       icon: <ApprovedIcon sx={{ fontSize: 28 }} />,
       color: theme.palette.success.main,
     },
@@ -114,29 +138,6 @@ const HRDashboard: React.FC = () => {
           </Grid>
         ))}
       </Grid>
-
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-          Performance Metrics
-        </Typography>
-        <HRDashboardMetrics />
-      </Box>
-      
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            Pending Documents
-          </Typography>
-
-          {pendingDocs.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No pending documents 🎉
-            </Typography>
-          )}
-
-          <DocumentList documents={pendingDocs} readonly />
-        </CardContent>
-      </Card>
     </Box>
   );
 };

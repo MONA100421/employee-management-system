@@ -2,9 +2,14 @@ import { Request, Response } from "express";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Client } from "../utils/s3";
+import { randomUUID } from "crypto";
 
 const BUCKET = process.env.AWS_BUCKET_NAME;
-const REGION = process.env.AWS_REGION || "us-east-1";
+const REGION = process.env.AWS_REGION;
+
+if (!REGION) {
+  throw new Error("AWS_REGION is not set");
+}
 
 // POST /api/uploads/presign
 export const presignUpload = async (req: Request, res: Response) => {
@@ -49,14 +54,21 @@ export const presignUpload = async (req: Request, res: Response) => {
 
     // Generate a unique and safe S3 Key
     const safeFileName = String(fileName).replace(/[^a-zA-Z0-9.\-_]/g, "_");
-    const key = `${user.id}/${category}/${Date.now()}_${safeFileName}`;
+    const key = `${user.id}/${category}/${randomUUID()}_${safeFileName}`;
 
-    // Create the PutObject command
+    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+    if (!allowedTypes.includes(contentType)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Unsupported file type" });
+    }
+
     const putCommand = new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
       ContentType: contentType,
     });
+
 
     // Generate Presigned URL (Expires in 5 minutes)
     const expiresIn = 300;

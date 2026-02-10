@@ -1,15 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
 import type { BaseDocument, DocumentCategory } from "../types/document";
+import { uploadFilePresigned } from "../lib/upload";
 
 export type UseDocumentsScope = DocumentCategory | "all";
 
-// Simple in-memory cache
 let documentsCache: BaseDocument[] = [];
 
 export const useDocuments = (scope: UseDocumentsScope) => {
   const [documents, setDocuments] = useState<BaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   const applyScope = useCallback(
     (docs: BaseDocument[]) =>
@@ -49,30 +50,36 @@ export const useDocuments = (scope: UseDocumentsScope) => {
       throw new Error("Cannot upload document in 'all' scope");
     }
 
-    documentsCache = documentsCache.map((d) =>
-      d.type === type
-        ? {
-            ...d,
-            status: "pending",
-            fileName: file.name,
-            uploadedAt: new Date().toISOString().split("T")[0],
-          }
-        : d,
-    );
+    setIsUploading(true);
 
-    setDocuments(applyScope(documentsCache));
+    try {
+      documentsCache = documentsCache.map((d) =>
+        d.type === type
+          ? {
+              ...d,
+              status: "pending",
+              fileName: file.name,
+              uploadedAt: new Date().toISOString().split("T")[0],
+            }
+          : d,
+      );
+      setDocuments(applyScope(documentsCache));
 
-    const res = await api.post("/documents", {
-      type,
-      category: scope,
-      fileName: file.name,
-    });
+      const res = await uploadFilePresigned({
+        file,
+        type,
+        category: scope,
+      });
 
-    const saved: BaseDocument = res.data.document;
+      await refresh();
 
-    documentsCache = documentsCache.map((d) => (d.id === saved.id ? saved : d));
-
-    setDocuments(applyScope(documentsCache));
+      return res;
+    } catch (err) {
+      console.error("Upload failed:", err);
+      throw err;
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const reviewDocument = async (
@@ -80,27 +87,17 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     decision: "approved" | "rejected",
     feedback?: string,
   ) => {
-    await api.post(`/documents/${id}/review`, {
-      decision,
-      feedback,
-    });
-
+    await api.post(`/documents/${id}/review`, { decision, feedback });
     documentsCache = documentsCache.map((d) =>
-      d.id === id
-        ? {
-            ...d,
-            status: decision,
-            hrFeedback: decision === "rejected" ? feedback : undefined,
-          }
-        : d,
+      d.id === id ? { ...d, status: decision, hrFeedback: feedback } : d,
     );
-
     setDocuments(applyScope(documentsCache));
   };
 
   return {
     documents,
     loading,
+    isUploading,
     uploadDocument,
     reviewDocument,
     refresh,

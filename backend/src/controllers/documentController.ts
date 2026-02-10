@@ -79,7 +79,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
     const user = (req as any).user;
     if (!user) return res.status(401).json({ ok: false });
 
-    const { type, category, fileName } = req.body;
+    const { type, category, fileName, fileUrl } = req.body;
     if (!type || !category || !fileName) {
       return res.status(400).json({ ok: false, message: "Missing fields" });
     }
@@ -110,6 +110,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
     }
 
     doc.fileName = fileName;
+    doc.fileUrl = fileUrl ?? doc.fileUrl;
     doc.status = "pending";
     doc.uploadedAt = new Date();
     doc.hrFeedback = undefined;

@@ -7,6 +7,7 @@ import employeeRoutes from "./routes/employee";
 import onboardingRoutes from "./routes/onboarding";
 import documentRoutes from "./routes/document";
 import notificationRouter from "./routes/notification";
+import uploadRoutes from "./routes/upload";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/api/hr", hrRoutes);
 app.use("/api/employee", employeeRoutes);
 app.use("/api", onboardingRoutes); // e.g. /api/onboarding
 app.use("/api/documents", documentRoutes);
+app.use("/api/uploads", uploadRoutes);
 
 // make notifications under /api/notifications
 app.use("/api/notifications", notificationRouter);

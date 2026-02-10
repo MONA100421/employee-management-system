@@ -22,14 +22,9 @@ import type { JSX } from "@emotion/react/jsx-dev-runtime";
 
 type Props = {
   documents: BaseDocument[];
-
-  // employee / onboarding
   onUpload?: (type: string, file: File) => void;
-
-  // hr
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
-
   readonly?: boolean;
   highlightId?: string | null;
 };
@@ -63,130 +58,141 @@ const DocumentList = ({
   onApprove,
   onReject,
   readonly,
+  highlightId,
 }: Props) => {
   return (
     <Grid container spacing={3}>
-      {documents.map((doc) => (
-        <Grid key={doc.id} size={{ xs: 12, md: 6 }}>
-          <Card
-            sx={{
-              border:
-                doc.status === "rejected"
-                  ? "1px solid"
-                  : "1px solid transparent",
-              borderColor: doc.status === "rejected" ? "error.main" : "divider",
-              bgcolor:
-                doc.status === "rejected"
-                  ? "rgba(198,40,40,0.04)"
-                  : "background.paper",
-            }}
-          >
-            <CardContent>
-              {/* ===== Header ===== */}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 1,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {typeIconMap[doc.type] ?? <DocIcon fontSize="small" />}
-                  <Typography fontWeight={600}>{doc.type}</Typography>
-                </Box>
+      {documents.map((doc) => {
+        const isHighlighted = doc.id === highlightId;
 
-                <StatusChip status={doc.status} size="small" />
-              </Box>
-
-              {/* ===== File info ===== */}
-              {doc.fileName && (
-                <Typography variant="body2" color="text.secondary">
-                  File: {doc.fileName}
-                </Typography>
-              )}
-
-              {/* ===== Review info (Employee can see who reviewed) ===== */}
-              {doc.reviewedBy && (
-                <Typography variant="caption" color="text.secondary">
-                  Reviewed by {doc.reviewedBy.username}
-                  {doc.reviewedAt
-                    ? ` • ${new Date(doc.reviewedAt).toLocaleString()}`
-                    : ""}
-                </Typography>
-              )}
-
-              {/* ===== HR feedback ===== */}
-              {doc.hrFeedback && (
-                <Tooltip title={doc.hrFeedback} arrow placement="top">
-                  <Box
-                    sx={{
-                      mt: 0.5,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.5,
-                      color: "error.main",
-                      cursor: "help",
-                    }}
-                  >
-                    <ErrorIcon fontSize="small" />
-                    <Typography variant="caption">HR feedback</Typography>
+        return (
+          <Grid key={doc.id} size={{ xs: 12, md: 6 }}>
+            <Card
+              data-docid={doc.id}
+              sx={{
+                border: isHighlighted
+                  ? "2px solid"
+                  : doc.status === "rejected"
+                    ? "1px solid"
+                    : "1px solid transparent",
+                borderColor: isHighlighted
+                  ? "primary.main"
+                  : doc.status === "rejected"
+                    ? "error.main"
+                    : "divider",
+                bgcolor: isHighlighted
+                  ? "rgba(25,118,210,0.08)"
+                  : doc.status === "rejected"
+                    ? "rgba(198,40,40,0.04)"
+                    : "background.paper",
+                transition: "all 0.3s ease",
+              }}
+            >
+              <CardContent>
+                {/* Header */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 1,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {typeIconMap[doc.type] ?? <DocIcon fontSize="small" />}
+                    <Typography fontWeight={600}>{doc.type}</Typography>
                   </Box>
-                </Tooltip>
-              )}
-
-              {/* ===== Pending skeleton ===== */}
-              {doc.status === "pending" && (
-                <Box sx={{ mt: 2 }}>
-                  <Skeleton variant="rectangular" height={48} />
+                  <StatusChip status={doc.status} size="small" />
                 </Box>
-              )}
 
-              {/* ===== Upload (Employee / Onboarding) ===== */}
-              {!readonly && onUpload && doc.status !== "pending" && (
-                <Box sx={{ mt: 2 }}>
-                  <FileUpload
-                    label="Upload document"
-                    fileName={doc.fileName}
-                    status={mapStatusToUploadStatus(doc.status)}
-                    disabled={doc.status === "approved"}
-                    onFileSelect={(file) => onUpload(doc.type, file)}
-                  />
-                </Box>
-              )}
+                {/* File info */}
+                {doc.fileName && (
+                  <Typography variant="body2" color="text.secondary">
+                    File: {doc.fileName}
+                  </Typography>
+                )}
 
-              {/* ===== HR Actions (legacy, usually hidden now) ===== */}
-              {doc.status === "pending" && (onApprove || onReject) && (
-                <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
-                  {onApprove && (
-                    <Button
-                      size="small"
-                      color="success"
-                      variant="contained"
-                      onClick={() => onApprove(doc.id)}
+                {/* Reviewed by */}
+                {doc.reviewedBy && (
+                  <Typography variant="caption" color="text.secondary">
+                    Reviewed by {doc.reviewedBy.username}
+                    {doc.reviewedAt
+                      ? ` • ${new Date(doc.reviewedAt).toLocaleString()}`
+                      : ""}
+                  </Typography>
+                )}
+
+                {/* HR feedback */}
+                {doc.hrFeedback && (
+                  <Tooltip title={doc.hrFeedback} arrow>
+                    <Box
+                      sx={{
+                        mt: 0.5,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        color: "error.main",
+                        cursor: "help",
+                      }}
                     >
-                      Approve
-                    </Button>
-                  )}
-                  {onReject && (
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      onClick={() => onReject(doc.id)}
-                    >
-                      Reject
-                    </Button>
-                  )}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      ))}
+                      <ErrorIcon fontSize="small" />
+                      <Typography variant="caption">HR feedback</Typography>
+                    </Box>
+                  </Tooltip>
+                )}
+
+                {/* Pending skeleton */}
+                {doc.status === "pending" && (
+                  <Box sx={{ mt: 2 }}>
+                    <Skeleton variant="rectangular" height={48} />
+                  </Box>
+                )}
+
+                {/* Upload */}
+                {!readonly && onUpload && doc.status !== "pending" && (
+                  <Box sx={{ mt: 2 }}>
+                    <FileUpload
+                      label="Upload document"
+                      fileName={doc.fileName}
+                      status={mapStatusToUploadStatus(doc.status)}
+                      disabled={doc.status === "approved"}
+                      onFileSelect={(file) => onUpload(doc.type, file)}
+                    />
+                  </Box>
+                )}
+
+                {/* HR actions (legacy) */}
+                {doc.status === "pending" && (onApprove || onReject) && (
+                  <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+                    {onApprove && (
+                      <Button
+                        size="small"
+                        color="success"
+                        variant="contained"
+                        onClick={() => onApprove(doc.id)}
+                      >
+                        Approve
+                      </Button>
+                    )}
+                    {onReject && (
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        onClick={() => onReject(doc.id)}
+                      >
+                        Reject
+                      </Button>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        );
+      })}
     </Grid>
   );
 };
-
 
 export default DocumentList;

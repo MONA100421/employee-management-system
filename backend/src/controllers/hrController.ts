@@ -43,7 +43,7 @@ export const inviteEmployee = async (req: Request, res: Response) => {
       .update(rawToken)
       .digest("hex");
 
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours
 
     await RegistrationToken.create({
       email,

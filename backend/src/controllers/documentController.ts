@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import Document from "../models/Document";
+import User from "../models/User"; 
 import Notification from "../models/Notification";
 import { reviewDocumentService } from "../services/documentReviewService";
+import { enqueueDocumentRejectedEmail } from "../queues/emailQueue"; 
 
 const dbToUIStatus = (s: string) => {
   switch (s) {
@@ -18,15 +20,13 @@ const dbToUIStatus = (s: string) => {
   }
 };
 
-// =======================
 // EMPLOYEE
-// =======================
 
 export const getMyDocuments = async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!user) return res.status(401).json({ ok: false });
 
-  const docs = await Document.find({ user: user.id }).lean();
+  const docs = await Document.find({ user: user.userId }).lean();
 
   return res.json({
     ok: true,
@@ -53,9 +53,9 @@ export const uploadDocument = async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, message: "Missing fields" });
   }
 
-  let doc = await Document.findOne({ user: user.id, type });
+  let doc = await Document.findOne({ user: user.userId, type });
   if (!doc) {
-    doc = new Document({ user: user.id, type, category });
+    doc = new Document({ user: user.userId, type, category });
   }
 
   if (doc.status === "approved") {
@@ -70,7 +70,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
   await doc.save();
 
   await Notification.create({
-    user: user.id,
+    user: user.userId,
     type: "document_uploaded",
     title: "Document Uploaded",
     message: `${doc.type} document uploaded`,
@@ -93,9 +93,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
   });
 };
 
-// =======================
 // HR
-// =======================
 
 export const reviewDocument = async (req: Request, res: Response) => {
   const user = (req as any).user;
@@ -113,7 +111,7 @@ export const reviewDocument = async (req: Request, res: Response) => {
   const updatedDoc = await reviewDocumentService({
     docId,
     decision,
-    reviewer: { id: user.id, username: user.username },
+    reviewer: { id: user.userId, username: user.username },
     feedback,
   });
 
@@ -127,6 +125,23 @@ export const reviewDocument = async (req: Request, res: Response) => {
       documentType: updatedDoc.type,
     },
   });
+
+  if (decision === "rejected") {
+    try {
+      const employee = await User.findById(updatedDoc.user);
+
+      if (employee && employee.email) {
+        await enqueueDocumentRejectedEmail({
+          to: employee.email,
+          documentType: updatedDoc.type,
+          reviewer: user.username || "HR Manager",
+          feedback: feedback || "No specific reason provided.",
+        });
+      }
+    } catch (emailError) {
+      console.error("Failed to enqueue rejection email:", emailError);
+    }
+  }
 
   return res.json({
     ok: true,

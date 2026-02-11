@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   IconButton,
   Badge,
@@ -22,38 +22,20 @@ export default function HeaderNotifications() {
   const [count, setCount] = useState<number>(0);
   const [items, setItems] = useState<DashboardNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+
   const navigate = useNavigate();
-  const pollRef = useRef<number | null>(null);
-
   const open = Boolean(anchorEl);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadCount = async () => {
-      try {
-        const c = await fetchUnreadCount();
-        if (mounted) setCount(c);
-      } catch {
-        /* ignore error silently */
-      }
-    };
-
-    loadCount();
-    pollRef.current = window.setInterval(loadCount, 30_000);
-
-    return () => {
-      mounted = false;
-      if (pollRef.current) window.clearInterval(pollRef.current);
-    };
-  }, []);
 
   const handleOpen = async (e: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(e.currentTarget);
     setLoading(true);
+
     try {
       const list = await fetchNotifications();
-      setItems(list as DashboardNotification[]);
+      setItems(list);
+
+      const unread = await fetchUnreadCount();
+      setCount(unread);
     } catch (err) {
       console.error("Failed to fetch notifications", err);
       setItems([]);
@@ -70,8 +52,9 @@ export default function HeaderNotifications() {
     try {
       if (!n.readAt && n.id) {
         await markNotificationRead(n.id);
-        const c = await fetchUnreadCount();
-        setCount(c);
+
+        const unread = await fetchUnreadCount();
+        setCount(unread);
 
         setItems((prev) =>
           prev.map((it) =>

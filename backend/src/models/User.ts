@@ -1,11 +1,10 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model } from "mongoose";
 
 const UserSchema = new Schema(
   {
-    username: { type: String, unique: true },
-    email: { type: String, unique: true },
-    password: { type: String, required: true },
-    passwordHash: { type: String },
+    username: { type: String, unique: true, required: true },
+    email: { type: String, unique: true, required: true },
+    passwordHash: { type: String, required: true },
     role: {
       type: String,
       enum: ["employee", "hr", "admin"],
@@ -14,6 +13,7 @@ const UserSchema = new Schema(
     profile: {
       firstName: String,
       lastName: String,
+      middleName: String,
       preferredName: String,
       dob: Date,
       ssn: String,
@@ -30,12 +30,19 @@ const UserSchema = new Schema(
     },
     workAuthorization: {
       isCitizen: Boolean,
-      type: String,
+      authType: {
+        type: String,
+      },
       startDate: Date,
       endDate: Date,
+    },
+    onboardingStatus: {
+      type: String,
+      enum: ["never_submitted", "pending", "approved", "rejected"],
+      default: "never_submitted",
     },
   },
   { timestamps: true },
 );
 
-export default model('User', UserSchema);
+export default model("User", UserSchema);

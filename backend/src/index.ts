@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./workers/emailWorker"; 
 import app from "./app";
 import mongoose from "mongoose";
 

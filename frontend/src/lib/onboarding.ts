@@ -62,8 +62,8 @@ export type HROnboardingListItem = {
 };
 
 export async function getHROnboardings(): Promise<HROnboardingListItem[]> {
-  const res = await api.get("/hr/onboarding");
-  return res.data.applications;
+  const res = await api.get("/hr/employees");
+  return res.data.employees;
 }
 
 export interface HROnboardingDetail {

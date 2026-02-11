@@ -14,6 +14,10 @@ const REFRESH_TOKEN_EXPIRES_DAYS = Number(
 );
 const COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || "refresh_token";
 
+const signOptions: SignOptions = {
+  expiresIn: ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+};
+
 // Helper: Create refresh token record in DB
 async function createRefreshToken(userId: string) {
   const rawToken = crypto.randomBytes(64).toString("hex");

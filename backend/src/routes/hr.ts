@@ -5,8 +5,8 @@ import { requireRole } from "../utils/requireRole";
 
 const router = Router();
 
-router.get("/employees", authMiddleware, requireRole("hr"), listEmployees);
+router.get("/employees", authMiddleware, requireRole("HR"), listEmployees);
 
-router.post("/invite", authMiddleware, requireRole("hr"), inviteEmployee);
+router.post("/invite", authMiddleware, requireRole("HR"), inviteEmployee);
 
 export default router;

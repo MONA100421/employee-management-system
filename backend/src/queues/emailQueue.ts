@@ -28,3 +28,16 @@ export async function enqueueOnboardingDecisionEmail(payload: {
     backoff: 5000,
   });
 }
+
+emailQueue.on("error", (err) => console.error("Redis Queue Error:", err));
+
+export async function enqueueInviteEmail(to: string, rawToken: string) {
+  await emailQueue.add(
+    "registrationInvite",
+    { to, rawToken },
+    {
+      attempts: 3,
+      backoff: 5000,
+    },
+  );
+}

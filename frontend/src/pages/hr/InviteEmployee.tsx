@@ -11,9 +11,9 @@ const InviteEmployee: React.FC = () => {
 
   const sendInvite = async () => {
     try {
-      const res = await api.post("/hr/invite", { email });
+      const res = await api.post("/hr/invite", { email, name: "New Hire" });
       if (res.data.ok) {
-        setMsg("Invite sent");
+        setMsg("Invite sent successfully!");
       }
     } catch (err: unknown) {
       if (err instanceof AxiosError) {

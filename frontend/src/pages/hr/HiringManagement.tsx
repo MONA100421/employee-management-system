@@ -38,8 +38,11 @@ import {
   type HROnboardingListItem,
 } from "../../lib/onboarding";
 import { useNavigate } from "react-router-dom";
+import api from "../../lib/api";
 
 // Component
+
+// ... (imports remain the same)
 
 const HiringManagement: React.FC = () => {
   const theme = useTheme();
@@ -47,13 +50,13 @@ const HiringManagement: React.FC = () => {
 
   const [tabValue, setTabValue] = useState(0);
 
-  // invite token
+  // Invitation token states
   const [newHireEmail, setNewHireEmail] = useState("");
   const [newHireName, setNewHireName] = useState("");
   const [tokenGenerated, setTokenGenerated] = useState(false);
   const [generatedLink, setGeneratedLink] = useState("");
 
-  // onboarding applications (REAL)
+  // Onboarding applications states
   const [applications, setApplications] = useState<HROnboardingListItem[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
 
@@ -67,7 +70,7 @@ const HiringManagement: React.FC = () => {
     application: null,
   });
 
-  // Load HR onboardings
+  // Load all onboarding applications for HR
   const loadApplications = async () => {
     setLoadingApps(true);
     const data = await getHROnboardings();
@@ -76,28 +79,33 @@ const HiringManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    (async () => {
-      await loadApplications();
-    })();
+    loadApplications();
   }, []);
 
-  // Tabs / filter
+  // Filter applications based on selected tab
   const applicationTabs = ["pending", "approved", "rejected"] as const;
 
   const filteredApplications = applications.filter(
     (app) => app.status === applicationTabs[tabValue],
   );
 
-  // Invite token (unchanged)
-  const handleGenerateToken = () => {
+  // Request backend to generate token and send email
+  const handleGenerateToken = async () => {
     if (!newHireEmail || !newHireName) return;
 
-    const token = Math.random().toString(36).substring(2, 15);
-    const link = `https://ems.company.com/register?token=${token}&email=${encodeURIComponent(
-      newHireEmail,
-    )}`;
-    setGeneratedLink(link);
-    setTokenGenerated(true);
+    try {
+      const response = await api.post("/hr/invite", {
+        email: newHireEmail,
+        name: newHireName,
+      });
+
+      const { registrationLink } = response.data;
+      setGeneratedLink(registrationLink);
+      setTokenGenerated(true);
+    } catch (error) {
+      console.error("Failed to generate token:", error);
+      alert("Failed to send invitation. Please check backend logs.");
+    }
   };
 
   const handleCopyLink = () => {
@@ -111,7 +119,7 @@ const HiringManagement: React.FC = () => {
     setGeneratedLink("");
   };
 
-  // Review handlers
+  // Approval/Rejection handlers
   const handleApprove = (app: HROnboardingListItem) => {
     setFeedbackDialog({ open: true, type: "approve", application: app });
   };
@@ -133,15 +141,13 @@ const HiringManagement: React.FC = () => {
     await loadApplications();
   };
 
-  // UI
-
   return (
     <Box>
       <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
         Hiring Management
       </Typography>
 
-      {/* Invite Token  */}
+      {/* Invitation Token Section */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
@@ -230,7 +236,7 @@ const HiringManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Onboarding Applications */}
+      {/* Onboarding Applications Section */}
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
@@ -238,9 +244,10 @@ const HiringManagement: React.FC = () => {
           </Typography>
 
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-            <Tab label={`Pending`} />
-            <Tab label={`Approved`} />
-            <Tab label={`Rejected`} />
+            {/* Added explicit keys to Tabs to prevent warnings */}
+            {applicationTabs.map((label, index) => (
+              <Tab label={label.charAt(0).toUpperCase() + label.slice(1)} key={`tab-${label}`} />
+            ))}
           </Tabs>
 
           {loadingApps ? (
@@ -259,15 +266,16 @@ const HiringManagement: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {filteredApplications.map((app) => (
-                    <TableRow key={app.id} hover>
+                    // Ensure app.id is unique; fallback to index if absolutely necessary
+                    <TableRow key={app.id || app.employee?.email} hover>
                       <TableCell>
                         <Box sx={{ display: "flex", gap: 2 }}>
                           <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                            {app.employee?.username?.[0]?.toUpperCase()}
+                            {app.employee?.username?.[0]?.toUpperCase() || "U"}
                           </Avatar>
                           <Box>
                             <Typography fontWeight={500}>
-                              {app.employee?.username}
+                              {app.employee?.username || "Unknown"}
                             </Typography>
                             <Typography
                               variant="caption"
@@ -284,7 +292,7 @@ const HiringManagement: React.FC = () => {
                       </TableCell>
                       {tabValue === 2 && (
                         <TableCell>
-                          {app.status === "rejected" ? "—" : "-"}
+                          {app.status === "rejected" ? "Review required" : "-"}
                         </TableCell>
                       )}
                       <TableCell align="right">
@@ -323,6 +331,13 @@ const HiringManagement: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {filteredApplications.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                        No applications found for this status.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

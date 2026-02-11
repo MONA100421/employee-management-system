@@ -3,7 +3,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 
 type Props = {
-  role: "hr" | "employee";
+  role: "hr" | "employee" | "HR";
 };
 
 export default function RequireRole({ role }: Props) {
@@ -17,11 +17,15 @@ export default function RequireRole({ role }: Props) {
     return <Navigate to="/login" replace />;
   }
 
-  if (auth.user.role !== role) {
+  if (auth.user.role.toLowerCase() !== role.toLowerCase()) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
         <h2>403 - Unauthorized</h2>
         <p>You do not have permission to access this page.</p>
+        <p>
+          Debug: Your role is "{auth.user.role}", but this page requires "{role}
+          "
+        </p>
       </div>
     );
   }

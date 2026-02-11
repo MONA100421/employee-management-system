@@ -83,3 +83,73 @@ export async function sendDocumentRejectedEmail({
     html: htmlOutput.html,
   });
 }
+
+export async function sendOnboardingDecisionEmail({
+  to,
+  decision,
+  reviewer,
+  onboardingId,
+  feedback,
+}: {
+  to: string;
+  decision: "approved" | "rejected";
+  reviewer: string;
+  onboardingId?: string;
+  feedback?: string;
+}) {
+  const transporter = getTransporter();
+
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const actionUrl = onboardingId
+    ? `${frontendUrl}/employee/onboarding`
+    : frontendUrl;
+
+  const mjml = `
+  <mjml>
+    <mj-body>
+      <mj-section>
+        <mj-column>
+          <mj-text font-size="18px" font-weight="700">
+            ${decision === "approved" ? "Onboarding Approved" : "Onboarding Requires Changes"}
+          </mj-text>
+
+          <mj-text>
+            ${decision === "approved" ? "Your onboarding application has been approved." : "Your onboarding application has been reviewed and requires changes."}
+          </mj-text>
+
+          <mj-text>
+            Reviewer: <strong>{{reviewer}}</strong>
+          </mj-text>
+
+          {{#if feedback}}
+            <mj-text>Feedback: <strong>{{feedback}}</strong></mj-text>
+          {{/if}}
+
+          <mj-button href="{{actionUrl}}">
+            View Onboarding
+          </mj-button>
+        </mj-column>
+      </mj-section>
+    </mj-body>
+  </mjml>
+  `;
+
+  const template = Handlebars.compile(mjml);
+  const htmlOutput = mjml2html(
+    template({
+      reviewer,
+      feedback: feedback ?? null,
+      actionUrl,
+    }),
+  );
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to,
+    subject:
+      decision === "approved"
+        ? "Onboarding Approved"
+        : "Onboarding Requires Changes",
+    html: htmlOutput.html,
+  });
+}

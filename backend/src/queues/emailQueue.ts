@@ -15,3 +15,16 @@ export async function enqueueDocumentRejectedEmail(payload: {
     backoff: 5000,
   });
 }
+
+export async function enqueueOnboardingDecisionEmail(payload: {
+  to: string;
+  decision: "approved" | "rejected";
+  reviewer: string;
+  onboardingId?: string;
+  feedback?: string;
+}) {
+  await emailQueue.add("onboardingDecision", payload, {
+    attempts: 3,
+    backoff: 5000,
+  });
+}

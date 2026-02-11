@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import Document from "../models/Document";
-import User from "../models/User"; 
+import User from "../models/User";
 import Notification from "../models/Notification";
 import { reviewDocumentService } from "../services/documentReviewService";
-import { enqueueDocumentRejectedEmail } from "../queues/emailQueue"; 
+import { enqueueDocumentRejectedEmail } from "../queues/emailQueue";
+import { NotificationTypes } from "../utils/notificationTypes";
 
 const dbToUIStatus = (s: string) => {
   switch (s) {
@@ -21,7 +22,6 @@ const dbToUIStatus = (s: string) => {
 };
 
 // EMPLOYEE
-
 export const getMyDocuments = async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!user) return res.status(401).json({ ok: false });
@@ -71,7 +71,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
 
   await Notification.create({
     user: user.userId,
-    type: "document_uploaded",
+    type: NotificationTypes.DOCUMENT_UPLOADED,
     title: "Document Uploaded",
     message: `${doc.type} document uploaded`,
     data: {
@@ -94,7 +94,6 @@ export const uploadDocument = async (req: Request, res: Response) => {
 };
 
 // HR
-
 export const reviewDocument = async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!user || user.role !== "hr") {
@@ -115,9 +114,13 @@ export const reviewDocument = async (req: Request, res: Response) => {
     feedback,
   });
 
+  // use normalized type names
   await Notification.create({
     user: updatedDoc.user,
-    type: decision === "approved" ? "document_approved" : "document_rejected",
+    type:
+      decision === "approved"
+        ? NotificationTypes.DOCUMENT_APPROVED
+        : NotificationTypes.DOCUMENT_REJECTED,
     title: decision === "approved" ? "Document Approved" : "Document Rejected",
     message: `${updatedDoc.type} document ${decision}`,
     data: {

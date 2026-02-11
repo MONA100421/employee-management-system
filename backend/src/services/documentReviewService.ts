@@ -1,14 +1,9 @@
 import Document from "../models/Document";
 import Notification from "../models/Notification";
 import { enqueueDocumentRejectedEmail } from "../queues/emailQueue";
+import { NotificationTypes } from "../utils/notificationTypes";
 
-/**
- * Centralized document review logic
- * - update status
- * - append audit trail
- * - create in-app notification
- * - enqueue email (reject only)
- */
+
 export async function reviewDocumentService({
   docId,
   decision,
@@ -42,19 +37,26 @@ export async function reviewDocumentService({
 
   await doc.save();
 
-  // In-app notification + email (reject only)
-  if (decision === "rejected" && doc.user) {
+  // In-app notification, email (reject only)
+  if (doc.user) {
     const user = doc.user as any;
 
     await Notification.create({
       user: user._id,
-      type: "document.rejected",
-      title: `Document rejected: ${doc.type}`,
-      message: feedback || "Please upload a corrected document.",
+      type:
+        decision === "approved"
+          ? NotificationTypes.DOCUMENT_APPROVED
+          : NotificationTypes.DOCUMENT_REJECTED,
+      title: `Document ${decision === "approved" ? "approved" : "rejected"}: ${doc.type}`,
+      message:
+        feedback ||
+        (decision === "approved"
+          ? "Your document was approved."
+          : "Please upload a corrected document."),
       data: { documentId: doc._id, documentType: doc.type },
     });
 
-    if (user.email) {
+    if (decision === "rejected" && user.email) {
       await enqueueDocumentRejectedEmail({
         to: user.email,
         documentType: doc.type,

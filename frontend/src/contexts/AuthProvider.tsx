@@ -52,12 +52,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /**
    * Logout: Clear all local auth data and caches
    */
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+        // Ignore errors during logout
+    }
     setUser(null);
     localStorage.removeItem("auth_user");
     localStorage.removeItem("auth_token");
     resetDocumentsCache();
   };
+
 
   /**
    * Register: Submit invitation token and user details to create a new account

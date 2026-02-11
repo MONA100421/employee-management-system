@@ -12,6 +12,7 @@ import {
   CircularProgress,
   Grid,
   TextField,
+  MenuItem,
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 
@@ -207,7 +208,7 @@ const Onboarding = () => {
             />
           )}
 
-          {/*  Work Authorization */}
+          {/* Work Authorization */}
           {activeStep === 2 && (
             <Box>
               <Grid container spacing={3}>
@@ -217,46 +218,59 @@ const Onboarding = () => {
                     control={control}
                     render={({ field }) => (
                       <TextField
-                        fullWidth
-                        label="Work Authorization Type"
-                        select
-                        SelectProps={{ native: true }}
                         {...field}
+                        fullWidth
+                        select
+                        label="Work Authorization Type"
+                        required
+                        InputLabelProps={{ shrink: true }}
+                        value={field.value || ""}
                         error={!!errors.workAuthType}
-                        helperText={
-                          (errors.workAuthType &&
-                            (errors.workAuthType.message as string)) ??
-                          ""
-                        }
+                        helperText={errors.workAuthType?.message as string}
                       >
-                        <option value="">Select...</option>
-                        <option value="citizen">U.S. Citizen</option>
-                        <option value="green-card">Green Card</option>
-                        <option value="opt">OPT</option>
-                        <option value="opt-stem">OPT STEM Extension</option>
-                        <option value="h1b">H1-B</option>
-                        <option value="l2">L2</option>
-                        <option value="h4">H4</option>
-                        <option value="other">Other</option>
+                        <MenuItem value="">
+                          <em>Select...</em>
+                        </MenuItem>
+                        <MenuItem value="citizen">U.S. Citizen</MenuItem>
+                        <MenuItem value="green-card">Green Card</MenuItem>
+                        <MenuItem value="f1">F1 (CPT/OPT)</MenuItem>
+                        <MenuItem value="h1b">H1-B</MenuItem>
+                        <MenuItem value="l2">L2</MenuItem>
+                        <MenuItem value="h4">H4</MenuItem>
+                        <MenuItem value="other">Other</MenuItem>
                       </TextField>
                     )}
                   />
                 </Grid>
 
-                {/* other */}
-                <Grid size={{ xs: 12 }}>
-                  <Controller
-                    name="workAuthOther"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        fullWidth
-                        label="Please specify (if Other)"
-                        {...field}
-                      />
-                    )}
-                  />
-                </Grid>
+                {/* Other */}
+                {getValues("workAuthType") === "other" && (
+                  <Grid size={{ xs: 12 }}>
+                    <Controller
+                      name="workAuthOther"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Please specify (Visa Title)"
+                          required
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                )}
+
+                {/* F1 */}
+                {getValues("workAuthType") === "f1" && (
+                  <Grid size={{ xs: 12 }}>
+                    <Alert severity="info">
+                      Per OPT flow requirements, you will be required to upload
+                      your OPT Receipt in the next step.
+                    </Alert>
+                  </Grid>
+                )}
               </Grid>
             </Box>
           )}

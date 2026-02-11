@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Card,
@@ -24,7 +24,13 @@ import {
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
 } from "@mui/icons-material";
-import { useForm, Controller, type Control, type FieldErrors } from "react-hook-form";
+import {
+  useForm,
+  Controller,
+  type Control,
+  type FieldErrors,
+} from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { useAuth } from "../../contexts/useAuth";
@@ -32,11 +38,12 @@ import { getMyEmployee, patchMyEmployee } from "../../lib/employees";
 import { useDocuments } from "../../hooks/useDocuments";
 import type { EmployeeProfile } from "../../types/user";
 import type { BaseDocument } from "../../types/document";
-import { employeeProfileSchema, type EmployeeProfileFormValues } from "./employeeProfile.schema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import type {EmployeePersonalInfoForm} from "./types";
+import {
+  employeeProfileSchema,
+  type EmployeeProfileFormValues,
+} from "./employeeProfile.schema";
 
-// Reusable UI components
+// Types 
 
 type SectionProps = {
   title: string;
@@ -47,6 +54,21 @@ type SectionProps = {
   onCancel?: () => void;
   children: React.ReactNode;
 };
+
+type FieldProps = {
+  name: keyof EmployeeProfileFormValues;
+  label: string;
+  control: Control<EmployeeProfileFormValues>;
+  editing: boolean;
+  getValues: (
+    name: keyof EmployeeProfileFormValues,
+  ) => string | number | boolean | undefined;
+  disabled?: boolean;
+  type?: string;
+  errors: FieldErrors<EmployeeProfileFormValues>;
+};
+
+// Reusable UI Components
 
 function Section({
   title,
@@ -92,18 +114,18 @@ function Section({
 
           {onEdit &&
             (editing ? (
-              <Box sx={{ display: "flex", gap: 0.3 }}>
+              <Box sx={{ display: "flex", gap: 0.5 }}>
                 <IconButton
                   onClick={onSave}
                   sx={{ color: theme.palette.success.main }}
                 >
-                  <SaveIcon fontSize="medium" />
+                  <SaveIcon />
                 </IconButton>
                 <IconButton
                   onClick={onCancel}
                   sx={{ color: theme.palette.error.main }}
                 >
-                  <CancelIcon fontSize="medium" />
+                  <CancelIcon />
                 </IconButton>
               </Box>
             ) : (
@@ -112,7 +134,6 @@ function Section({
               </IconButton>
             ))}
         </Box>
-
         <Grid container spacing={2}>
           {children}
         </Grid>
@@ -120,17 +141,6 @@ function Section({
     </Card>
   );
 }
-
-type FieldProps = {
-  name: keyof EmployeePersonalInfoForm;
-  label: string;
-  control: Control<EmployeePersonalInfoForm>;
-  editing: boolean;
-  getValues: (name: keyof EmployeePersonalInfoForm) => unknown;
-  disabled?: boolean;
-  type?: string;
-  errors: FieldErrors<EmployeeProfileFormValues>;
-};
 
 function Field({
   name,
@@ -161,6 +171,7 @@ function Field({
         render={({ field, fieldState }) => (
           <TextField
             {...field}
+            value={field.value ?? ""}
             fullWidth
             size="small"
             label={label}
@@ -183,11 +194,11 @@ function Field({
   );
 }
 
-// Page
+// Main Page Component
 
 export default function EmployeePersonalInfoPage() {
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
   const { documents } = useDocuments("all");
 
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
@@ -200,54 +211,61 @@ export default function EmployeePersonalInfoPage() {
     getValues,
     handleSubmit,
     trigger,
-    formState: { errors},
+    formState: { errors },
   } = useForm<EmployeeProfileFormValues>({
     resolver: zodResolver(employeeProfileSchema),
     mode: "onTouched",
   });
 
-  // Load employee
-  useEffect(() => {
-    (async () => {
+  const loadData = useCallback(async () => {
+    try {
       const res = await getMyEmployee();
       setProfile(res.employee);
 
-      setEditing(null);
-
       reset({
-        firstName: res.user.firstName,
-        lastName: res.user.lastName,
-        preferredName: res.user.preferredName ?? "",
-
-        email: res.user.email,
-        phone: res.employee?.phone ?? "",
-
-        street: res.employee?.address?.street ?? "",
+        firstName: res.user.firstName || "",
+        lastName: res.user.lastName || "",
+        middleName: res.user.middleName || "",
+        preferredName: res.user.preferredName || "",
+        email: res.user.email || "",
+        phone: res.employee?.phone || "",
+        workPhone: "",
+        street: res.employee?.address?.street || "",
         apt: "",
-        city: res.employee?.address?.city ?? "",
-        state: res.employee?.address?.state ?? "",
-        zipCode: res.employee?.address?.zipCode ?? "",
-        country: res.employee?.address?.country ?? "",
-
-        employeeId: res.employee?.employment?.employeeId,
-        title: res.employee?.employment?.title,
-        department: res.employee?.employment?.department,
-        manager: res.employee?.employment?.manager,
-        startDate: res.employee?.employment?.startDate,
-        workAuthorization: res.employee?.employment?.workAuthorization,
-
-        emergencyContactName: res.employee?.emergency?.contactName ?? "",
-        emergencyRelationship: res.employee?.emergency?.relationship ?? "",
-        emergencyPhone: res.employee?.emergency?.phone ?? "",
-        emergencyEmail: res.employee?.emergency?.email ?? "",
+        city: res.employee?.address?.city || "",
+        state: res.employee?.address?.state || "",
+        zipCode: res.employee?.address?.zipCode || "",
+        country: res.employee?.address?.country || "",
+        employeeId: res.employee?.employment?.employeeId || "",
+        title: res.employee?.employment?.title || "",
+        department: res.employee?.employment?.department || "",
+        manager: res.employee?.employment?.manager || "",
+        startDate: res.employee?.employment?.startDate || "",
+        workAuthorization: res.employee?.employment?.workAuthorization || "",
+        emergencyContactName: res.employee?.emergency?.contactName || "",
+        emergencyRelationship: res.employee?.emergency?.relationship || "",
+        emergencyPhone: res.employee?.emergency?.phone || "",
+        emergencyEmail: res.employee?.emergency?.email || "",
       });
-    })();
+    } catch (error) {
+      console.error("Failed to load employee data:", error);
+    }
   }, [reset]);
 
-  const sectionFields: Record<
-    "name" | "address" | "contact" | "emergency",
-    (keyof EmployeeProfileFormValues)[]
-  > = {
+  useEffect(() => {
+    let isMounted = true;
+    const init = async () => {
+      if (isMounted) {
+        await loadData();
+      }
+    };
+    void init();
+    return () => {
+      isMounted = false;
+    };
+  }, [loadData]);
+
+  const sectionFields: Record<string, (keyof EmployeeProfileFormValues)[]> = {
     name: ["firstName", "lastName", "middleName", "preferredName"],
     address: ["street", "apt", "city", "state", "zipCode", "country"],
     contact: ["email", "phone", "workPhone"],
@@ -259,21 +277,24 @@ export default function EmployeePersonalInfoPage() {
     ],
   };
 
-
-  const saveSection = async (section: keyof typeof sectionFields) => {
+  const saveSection = async (section: string) => {
     const fields = sectionFields[section];
-    if (fields.length > 0) {
-      const valid = await trigger(sectionFields[section]);
-      if (!valid) return;
+    const isValid = await trigger(fields);
+    if (isValid) {
+      await submitSection(section);
     }
-    await submitSection(section);
   };
 
   const submitSection = (section: string) =>
     handleSubmit(async (values) => {
-      const payload: Partial<EmployeeProfile> = {};
+      const payload: Partial<EmployeeProfile & Record<string, unknown>> = {};
 
-      if (section === "address") {
+      if (section === "name") {
+        payload.firstName = values.firstName;
+        payload.lastName = values.lastName;
+        payload.middleName = values.middleName;
+        payload.preferredName = values.preferredName;
+      } else if (section === "address") {
         payload.address = {
           street: values.street,
           city: values.city,
@@ -281,14 +302,10 @@ export default function EmployeePersonalInfoPage() {
           zipCode: values.zipCode,
           country: values.country,
         };
-      }
-
-      if (section === "contact") {
+      } else if (section === "contact") {
         payload.phone = values.phone;
         payload.email = values.email;
-      }
-
-      if (section === "emergency") {
+      } else if (section === "emergency") {
         payload.emergency = {
           contactName: values.emergencyContactName,
           relationship: values.emergencyRelationship,
@@ -297,18 +314,21 @@ export default function EmployeePersonalInfoPage() {
         };
       }
 
-      await patchMyEmployee(payload);
-      setEditing(null);
+      try {
+        await patchMyEmployee(payload);
+        setEditing(null);
+        await loadData();
+      } catch (err) {
+        console.error("Update failed:", err);
+      }
     })();
-
-  // UI
 
   return (
     <Box>
       {/* Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ py: 4 }}>
-          <Box sx={{ display: "flex", gap: 3 }}>
+          <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
             <Avatar
               sx={{
                 width: 100,
@@ -318,24 +338,25 @@ export default function EmployeePersonalInfoPage() {
                 fontWeight: 700,
               }}
             >
-              {user?.firstName?.[0]}
-              {user?.lastName?.[0]}
+              {authUser?.firstName?.[0]}
+              {authUser?.lastName?.[0]}
             </Avatar>
             <Box>
               <Typography variant="h4" fontWeight={700}>
-                {user?.firstName} {user?.lastName}
+                {authUser?.firstName} {authUser?.lastName}
               </Typography>
               <Typography color="text.secondary">
-                {profile?.employment?.title} • {profile?.employment?.department}
+                {profile?.employment?.title || "Staff"} •{" "}
+                {profile?.employment?.department || "General"}
               </Typography>
-              <Typography color="text.secondary">{user?.email}</Typography>
+              <Typography color="text.secondary">{authUser?.email}</Typography>
             </Box>
           </Box>
         </CardContent>
       </Card>
 
       <Grid container spacing={3}>
-        {/* Name */}
+        {/* Name Information */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Section
             title="Name Information"
@@ -345,49 +366,20 @@ export default function EmployeePersonalInfoPage() {
             onSave={() => void saveSection("name")}
             onCancel={() => setConfirmOpen(true)}
           >
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="firstName"
-                label="First Name"
-                control={control}
-                editing={editing === "name"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="lastName"
-                label="Last Name"
-                control={control}
-                editing={editing === "name"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="middleName"
-                label="Middle Name"
-                control={control}
-                editing={editing === "name"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="preferredName"
-                label="Preferred Name"
-                control={control}
-                editing={editing === "name"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
+            {(
+              ["firstName", "lastName", "middleName", "preferredName"] as const
+            ).map((f) => (
+              <Grid size={{ xs: 6 }} key={f}>
+                <Field
+                  name={f}
+                  label={f.charAt(0).toUpperCase() + f.slice(1)}
+                  control={control}
+                  editing={editing === "name"}
+                  getValues={getValues}
+                  errors={errors}
+                />
+              </Grid>
+            ))}
           </Section>
         </Grid>
 
@@ -401,75 +393,24 @@ export default function EmployeePersonalInfoPage() {
             onSave={() => void saveSection("address")}
             onCancel={() => setConfirmOpen(true)}
           >
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="street"
-                label="Street Address"
-                control={control}
-                editing={editing === "address"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="apt"
-                label="Apt / Suite"
-                control={control}
-                editing={editing === "address"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="city"
-                label="City"
-                control={control}
-                editing={editing === "address"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="state"
-                label="State"
-                control={control}
-                editing={editing === "address"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="zipCode"
-                label="ZIP Code"
-                control={control}
-                editing={editing === "address"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="country"
-                label="Country"
-                control={control}
-                editing={editing === "address"}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
+            {(
+              ["street", "apt", "city", "state", "zipCode", "country"] as const
+            ).map((f) => (
+              <Grid size={{ xs: 6 }} key={f}>
+                <Field
+                  name={f}
+                  label={f.toUpperCase()}
+                  control={control}
+                  editing={editing === "address"}
+                  getValues={getValues}
+                  errors={errors}
+                />
+              </Grid>
+            ))}
           </Section>
         </Grid>
 
-        {/* Contact */}
+        {/* Contact Information */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Section
             title="Contact Information"
@@ -490,7 +431,6 @@ export default function EmployeePersonalInfoPage() {
                 errors={errors}
               />
             </Grid>
-
             <Grid size={{ xs: 6 }}>
               <Field
                 name="phone"
@@ -501,7 +441,6 @@ export default function EmployeePersonalInfoPage() {
                 errors={errors}
               />
             </Grid>
-
             <Grid size={{ xs: 6 }}>
               <Field
                 name="workPhone"
@@ -515,78 +454,34 @@ export default function EmployeePersonalInfoPage() {
           </Section>
         </Grid>
 
-        {/* Employment */}
+        {/* Employment Information */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Section title="Employment" icon={<WorkIcon />} editing={false}>
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="employeeId"
-                label="Employee ID"
-                control={control}
-                editing={false}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="title"
-                label="Job Title"
-                control={control}
-                editing={false}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="department"
-                label="Department"
-                control={control}
-                editing={false}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="manager"
-                label="Manager"
-                control={control}
-                editing={false}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="startDate"
-                label="Start Date"
-                control={control}
-                editing={false}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 6 }}>
-              <Field
-                name="workAuthorization"
-                label="Work Authorization"
-                control={control}
-                editing={false}
-                getValues={getValues}
-                errors={errors}
-              />
-            </Grid>
+            {(
+              [
+                "employeeId",
+                "title",
+                "department",
+                "manager",
+                "startDate",
+                "workAuthorization",
+              ] as const
+            ).map((f) => (
+              <Grid size={{ xs: 6 }} key={f}>
+                <Field
+                  name={f}
+                  label={f.replace(/([A-Z])/g, " $1").toUpperCase()}
+                  control={control}
+                  editing={false}
+                  getValues={getValues}
+                  errors={errors}
+                />
+              </Grid>
+            ))}
           </Section>
         </Grid>
 
-        {/* Emergency */}
+        {/* Emergency Contact */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Section
             title="Emergency Contact"
@@ -606,7 +501,6 @@ export default function EmployeePersonalInfoPage() {
                 errors={errors}
               />
             </Grid>
-
             <Grid size={{ xs: 6 }}>
               <Field
                 name="emergencyRelationship"
@@ -617,7 +511,6 @@ export default function EmployeePersonalInfoPage() {
                 errors={errors}
               />
             </Grid>
-
             <Grid size={{ xs: 6 }}>
               <Field
                 name="emergencyPhone"
@@ -628,7 +521,6 @@ export default function EmployeePersonalInfoPage() {
                 errors={errors}
               />
             </Grid>
-
             <Grid size={{ xs: 6 }}>
               <Field
                 name="emergencyEmail"
@@ -681,7 +573,6 @@ export default function EmployeePersonalInfoPage() {
                   Upload New
                 </Button>
               </Box>
-
               <Grid container spacing={2}>
                 {documents.map((doc: BaseDocument) => (
                   <Grid size={{ xs: 12, sm: 6, md: 4 }} key={doc.id}>
@@ -717,12 +608,13 @@ export default function EmployeePersonalInfoPage() {
       <ConfirmDialog
         open={confirmOpen}
         title="Discard Changes?"
-        message="Your changes will be lost."
+        message="Your unsaved changes will be lost. Are you sure?"
         confirmText="Discard"
         confirmColor="error"
         onConfirm={() => {
           setEditing(null);
           setConfirmOpen(false);
+          loadData();
         }}
         onCancel={() => setConfirmOpen(false)}
       />

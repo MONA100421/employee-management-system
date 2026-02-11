@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import EmployeeProfile from "../models/EmployeeProfile";
 import User from "../models/User";
 
+// GET /employees/me
 export const getMyEmployee = async (req: Request, res: Response) => {
   const userId = (req as any).user.id;
 
@@ -10,9 +11,11 @@ export const getMyEmployee = async (req: Request, res: Response) => {
     return res.status(404).json({ message: "User not found" });
   }
 
-  const employee =
-    (await EmployeeProfile.findOne({ user: userId }).lean()) ??
-    (await EmployeeProfile.create({ user: userId }));
+  let employee = await EmployeeProfile.findOne({ user: userId }).lean();
+
+  if (!employee) {
+    employee = await EmployeeProfile.create({ user: userId });
+  }
 
   return res.json({
     user: {
@@ -21,11 +24,13 @@ export const getMyEmployee = async (req: Request, res: Response) => {
       role: user.role,
       firstName: user.profile?.firstName ?? "",
       lastName: user.profile?.lastName ?? "",
+      preferredName: user.profile?.preferredName ?? "",
     },
     employee,
   });
 };
 
+// PATCH /employees/me
 export const patchMyEmployee = async (req: Request, res: Response) => {
   const userId = (req as any).user.id;
 

@@ -3,15 +3,92 @@ import { Controller } from "react-hook-form";
 import type { Control, FieldErrors } from "react-hook-form";
 import type { OnboardingFormValues } from "./onboarding.schema";
 
+type Mode = "personal" | "address";
+
 type Props = {
   control: Control<OnboardingFormValues>;
   errors: FieldErrors<OnboardingFormValues>;
+  mode: Mode;
 };
 
-export default function PersonalInformation({ control, errors }: Props) {
+export default function PersonalInformation({ control, errors, mode }: Props) {
+  if (mode === "address") {
+    return (
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12 }}>
+          <Controller
+            name="address"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="Street Address"
+                required
+                error={!!errors.address}
+                helperText={errors.address?.message}
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Controller
+            name="city"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="City"
+                required
+                error={!!errors.city}
+                helperText={errors.city?.message}
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, sm: 3 }}>
+          <Controller
+            name="state"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="State"
+                required
+                error={!!errors.state}
+                helperText={errors.state?.message}
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, sm: 3 }}>
+          <Controller
+            name="zipCode"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                label="ZIP Code"
+                required
+                error={!!errors.zipCode}
+                helperText={errors.zipCode?.message}
+              />
+            )}
+          />
+        </Grid>
+      </Grid>
+    );
+  }
+
+  // mode === "personal"
   return (
     <Grid container spacing={3}>
-      {/* First Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="firstName"
@@ -29,7 +106,6 @@ export default function PersonalInformation({ control, errors }: Props) {
         />
       </Grid>
 
-      {/* Last Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="lastName"
@@ -47,7 +123,6 @@ export default function PersonalInformation({ control, errors }: Props) {
         />
       </Grid>
 
-      {/* Middle Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="middleName"
@@ -58,7 +133,6 @@ export default function PersonalInformation({ control, errors }: Props) {
         />
       </Grid>
 
-      {/* Preferred Name */}
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="preferredName"
@@ -69,7 +143,6 @@ export default function PersonalInformation({ control, errors }: Props) {
         />
       </Grid>
 
-      {/* SSN */}
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="ssn"
@@ -88,7 +161,6 @@ export default function PersonalInformation({ control, errors }: Props) {
         />
       </Grid>
 
-      {/* Date of Birth */}
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="dateOfBirth"
@@ -108,19 +180,12 @@ export default function PersonalInformation({ control, errors }: Props) {
         />
       </Grid>
 
-      {/* Gender */}
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="gender"
           control={control}
           render={({ field }) => (
-            <TextField
-              {...field}
-              select
-              fullWidth
-              label="Gender"
-              InputLabelProps={{ shrink: true }}
-            >
+            <TextField {...field} select fullWidth label="Gender">
               <MenuItem value="">Select...</MenuItem>
               <MenuItem value="male">Male</MenuItem>
               <MenuItem value="female">Female</MenuItem>

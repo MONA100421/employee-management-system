@@ -10,13 +10,14 @@ import {
   StepLabel,
   Divider,
   CircularProgress,
+  Grid,
+  TextField,
 } from "@mui/material";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 
 import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
 import PersonalInformation from "./PersonalInformation";
-import VisaStatus from "./VisaStatus";
 import OnboardingReview from "./OnboardingReview";
 import DocumentList from "../../components/common/DocumentList";
 import { useDocuments } from "../../hooks/useDocuments";
@@ -25,7 +26,7 @@ import type { OnboardingFormValues } from "./onboarding.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { onboardingSchema } from "./onboarding.schema";
 
-const steps = [
+const stepsLabels = [
   "Personal Info",
   "Address",
   "Work Authorization",
@@ -51,7 +52,6 @@ const Onboarding = () => {
     loading,
     uploadDocument,
   } = useDocuments("onboarding");
-
   const documents = rawDocs.map(toOnboardingDoc);
 
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
@@ -93,30 +93,37 @@ const Onboarding = () => {
   useEffect(() => {
     const load = async () => {
       const app = await getMyOnboarding();
-      setStatus(app.status.replace("_", "-") as UIOnboardingStatus);
-      setRejectionFeedback(app.hrFeedback ?? null);
-
-      if (app.formData) {
-        reset(app.formData);
+      if (app && app.status) {
+        setStatus(
+          (app.status || "never_submitted").replace(
+            "_",
+            "-",
+          ) as UIOnboardingStatus,
+        );
+        setRejectionFeedback(app.hrFeedback ?? null);
+        if (app.formData) {
+          reset(app.formData);
+        }
       }
     };
-
     load();
   }, [reset]);
 
-  const handleNext = async () => {
-    if (activeStep === 0) {
-      const valid = await trigger([
-        "firstName",
-        "lastName",
-        "ssn",
-        "dateOfBirth",
-      ]);
-
-      if (!valid) return;
+  const validateStep = async (step: number) => {
+    if (step === 0) {
+      return await trigger(["firstName", "lastName", "ssn", "dateOfBirth"]);
+    } else if (step === 1) {
+      return await trigger(["address", "city", "state", "zipCode"]);
+    } else if (step === 2) {
+      return await trigger(["workAuthType"]);
     }
+    return true;
+  };
 
-    setActiveStep((s) => s + 1);
+  const handleNext = async () => {
+    const ok = await validateStep(activeStep);
+    if (!ok) return;
+    setActiveStep((s) => Math.min(stepsLabels.length - 1, s + 1));
   };
 
   const handleBack = () => {
@@ -126,18 +133,16 @@ const Onboarding = () => {
   const handleSubmit = async () => {
     const formData = getValues();
     const res = await submitOnboarding(formData);
-
     if (res.ok) {
-      setStatus(res.status);
+      setStatus(
+        (res.status?.replace("_", "-") as UIOnboardingStatus) ?? "pending",
+      );
       setRejectionFeedback(null);
       setActiveStep(0);
     }
   };
 
-  // Submission conditions
-  
   const hasIncompleteDocuments = documents.some((d) => d.status !== "approved");
-
   const canSubmit =
     !hasIncompleteDocuments &&
     (status === "never-submitted" || status === "rejected");
@@ -174,26 +179,94 @@ const Onboarding = () => {
 
       <Card>
         <CardContent>
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {steps.map((label) => (
+          <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3 }}>
+            {stepsLabels.map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>
               </Step>
             ))}
           </Stepper>
 
-          <Divider sx={{ my: 4 }} />
+          <Divider sx={{ my: 3 }} />
 
+          {/* Personal Info */}
           {activeStep === 0 && (
-            <PersonalInformation control={control} errors={errors} />
+            <PersonalInformation
+              control={control}
+              errors={errors}
+              mode="personal"
+            />
           )}
 
-          {activeStep === 2 && <VisaStatus />}
+          {/* Address */}
+          {activeStep === 1 && (
+            <PersonalInformation
+              control={control}
+              errors={errors}
+              mode="address"
+            />
+          )}
 
+          {/*  Work Authorization */}
+          {activeStep === 2 && (
+            <Box>
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12 }}>
+                  <Controller
+                    name="workAuthType"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        fullWidth
+                        label="Work Authorization Type"
+                        select
+                        SelectProps={{ native: true }}
+                        {...field}
+                        error={!!errors.workAuthType}
+                        helperText={
+                          (errors.workAuthType &&
+                            (errors.workAuthType.message as string)) ??
+                          ""
+                        }
+                      >
+                        <option value="">Select...</option>
+                        <option value="citizen">U.S. Citizen</option>
+                        <option value="green-card">Green Card</option>
+                        <option value="opt">OPT</option>
+                        <option value="opt-stem">OPT STEM Extension</option>
+                        <option value="h1b">H1-B</option>
+                        <option value="l2">L2</option>
+                        <option value="h4">H4</option>
+                        <option value="other">Other</option>
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+
+                {/* other */}
+                <Grid size={{ xs: 12 }}>
+                  <Controller
+                    name="workAuthOther"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        fullWidth
+                        label="Please specify (if Other)"
+                        {...field}
+                      />
+                    )}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* Documents */}
           {activeStep === 3 && (
             <DocumentList documents={documents} onUpload={uploadDocument} />
           )}
 
+          {/* Review */}
           {activeStep === 4 && (
             <OnboardingReview
               formData={getValues()}
@@ -209,7 +282,7 @@ const Onboarding = () => {
               Back
             </Button>
 
-            {activeStep === steps.length - 1 ? (
+            {activeStep === stepsLabels.length - 1 ? (
               <Button
                 variant="contained"
                 onClick={handleSubmit}

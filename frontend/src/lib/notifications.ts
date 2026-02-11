@@ -1,28 +1,29 @@
 import api from "./api";
-import type { Notification } from "../types/notification";
+import type { DashboardNotification } from "../types/notification";
 
 type RawNotification = {
   _id: string;
   type: string;
   title: string;
   message: string;
-  data?: unknown;
+  data?: Record<string, unknown>;
   readAt?: string | null;
   createdAt?: string;
 };
 
-export async function fetchNotifications(): Promise<Notification[]> {
+export async function fetchNotifications(): Promise<DashboardNotification[]> {
   const res = await api.get<{ notifications: RawNotification[] }>(
     "/notifications",
   );
+
   return res.data.notifications.map((n) => ({
     id: n._id,
     type: n.type,
     title: n.title,
     message: n.message,
-    data: n.data as Notification["data"],
+    data: n.data,
     readAt: n.readAt ?? null,
-    createdAt: n.createdAt,
+    createdAt: n.createdAt ?? "",
   }));
 }
 
@@ -33,16 +34,4 @@ export async function fetchUnreadCount(): Promise<number> {
 
 export async function markNotificationRead(id: string) {
   await api.post(`/notifications/${id}/read`);
-}
-
-export type UINotification = {
-  id: string;
-  type: string;
-  message: string;
-  createdAt: string;
-};
-
-export async function getMyNotifications(): Promise<UINotification[]> {
-  const res = await api.get("/notifications/me");
-  return res.data.notifications;
 }

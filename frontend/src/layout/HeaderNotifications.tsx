@@ -6,7 +6,6 @@ import {
   MenuItem,
   Typography,
   Box,
-  ListItemText,
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import {
@@ -14,55 +13,66 @@ import {
   fetchUnreadCount,
   markNotificationRead,
 } from "../lib/notifications";
-import type { Notification } from "../types/notification";
+import type { DashboardNotification } from "../types/notification";
 import { useNavigate } from "react-router-dom";
+import { handleNotificationNavigate } from "../utils/notificationNavigator";
 
 export default function HeaderNotifications() {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [count, setCount] = useState<number>(0);
-  const [items, setItems] = useState<Notification[]>([]);
+  const [items, setItems] = useState<DashboardNotification[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
   const pollRef = useRef<number | null>(null);
 
+  const open = Boolean(anchorEl);
+
   useEffect(() => {
     let mounted = true;
+
     const loadCount = async () => {
       try {
         const c = await fetchUnreadCount();
         if (mounted) setCount(c);
       } catch {
-        /* ignore */
+        /* ignore error silently */
       }
     };
-    loadCount();
 
+    loadCount();
     pollRef.current = window.setInterval(loadCount, 30_000);
+
     return () => {
       mounted = false;
       if (pollRef.current) window.clearInterval(pollRef.current);
     };
   }, []);
 
-  const openMenu = async (e: React.MouseEvent<HTMLElement>) => {
+  const handleOpen = async (e: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(e.currentTarget);
+    setLoading(true);
     try {
       const list = await fetchNotifications();
-      setItems(list);
+      setItems(list as DashboardNotification[]);
     } catch (err) {
       console.error("Failed to fetch notifications", err);
       setItems([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const closeMenu = () => setAnchorEl(null);
+  const handleClose = () => setAnchorEl(null);
 
-  const handleItemClick = async (n: Notification) => {
+  const handleItemClick = async (n: DashboardNotification) => {
+    handleClose();
+
     try {
-      // mark read if unread
       if (!n.readAt && n.id) {
         await markNotificationRead(n.id);
         const c = await fetchUnreadCount();
         setCount(c);
+
         setItems((prev) =>
           prev.map((it) =>
             it.id === n.id ? { ...it, readAt: new Date().toISOString() } : it,
@@ -73,57 +83,72 @@ export default function HeaderNotifications() {
       console.error("Failed to mark notification read", err);
     }
 
-    // If notification references a document, navigate with state for scrolling
-    if (n.data?.documentId && n.data?.documentType) {
-      const docId = String(n.data.documentId);
-      const type = n.data.documentType;
-
-      // route mapping (adjust if you have more precise routes)
-      if (type === "onboarding") {
-        navigate("/employee/onboarding", { state: { scrollTo: docId } });
-      } else {
-        // default: visa / generic documents -> visa page
-        navigate("/employee/visa-status", { state: { scrollTo: docId } });
-      }
-    } else {
-      // fallback: just close
-      closeMenu();
-    }
+    handleNotificationNavigate(n, navigate);
   };
 
   return (
     <>
-      <IconButton onClick={openMenu} size="small" aria-label="notifications">
+      <IconButton onClick={handleOpen} size="large" aria-label="notifications">
         <Badge badgeContent={count} color="error">
           <NotificationsIcon />
         </Badge>
       </IconButton>
 
-      <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={closeMenu}>
-        {items.length === 0 ? (
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        PaperProps={{ sx: { mt: 1, boxShadow: 3 } }}
+      >
+        {loading && (
           <MenuItem>
-            <ListItemText primary="No notifications" />
+            <Typography variant="body2">Loading…</Typography>
           </MenuItem>
-        ) : (
+        )}
+
+        {!loading && items.length === 0 && (
+          <MenuItem>
+            <Typography variant="body2">No notifications</Typography>
+          </MenuItem>
+        )}
+
+        {!loading &&
           items.map((n) => (
             <MenuItem
               key={n.id}
               onClick={() => handleItemClick(n)}
               sx={{
-                backgroundColor: n.readAt ? "transparent" : "action.selected",
+                py: 1.5,
+                px: 2,
+                minWidth: 280,
+                backgroundColor: n.readAt
+                  ? "transparent"
+                  : "rgba(25, 118, 210, 0.08)",
               }}
             >
               <Box>
-                <Typography variant="body2" fontWeight={n.readAt ? 400 : 700}>
+                <Typography variant="body2" fontWeight={n.readAt ? 400 : 600}>
                   {n.title}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                >
                   {n.message}
                 </Typography>
+                {n.createdAt && (
+                  <Typography
+                    variant="caption"
+                    color="grey.500"
+                    sx={{ fontSize: "0.7rem" }}
+                  >
+                    {new Date(n.createdAt).toLocaleString()}
+                  </Typography>
+                )}
               </Box>
             </MenuItem>
-          ))
-        )}
+          ))}
       </Menu>
     </>
   );

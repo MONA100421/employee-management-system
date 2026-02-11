@@ -31,6 +31,9 @@ import PreviewDialog from "../../components/common/PreviewDialog";
 import { useDocuments } from "../../hooks/useDocuments";
 import { getPresignedGet } from "../../lib/upload";
 import { forceDownloadPresigned } from "../../lib/download";
+import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
+
 
 /**
  * Visa step definition (UI only)
@@ -90,6 +93,20 @@ const VisaStatus: React.FC = () => {
   const completedSteps = steps.filter((s) => s.status === "approved").length;
   const activeStepIndex = steps.findIndex((s) => s.status !== "approved");
   const activeStep = activeStepIndex === -1 ? steps.length : activeStepIndex;
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const state = location.state as { scrollTo?: string } | null;
+    const docId = state?.scrollTo;
+    if (!docId) return;
+
+    const el = document.querySelector(`[data-docid="${docId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [location.state]);
+
 
   const handlePreview = async (
     fileUrl?: string | null,

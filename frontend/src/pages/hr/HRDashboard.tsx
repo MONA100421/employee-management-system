@@ -1,5 +1,13 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  useTheme,
+  Avatar,
+  Divider,
+} from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
   People as PeopleIcon,
@@ -7,9 +15,12 @@ import {
   AssignmentTurnedIn as ApprovedIcon,
   HourglassTop as PendingIcon,
   TrendingUp as TrendingIcon,
+  Notifications as NotificationsIcon,
 } from "@mui/icons-material";
 import { useDocuments } from "../../hooks/useDocuments";
+import { useNotifications } from "../../hooks/useNotifications";
 import api from "../../lib/api";
+import type { DashboardNotification } from "../../types/notification";
 
 const HRDashboard: React.FC = () => {
   const theme = useTheme();
@@ -17,9 +28,11 @@ const HRDashboard: React.FC = () => {
   // Documents (real data)
   const { documents, loading } = useDocuments("all");
 
+  const { notifications } = useNotifications();
+  const recentActivity = notifications;
+
   const [now] = useState<number>(() => Date.now());
 
-  // Pending
   const pendingDocs = useMemo(
     () => documents.filter((d) => d.status === "pending"),
     [documents],
@@ -33,10 +46,8 @@ const HRDashboard: React.FC = () => {
     (d) => d.category === "visa",
   ).length;
 
-  // Approved this week (last 7 days)
   const approvedThisWeek = useMemo(() => {
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-
     return documents.filter((d) => {
       if (d.status !== "approved" || !d.reviewedAt) return false;
       const reviewedTime = new Date(d.reviewedAt).getTime();
@@ -44,7 +55,6 @@ const HRDashboard: React.FC = () => {
     }).length;
   }, [documents, now]);
 
-  // Total employees (real API)
   const [totalEmployees, setTotalEmployees] = useState<number | null>(null);
 
   useEffect(() => {
@@ -54,7 +64,6 @@ const HRDashboard: React.FC = () => {
       .catch(() => setTotalEmployees(null));
   }, []);
 
-  // Dashboard cards
   const stats = [
     {
       title: "Total Employees",
@@ -90,6 +99,7 @@ const HRDashboard: React.FC = () => {
 
   return (
     <Box>
+      {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {stats.map((stat) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.title}>
@@ -137,6 +147,73 @@ const HRDashboard: React.FC = () => {
             </Card>
           </Grid>
         ))}
+      </Grid>
+
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12 }}>
+          <Card>
+            <CardContent>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}
+              >
+                <NotificationsIcon color="primary" />
+                <Typography variant="h6" fontWeight={600}>
+                  Recent Activity
+                </Typography>
+              </Box>
+
+              {recentActivity.length === 0 ? (
+                <Typography
+                  color="text.secondary"
+                  sx={{ py: 2, textAlign: "center" }}
+                >
+                  No recent activities found.
+                </Typography>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {recentActivity.map(
+                    (activity: DashboardNotification, index: number) => (
+                      <React.Fragment key={activity.id || index}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            gap: 2,
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <Avatar
+                            sx={{
+                              bgcolor: theme.palette.primary.main,
+                              width: 32,
+                              height: 32,
+                              fontSize: "0.875rem",
+                            }}
+                          >
+                            {activity.type?.[0]?.toUpperCase() || "N"}
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" fontWeight={500}>
+                              {activity.message}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {new Date(activity.createdAt).toLocaleString()}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        {index < recentActivity.length - 1 && (
+                          <Divider sx={{ my: 1 }} />
+                        )}
+                      </React.Fragment>
+                    ),
+                  )}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
     </Box>
   );

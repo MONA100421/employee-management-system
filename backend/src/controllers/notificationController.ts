@@ -1,6 +1,21 @@
 import { Request, Response } from "express";
 import Notification from "../models/Notification";
 
+export const getMyNotifications = async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!user) return res.status(401).json({ ok: false });
+
+  const notifications = await Notification.find({ user: user.id })
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .lean();
+
+  res.json({
+    ok: true,
+    notifications,
+  });
+};
+
 export const listNotifications = async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!user) return res.status(401).json({ ok: false });

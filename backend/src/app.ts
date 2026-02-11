@@ -9,6 +9,7 @@ import onboardingRoutes from "./routes/onboarding";
 import documentRoutes from "./routes/document";
 import notificationRouter from "./routes/notification";
 import uploadRoutes from "./routes/upload";
+import notificationRoutes from "./routes/notification";
 
 const app = express();
 
@@ -32,5 +33,6 @@ app.use("/api/uploads", uploadRoutes);
 
 // make notifications under /api/notifications
 app.use("/api/notifications", notificationRouter);
+app.use("/notifications", notificationRoutes);
 
 export default app;

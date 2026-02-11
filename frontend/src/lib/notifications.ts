@@ -34,3 +34,15 @@ export async function fetchUnreadCount(): Promise<number> {
 export async function markNotificationRead(id: string) {
   await api.post(`/notifications/${id}/read`);
 }
+
+export type UINotification = {
+  id: string;
+  type: string;
+  message: string;
+  createdAt: string;
+};
+
+export async function getMyNotifications(): Promise<UINotification[]> {
+  const res = await api.get("/notifications/me");
+  return res.data.notifications;
+}

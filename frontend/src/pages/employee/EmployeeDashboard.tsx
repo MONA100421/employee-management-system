@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Box,
   Card,
@@ -7,95 +6,135 @@ import {
   Avatar,
   LinearProgress,
   useTheme,
-} from '@mui/material';
-import Grid from '@mui/material/Grid';
+} from "@mui/material";
+import Grid from "@mui/material/Grid";
 import {
   Person as PersonIcon,
   Assignment as AssignmentIcon,
   Description as DescriptionIcon,
   CheckCircle as CheckIcon,
-  Schedule as ScheduleIcon,
   Warning as WarningIcon,
-} from '@mui/icons-material';
-import { useAuth } from '../../contexts/useAuth';
-import StatusChip from '../../components/common/StatusChip';
+} from "@mui/icons-material";
+
+import { useAuth } from "../../contexts/useAuth";
+import StatusChip from "../../components/common/StatusChip";
+import { useDocuments } from "../../hooks/useDocuments";
+import { getMyOnboarding } from "../../lib/onboarding";
+
+import { useEffect, useState } from "react";
+import type { UIOnboardingStatus } from "../../lib/onboarding";
+import { useNotifications } from "../../hooks/useNotifications";
 
 const EmployeeDashboard: React.FC = () => {
   const theme = useTheme();
   const { user } = useAuth();
 
+  // Onboarding
+  const [onboardingStatus, setOnboardingStatus] =
+    useState<UIOnboardingStatus>("never-submitted");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const app = await getMyOnboarding();
+        setOnboardingStatus(app.status);
+      } catch {
+        setOnboardingStatus("never-submitted");
+      }
+    })();
+  }, []);
+
+  // Visa documents
+  const { documents: visaDocs, loading } = useDocuments("visa");
+
+  const visaApprovedCount = visaDocs.filter(
+    (d) => d.status === "approved",
+  ).length;
+
+  const visaTotal = visaDocs.length || 4;
+
+  // Dashboard cards
   const dashboardCards = [
     {
-      title: 'Personal Information',
-      description: 'View and update your profile details',
+      title: "Personal Information",
+      description: "View and update your profile details",
       icon: <PersonIcon sx={{ fontSize: 32 }} />,
       color: theme.palette.primary.main,
-      status: 'completed' as const,
-      link: '/employee/personal-info',
+      status: "completed" as const,
+      link: "/employee/personal-info",
     },
     {
-      title: 'Onboarding Application',
-      description: 'Complete your onboarding process',
+      title: "Onboarding Application",
+      description: "Complete your onboarding process",
       icon: <AssignmentIcon sx={{ fontSize: 32 }} />,
       color: theme.palette.success.main,
-      status: 'approved' as const,
-      link: '/employee/onboarding',
+      status: onboardingStatus,
+      link: "/employee/onboarding",
     },
     {
-      title: 'Visa Status',
-      description: 'Track your visa application progress',
+      title: "Visa Status",
+      description: "Track your visa application progress",
       icon: <DescriptionIcon sx={{ fontSize: 32 }} />,
       color: theme.palette.warning.main,
-      status: 'in-progress' as const,
-      link: '/employee/visa-status',
+      status: visaApprovedCount === visaTotal ? "approved" : "in-progress",
+      link: "/employee/visa-status",
     },
   ];
 
-  const recentActivity = [
-    {
-      action: 'OPT Receipt uploaded',
-      date: '2 days ago',
-      icon: <CheckIcon />,
-      color: theme.palette.success.main,
-    },
-    {
-      action: 'Personal information updated',
-      date: '1 week ago',
-      icon: <PersonIcon />,
-      color: theme.palette.primary.main,
-    },
-    {
-      action: 'Visa status updated to In Progress',
-      date: '2 weeks ago',
-      icon: <ScheduleIcon />,
-      color: theme.palette.warning.main,
-    },
-  ];
+  // Onboarding Progress
+  const onboardingProgress = Math.round((visaApprovedCount / visaTotal) * 100);
 
-  const onboardingProgress = 75;
+  // Recent Activity
+  const { notifications } = useNotifications();
+
+  const recentActivity = notifications.map((n) => ({
+    action: n.message,
+    date: new Date(n.createdAt).toLocaleDateString(),
+    icon: <CheckIcon />,
+    color: theme.palette.success.main,
+  }));
+
+  // Action Required
+  const firstPending = visaDocs.find((d) => d.status !== "approved");
+
+  if (loading) {
+    return <Typography>Loading dashboard…</Typography>;
+  }
 
   return (
     <Box>
       {/* Welcome Section */}
-      <Card sx={{ mb: 3, background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})` }}>
+      <Card
+        sx={{
+          mb: 3,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+        }}
+      >
         <CardContent sx={{ py: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
             <Avatar
               sx={{
                 width: 72,
                 height: 72,
-                bgcolor: 'rgba(255,255,255,0.2)',
-                fontSize: '1.5rem',
+                bgcolor: "rgba(255,255,255,0.2)",
+                fontSize: "1.5rem",
                 fontWeight: 700,
               }}
             >
-              {user?.firstName?.[0]}{user?.lastName?.[0]}
+              {user?.firstName?.[0]}
+              {user?.lastName?.[0]}
             </Avatar>
             <Box>
-              <Typography variant="h4" sx={{ color: 'white', fontWeight: 700, mb: 0.5 }}>
+              <Typography
+                variant="h4"
+                sx={{ color: "white", fontWeight: 700, mb: 0.5 }}
+              >
                 Welcome back, {user?.firstName}!
               </Typography>
-              <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+              <Typography
+                variant="body1"
+                sx={{ color: "rgba(255,255,255,0.8)" }}
+              >
                 Here's an overview of your employee portal
               </Typography>
             </Box>
@@ -109,26 +148,32 @@ const EmployeeDashboard: React.FC = () => {
           <Grid size={{ xs: 12, sm: 4 }} key={card.title}>
             <Card
               sx={{
-                height: '100%',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
+                height: "100%",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  transform: "translateY(-4px)",
                   boxShadow: theme.shadows[4],
                 },
               }}
-              onClick={() => window.location.href = card.link}
+              onClick={() => (window.location.href = card.link)}
             >
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 2,
+                  }}
+                >
                   <Box
                     sx={{
                       width: 56,
                       height: 56,
                       borderRadius: 2,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       backgroundColor: `${card.color}15`,
                       color: card.color,
                     }}
@@ -140,7 +185,10 @@ const EmployeeDashboard: React.FC = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
                   {card.title}
                 </Typography>
-                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: theme.palette.text.secondary }}
+                >
                   {card.description}
                 </Typography>
               </CardContent>
@@ -153,17 +201,23 @@ const EmployeeDashboard: React.FC = () => {
       <Grid container spacing={3}>
         {/* Onboarding Progress */}
         <Grid size={{ xs: 12, sm: 6 }}>
-          <Card sx={{ height: '100%' }}>
+          <Card>
             <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+              <Typography variant="h6" fontWeight={600} mb={3}>
                 Onboarding Progress
               </Typography>
               <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 1,
+                  }}
+                >
+                  <Typography color="text.secondary">
                     Overall completion
                   </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  <Typography fontWeight={600}>
                     {onboardingProgress}%
                   </Typography>
                 </Box>
@@ -174,30 +228,12 @@ const EmployeeDashboard: React.FC = () => {
                     height: 10,
                     borderRadius: 5,
                     backgroundColor: theme.palette.grey[200],
-                    '& .MuiLinearProgress-bar': {
+                    "& .MuiLinearProgress-bar": {
                       borderRadius: 5,
                       background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
                     },
                   }}
                 />
-              </Box>
-              <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-                <Box sx={{ flex: 1, p: 2, bgcolor: theme.palette.success.main + '15', borderRadius: 2 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.success.main }}>
-                    3
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Steps Completed
-                  </Typography>
-                </Box>
-                <Box sx={{ flex: 1, p: 2, bgcolor: theme.palette.warning.main + '15', borderRadius: 2 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>
-                    1
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                    Steps Remaining
-                  </Typography>
-                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -205,68 +241,80 @@ const EmployeeDashboard: React.FC = () => {
 
         {/* Recent Activity */}
         <Grid size={{ xs: 12, sm: 6 }}>
-          <Card sx={{ height: '100%' }}>
+          <Card>
             <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+              <Typography variant="h6" fontWeight={600} mb={3}>
                 Recent Activity
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {recentActivity.map((activity, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2,
-                      p: 2,
-                      bgcolor: theme.palette.background.default,
-                      borderRadius: 2,
-                    }}
-                  >
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {recentActivity.length === 0 ? (
+                  <Typography color="text.secondary">
+                    No recent activity
+                  </Typography>
+                ) : (
+                  recentActivity.map((activity, index) => (
                     <Box
+                      key={index}
                       sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: `${activity.color}15`,
-                        color: activity.color,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        p: 2,
+                        bgcolor: theme.palette.background.default,
+                        borderRadius: 2,
                       }}
                     >
-                      {activity.icon}
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          bgcolor: `${activity.color}15`,
+                          color: activity.color,
+                        }}
+                      >
+                        {activity.icon}
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={500}>
+                          {activity.action}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {activity.date}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {activity.action}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                        {activity.date}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
+                  ))
+                )}
               </Box>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Alerts */}
-      <Card sx={{ mt: 3, bgcolor: theme.palette.warning.main + '10', border: `1px solid ${theme.palette.warning.main}30` }}>
-        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <WarningIcon sx={{ color: theme.palette.warning.main, fontSize: 28 }} />
-          <Box>
-            <Typography variant="body1" sx={{ fontWeight: 600 }}>
-              Action Required
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-              Your EAD document is pending upload. Please upload it to continue your visa process.
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
+      {/* Action Required */}
+      {firstPending && (
+        <Card
+          sx={{
+            mt: 3,
+            bgcolor: theme.palette.warning.main + "10",
+            border: `1px solid ${theme.palette.warning.main}30`,
+          }}
+        >
+          <CardContent sx={{ display: "flex", gap: 2 }}>
+            <WarningIcon sx={{ color: theme.palette.warning.main }} />
+            <Box>
+              <Typography fontWeight={600}>Action Required</Typography>
+              <Typography color="text.secondary">
+                Your {firstPending.type} document is pending upload or approval.
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 };

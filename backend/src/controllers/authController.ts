@@ -1,20 +1,20 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
-import * as jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import RegistrationToken from "../models/RegistrationToken";
 import User from "../models/User";
 import RefreshToken from "../models/RefreshToken";
 
 const JWT_SECRET = (process.env.JWT_SECRET || "dev_secret_key") as string;
 const ACCESS_TOKEN_EXPIRES_IN = (process.env.ACCESS_TOKEN_EXPIRES_IN ||
-  "15m") as any;
+  "15m") as string;
 const REFRESH_TOKEN_EXPIRES_DAYS = Number(
   process.env.REFRESH_TOKEN_EXPIRES_DAYS || 7,
 );
 const COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || "refresh_token";
 
-// Helper
+// Helper: Create refresh token record in DB
 async function createRefreshToken(userId: string) {
   const rawToken = crypto.randomBytes(64).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
@@ -53,7 +53,11 @@ export const loginHandler = async (req: Request, res: Response) => {
     return res.status(401).json({ ok: false, message: "Invalid credentials" });
   }
 
-  // Create Access Token
+  // Define JWT sign options to satisfy TypeScript
+  const signOptions: SignOptions = {
+    expiresIn: ACCESS_TOKEN_EXPIRES_IN as any,
+  };
+
   const accessToken = jwt.sign(
     {
       userId: user._id.toString(),
@@ -61,15 +65,14 @@ export const loginHandler = async (req: Request, res: Response) => {
       email: user.email,
     },
     JWT_SECRET,
-    { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
+    signOptions,
   );
 
-  // Create Refresh Token
   const { rawToken, dbToken } = await createRefreshToken(user._id.toString());
 
   const isProd = process.env.NODE_ENV === "production";
 
-  // Set HTTP-Only Cookie
+  // Set HTTP-Only Cookie for Refresh Token
   res.cookie(COOKIE_NAME, rawToken, {
     httpOnly: true,
     secure: isProd,
@@ -91,7 +94,7 @@ export const loginHandler = async (req: Request, res: Response) => {
   });
 };
 
-// REFRESH
+// REFRESH TOKEN
 export const refreshHandler = async (req: Request, res: Response) => {
   const cookieToken = req.cookies?.[COOKIE_NAME];
   if (!cookieToken) {
@@ -102,7 +105,6 @@ export const refreshHandler = async (req: Request, res: Response) => {
     .createHash("sha256")
     .update(cookieToken)
     .digest("hex");
-
   const existing = await RefreshToken.findOne({ tokenHash });
 
   if (!existing || existing.revoked || existing.expiresAt < new Date()) {
@@ -116,17 +118,15 @@ export const refreshHandler = async (req: Request, res: Response) => {
     return res.status(401).json({ ok: false, message: "User not found" });
   }
 
-  // Rotate token: create new one
+  // Rotate token: create new one and revoke old one
   const { rawToken, dbToken } = await createRefreshToken(user._id.toString());
 
-  // Revoke the old token
   existing.revoked = true;
   existing.replacedBy = dbToken._id as any;
   await existing.save();
 
   const isProd = process.env.NODE_ENV === "production";
 
-  // Set the new Cookie
   res.cookie(COOKIE_NAME, rawToken, {
     httpOnly: true,
     secure: isProd,
@@ -134,7 +134,10 @@ export const refreshHandler = async (req: Request, res: Response) => {
     expires: dbToken.expiresAt,
   });
 
-  // Create new Access Token
+  const signOptions: SignOptions = {
+    expiresIn: ACCESS_TOKEN_EXPIRES_IN as any,
+  };
+
   const newAccessToken = jwt.sign(
     {
       userId: user._id.toString(),
@@ -142,13 +145,13 @@ export const refreshHandler = async (req: Request, res: Response) => {
       email: user.email,
     },
     JWT_SECRET,
-    { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
+    signOptions,
   );
 
   return res.json({ ok: true, token: newAccessToken });
 };
 
-// LOGOUT
+//  LOGOUT
 export const logoutHandler = async (req: Request, res: Response) => {
   const cookieToken = req.cookies?.[COOKIE_NAME];
 
@@ -157,7 +160,6 @@ export const logoutHandler = async (req: Request, res: Response) => {
       .createHash("sha256")
       .update(cookieToken)
       .digest("hex");
-
     await RefreshToken.findOneAndUpdate({ tokenHash }, { revoked: true });
   }
 
@@ -180,17 +182,14 @@ export const validateRegistrationToken = async (
   const rawToken = Array.isArray(req.params.token)
     ? req.params.token[0]
     : req.params.token;
-
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
   const record = await RegistrationToken.findOne({ tokenHash });
 
   if (!record)
     return res.status(404).json({ ok: false, message: "Invalid token" });
-
   if (record.used)
     return res.status(400).json({ ok: false, message: "Token already used" });
-
   if (record.expiresAt < new Date())
     return res.status(400).json({ ok: false, message: "Token expired" });
 
@@ -206,32 +205,24 @@ export const registerHandler = async (req: Request, res: Response) => {
   const { token, email, username, password } = req.body;
 
   if (!token || !email || !username || !password) {
-    return res.status(400).json({
-      ok: false,
-      message: "Missing required fields",
-    });
+    return res
+      .status(400)
+      .json({ ok: false, message: "Missing required fields" });
   }
 
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
   const record = await RegistrationToken.findOne({ tokenHash });
 
   if (!record)
     return res.status(400).json({ ok: false, message: "Invalid token" });
-
   if (record.used)
     return res.status(400).json({ ok: false, message: "Token already used" });
-
   if (record.expiresAt < new Date())
     return res.status(400).json({ ok: false, message: "Token expired" });
-
   if (record.email !== email)
     return res.status(400).json({ ok: false, message: "Email mismatch" });
 
-  const exists = await User.findOne({
-    $or: [{ email }, { username }],
-  });
-
+  const exists = await User.findOne({ $or: [{ email }, { username }] });
   if (exists)
     return res
       .status(409)
@@ -246,13 +237,11 @@ export const registerHandler = async (req: Request, res: Response) => {
     role: "employee",
   });
 
+  // Mark invite token as used
   record.used = true;
   record.usedAt = new Date();
   record.usedBy = user._id as any;
   await record.save();
 
-  return res.json({
-    ok: true,
-    message: "Registration successful",
-  });
+  return res.json({ ok: true, message: "Registration successful" });
 };

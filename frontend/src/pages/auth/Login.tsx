@@ -187,8 +187,7 @@ const Login: React.FC = () => {
           >
             <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
               Demo accounts:&nbsp;
-              <strong>employee</strong> / <strong>password123</strong> &nbsp;or&nbsp;
-              <strong>hr</strong> / <strong>password123</strong>
+              <strong>hr</strong> / <strong> hr123456</strong>
             </Typography>
           </Box>
         </CardContent>

@@ -1,16 +1,13 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
 import mongoose from "mongoose";
-import RegistrationToken, {
-  RegistrationTokenDocument,
-} from "../models/RegistrationToken";
+import RegistrationToken from "../models/RegistrationToken";
 import { emailQueue } from "../queues/emailQueue";
 
 /**
  * GET /api/hr/employees
- * List all employees
  */
-export const listEmployees = (req: Request, res: Response) => {
+export const listEmployees = (_req: Request, res: Response) => {
   const employees = [
     {
       id: "1",
@@ -28,18 +25,13 @@ export const listEmployees = (req: Request, res: Response) => {
     },
   ];
 
-  res.json({
-    ok: true,
-    employees,
-  });
+  res.json({ ok: true, employees });
 };
 
 /**
  * POST /api/hr/invite
- * Generate registration token and queue invitation email
  */
 export const inviteEmployee = async (req: Request, res: Response) => {
-  // Start a MongoDB session for transaction
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -56,17 +48,14 @@ export const inviteEmployee = async (req: Request, res: Response) => {
       });
     }
 
-    // Atomically expire any existing active tokens for this email
     await RegistrationToken.updateMany(
       {
         email,
         used: false,
         expiresAt: { $gt: new Date() },
       },
-      {
-        $set: { expiresAt: new Date() }, // Force immediate expiration
-      },
-      { session }, // Bind to transaction
+      { $set: { expiresAt: new Date() } },
+      { session },
     );
 
     const rawToken = crypto.randomBytes(32).toString("hex");
@@ -75,21 +64,13 @@ export const inviteEmployee = async (req: Request, res: Response) => {
       .update(rawToken)
       .digest("hex");
 
-    // Token expires in 3 hours
-    const THREE_HOURS_IN_MS = 3 * 60 * 60 * 1000;
-    const expiresAt = new Date(Date.now() + THREE_HOURS_IN_MS);
+    const expiresAt = new Date(Date.now() + 3 * 60 * 60 * 1000);
 
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const registrationLink = `${frontendUrl}/register?token=${rawToken}&email=${encodeURIComponent(email)}`;
-
-    // Create new token within the transaction
-    // Use an array for create when using sessions
     await RegistrationToken.create(
       [
         {
           email,
           name,
-          registrationLink,
           tokenHash,
           expiresAt,
           createdBy: user.userId,
@@ -100,60 +81,49 @@ export const inviteEmployee = async (req: Request, res: Response) => {
       { session },
     );
 
-    // Commit all changes to database
     await session.commitTransaction();
     session.endSession();
 
-    console.log(`[Database] Atomic token creation successful for ${email}`);
+    // send email
+    await emailQueue.add("registrationInvite", {
+      to: email,
+      rawToken,
+      fullName: name,
+    });
 
-    const job = await emailQueue.add(
-      "registrationInvite",
-      {
-        to: email,
-        rawToken,
-        fullName: name,
-      },
-      {
-        attempts: 3,
-        backoff: 5000,
-        removeOnComplete: true,
-      },
-    );
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
-    console.log(`[Queue] Job enqueued successfully! ID: ${job.id}`);
+    const registrationLink = `${frontendUrl}/register?token=${rawToken}&email=${encodeURIComponent(
+      email,
+    )}`;
 
     return res.json({
       ok: true,
-      message: "Invitation link generated and email queued",
       registrationLink,
     });
   } catch (err: any) {
-    // Abort transaction on any error
     await session.abortTransaction();
     session.endSession();
 
-    // Handle Duplicate Key Error
     if (err.code === 11000) {
       return res.status(409).json({
         ok: false,
-        message:
-          "A conflict occurred. Please try sending the invitation again.",
+        message: "Active token already exists. Please retry.",
       });
     }
 
     console.error("inviteEmployee error:", err);
     return res.status(500).json({
       ok: false,
-      message: "Internal server error while processing invitation",
+      message: "Internal server error",
     });
   }
 };
 
 /**
  * GET /api/hr/invite/history
- * HR only: Retrieve the history of all generated registration tokens
  */
-export const inviteHistory = async (req: Request, res: Response) => {
+export const inviteHistory = async (_req: Request, res: Response) => {
   try {
     const tokens = await RegistrationToken.find()
       .populate("createdBy", "username")
@@ -164,7 +134,6 @@ export const inviteHistory = async (req: Request, res: Response) => {
       id: t._id,
       email: t.email,
       name: t.name || "N/A",
-      registrationLink: t.registrationLink || "N/A",
       createdAt: t.createdAt,
       expiresAt: t.expiresAt,
       used: t.used,
@@ -176,6 +145,6 @@ export const inviteHistory = async (req: Request, res: Response) => {
     return res.json({ ok: true, history: out });
   } catch (err) {
     console.error("inviteHistory error:", err);
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res.status(500).json({ ok: false });
   }
 };

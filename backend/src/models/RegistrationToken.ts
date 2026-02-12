@@ -3,6 +3,8 @@ import { Schema, model, Types } from "mongoose";
 export interface RegistrationTokenDocument {
   email: string;
   tokenHash: string;
+  name?: string;
+  registrationLink?: string;
   createdBy?: Types.ObjectId;
   createdAt?: Date;
   expiresAt: Date;
@@ -15,6 +17,8 @@ export interface RegistrationTokenDocument {
 const TokenSchema = new Schema<RegistrationTokenDocument>({
   email: { type: String, required: true, index: true },
   tokenHash: { type: String, required: true, unique: true },
+  name: { type: String, default: null },
+  registrationLink: { type: String, default: null },
   createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   createdAt: { type: Date, default: Date.now },
   expiresAt: {

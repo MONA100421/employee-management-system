@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box, TextField, Button, Alert } from "@mui/material";
+import { Box, TextField, Button, Alert, Typography } from "@mui/material";
 import api from "../../lib/api";
 import { AxiosError } from "axios";
 
@@ -7,16 +7,20 @@ import { AxiosError } from "axios";
 
 const InviteEmployee: React.FC = () => {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const sendInvite = async () => {
     if (loading) return;
     setLoading(true);
+    setMsg(null);
     try {
-      const res = await api.post("/hr/invite", { email, name: "New Hire" });
+      const res = await api.post("/hr/invite", { email, name });
       if (res.data.ok) {
-        setMsg("Invite sent successfully!");
+        setMsg(`Invite sent to ${name} successfully!`);
+        setEmail("");
+        setName("");
       }
     } catch (err: unknown) {
       if (err instanceof AxiosError) {
@@ -30,14 +34,32 @@ const InviteEmployee: React.FC = () => {
   };
 
   return (
-    <Box>
-      {msg && <Alert>{msg}</Alert>}
+    <Box sx={{ maxWidth: 400 }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Generate Registration Token
+      </Typography>
+      {msg && <Alert sx={{ mb: 2 }}>{msg}</Alert>}
+
       <TextField
-        label="Email"
+        fullWidth
+        label="Invitee Full Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        sx={{ mb: 2 }}
+      />
+      <TextField
+        fullWidth
+        label="Invitee Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        sx={{ mb: 2 }}
       />
-      <Button onClick={sendInvite} disabled={loading || !email}>
+
+      <Button
+        variant="contained"
+        onClick={sendInvite}
+        disabled={loading || !email || !name}
+      >
         {loading ? "Sending..." : "Send Invite"}
       </Button>
     </Box>

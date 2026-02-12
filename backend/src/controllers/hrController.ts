@@ -79,12 +79,17 @@ export const inviteEmployee = async (req: Request, res: Response) => {
     const THREE_HOURS_IN_MS = 3 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + THREE_HOURS_IN_MS);
 
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const registrationLink = `${frontendUrl}/register?token=${rawToken}&email=${encodeURIComponent(email)}`;
+
     // Create new token within the transaction
     // Use an array for create when using sessions
     await RegistrationToken.create(
       [
         {
           email,
+          name,
+          registrationLink,
           tokenHash,
           expiresAt,
           createdBy: user.userId,
@@ -116,11 +121,6 @@ export const inviteEmployee = async (req: Request, res: Response) => {
     );
 
     console.log(`[Queue] Job enqueued successfully! ID: ${job.id}`);
-
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const registrationLink = `${frontendUrl}/register?token=${rawToken}&email=${encodeURIComponent(
-      email,
-    )}`;
 
     return res.json({
       ok: true,
@@ -164,12 +164,13 @@ export const inviteHistory = async (req: Request, res: Response) => {
       id: t._id,
       email: t.email,
       name: t.name || "N/A",
+      registrationLink: t.registrationLink || "N/A",
       createdAt: t.createdAt,
       expiresAt: t.expiresAt,
       used: t.used,
       usedAt: t.usedAt,
-      status: t.used ? "used" : (new Date() > t.expiresAt ? "expired" : "active"),
-      sentBy: t.createdBy?.username || "System"
+      status: t.used ? "used" : new Date() > t.expiresAt ? "expired" : "active",
+      sentBy: t.createdBy?.username || "System",
     }));
 
     return res.json({ ok: true, history: out });

@@ -17,7 +17,11 @@ const TokenSchema = new Schema<RegistrationTokenDocument>({
   tokenHash: { type: String, required: true, unique: true },
   createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   createdAt: { type: Date, default: Date.now },
-  expiresAt: { type: Date, required: true },
+  expiresAt: {
+    type: Date,
+    required: true,
+    index: { expires: 0 },
+  },
   used: { type: Boolean, default: false },
   usedAt: { type: Date, default: null },
   usedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
@@ -27,6 +31,14 @@ const TokenSchema = new Schema<RegistrationTokenDocument>({
     default: "employee",
   },
 });
+
+TokenSchema.index(
+  { email: 1, used: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { used: false },
+  },
+);
 
 export default model<RegistrationTokenDocument>(
   "RegistrationToken",

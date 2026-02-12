@@ -49,6 +49,17 @@ export const inviteEmployee = async (req: Request, res: Response) => {
       });
     }
 
+    await RegistrationToken.updateMany(
+      {
+        email,
+        used: false,
+        expiresAt: { $gt: new Date() },
+      },
+      {
+        $set: { expiresAt: new Date() }, // Force immediate expiration
+      },
+    );
+
     const rawToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = crypto
       .createHash("sha256")
@@ -56,7 +67,8 @@ export const inviteEmployee = async (req: Request, res: Response) => {
       .digest("hex");
 
     // Token expires in 3 hours
-    const expiresAt = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    const THREE_HOURS_IN_MS = 3 * 60 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + THREE_HOURS_IN_MS);
 
     // Save token to MongoDB
     await RegistrationToken.create({

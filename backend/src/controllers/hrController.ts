@@ -148,3 +148,33 @@ export const inviteEmployee = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * GET /api/hr/invite/history
+ * HR only: Retrieve the history of all generated registration tokens
+ */
+export const inviteHistory = async (req: Request, res: Response) => {
+  try {
+    const tokens = await RegistrationToken.find()
+      .populate("createdBy", "username")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const out = tokens.map((t: any) => ({
+      id: t._id,
+      email: t.email,
+      name: t.name || "N/A",
+      createdAt: t.createdAt,
+      expiresAt: t.expiresAt,
+      used: t.used,
+      usedAt: t.usedAt,
+      status: t.used ? "used" : (new Date() > t.expiresAt ? "expired" : "active"),
+      sentBy: t.createdBy?.username || "System"
+    }));
+
+    return res.json({ ok: true, history: out });
+  } catch (err) {
+    console.error("inviteHistory error:", err);
+    return res.status(500).json({ ok: false, message: "Server error" });
+  }
+};

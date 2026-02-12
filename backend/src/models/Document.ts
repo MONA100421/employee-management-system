@@ -1,14 +1,18 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model } from "mongoose";
 
 export type DocumentStatus =
-  | 'not_started'
-  | 'pending'
-  | 'approved'
-  | 'rejected';
+  | "not_started"
+  | "pending"
+  | "approved"
+  | "rejected";
 
 const AuditEntrySchema = new Schema(
   {
-    action: { type: String, enum: ["approved", "rejected"], required: true },
+    action: {
+      type: String,
+      enum: ["approved", "rejected", "revoked", "uploaded"],
+      required: true,
+    },
     by: { type: Schema.Types.ObjectId, ref: "User", required: true },
     username: { type: String },
     at: { type: Date, default: Date.now },
@@ -19,12 +23,7 @@ const AuditEntrySchema = new Schema(
 
 const DocumentSchema = new Schema(
   {
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     type: {
       type: String,
       required: true,
@@ -38,40 +37,29 @@ const DocumentSchema = new Schema(
         "i_20",
       ],
     },
-
-    category: {
-      type: String,
-      enum: ["onboarding", "visa"],
-      required: true,
-    },
-
+    category: { type: String, enum: ["onboarding", "visa"], required: true },
     status: {
       type: String,
       enum: ["not_started", "pending", "approved", "rejected"],
       default: "not_started",
     },
-
     fileName: String,
     fileUrl: String,
-
     uploadedAt: Date,
+
+    // Revocation and Soft-delete fields
+    revoked: { type: Boolean, default: false },
+    revokedAt: Date,
+    deletedAt: { type: Date, default: null },
     hrFeedback: String,
-
     reviewedAt: Date,
-    reviewedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
 
-    audit: {
-      type: [AuditEntrySchema],
-      default: [],
-    },
-    
+    audit: { type: [AuditEntrySchema], default: [] },
   },
   { timestamps: true },
 );
 
-DocumentSchema.index({ user: 1, type: 1 }, { unique: true });
+DocumentSchema.index({ user: 1, type: 1, deletedAt: 1 }, { unique: true });
 
-export default model('Document', DocumentSchema);
+export default model("Document", DocumentSchema);

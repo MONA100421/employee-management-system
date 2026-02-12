@@ -125,7 +125,7 @@ const Onboarding = () => {
     } else if (step === 1) {
       return await trigger(["address", "city", "state", "zipCode"]);
     } else if (step === 2) {
-      return await trigger(["workAuthType"]);
+      return await trigger(["workAuthType", "workAuthOther"]);
     }
     return true;
   };

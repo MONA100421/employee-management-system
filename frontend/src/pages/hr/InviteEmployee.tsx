@@ -8,8 +8,11 @@ import { AxiosError } from "axios";
 const InviteEmployee: React.FC = () => {
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const sendInvite = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const res = await api.post("/hr/invite", { email, name: "New Hire" });
       if (res.data.ok) {
@@ -21,6 +24,8 @@ const InviteEmployee: React.FC = () => {
       } else {
         setMsg("Invite failed");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -32,7 +37,9 @@ const InviteEmployee: React.FC = () => {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <Button onClick={sendInvite}>Send Invite</Button>
+      <Button onClick={sendInvite} disabled={loading || !email}>
+        {loading ? "Sending..." : "Send Invite"}
+      </Button>
     </Box>
   );
 };

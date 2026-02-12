@@ -5,7 +5,6 @@ import { s3Client } from "../utils/s3";
 import { randomUUID } from "crypto";
 import Document from "../models/Document";
 import mongoose from "mongoose";
-import { validateVisaOrderForUser } from "../utils/visaOrder";
 
 const BUCKET = process.env.AWS_BUCKET_NAME;
 const REGION = process.env.AWS_REGION;
@@ -14,7 +13,10 @@ if (!REGION) {
   throw new Error("AWS_REGION is not set");
 }
 
-// POST /api/uploads/presign
+/**
+ * POST /api/uploads/presign
+ * Generates a temporary URL for the frontend to upload a file directly to S3
+ */
 export const presignUpload = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -22,7 +24,6 @@ export const presignUpload = async (req: Request, res: Response) => {
       return res.status(401).json({ ok: false, message: "Unauthorized" });
     }
 
-    // Fix: Explicitly use userId consistently with other controllers
     const userId = user.userId;
 
     if (!BUCKET) {
@@ -40,7 +41,17 @@ export const presignUpload = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate category → document type mapping
+    // Check if an approved document already exists to prevent getting a URL
+    const existing = await Document.findOne({ user: userId, type });
+    if (existing && existing.status === "approved") {
+      return res.status(400).json({
+        ok: false,
+        message:
+          "Cannot overwrite an approved document. Please contact HR if a change is needed.",
+      });
+    }
+
+    // Validate category -> document type mapping
     const validMap: Record<string, string[]> = {
       onboarding: ["id_card", "work_auth", "profile_photo"],
       visa: ["opt_receipt", "opt_ead", "i_983", "i_20"],
@@ -68,7 +79,6 @@ export const presignUpload = async (req: Request, res: Response) => {
       });
     }
 
-    // Build a safe and unique S3 object key using consistent userId
     const safeFileName = String(fileName).replace(/[^a-zA-Z0-9.\-_]/g, "_");
     const key = `${userId}/${category}/${randomUUID()}_${safeFileName}`;
 
@@ -78,32 +88,23 @@ export const presignUpload = async (req: Request, res: Response) => {
       ContentType: contentType,
     });
 
-    // Presigned PUT URL (5 minutes)
     const uploadUrl = await getSignedUrl(s3Client, putCommand, {
       expiresIn: 300,
     });
-
     const fileUrl = `s3://${BUCKET}/${key}`;
 
-    return res.json({
-      ok: true,
-      uploadUrl,
-      fileUrl,
-      key,
-      expiresIn: 300,
-    });
+    return res.json({ ok: true, uploadUrl, fileUrl, key, expiresIn: 300 });
   } catch (err) {
     console.error("presignUpload error:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Failed to generate presigned upload URL",
-    });
+    return res
+      .status(500)
+      .json({ ok: false, message: "Failed to generate presigned upload URL" });
   }
 };
 
 /**
  * POST /api/uploads/complete
- * Called by frontend after successful S3 PUT to finalize document record in DB
+ * Finalizes the document record in DB after the frontend successfully uploads to S3
  */
 export const uploadComplete = async (req: Request, res: Response) => {
   try {
@@ -121,35 +122,14 @@ export const uploadComplete = async (req: Request, res: Response) => {
         .json({ ok: false, message: "Missing required fields" });
     }
 
-    if (category === "visa") {
-      const orderValidation = await validateVisaOrderForUser(userId, type);
-      if (!orderValidation.ok) {
-        return res
-          .status(400)
-          .json({ ok: false, message: orderValidation.message });
-      }
-    }
-
-    // Validation: ensure type belongs to correct category
-    const validMap: Record<string, string[]> = {
-      onboarding: ["id_card", "work_auth", "profile_photo"],
-      visa: ["opt_receipt", "opt_ead", "i_983", "i_20"],
-    };
-    if (!validMap[category]?.includes(type)) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Invalid document type" });
-    }
-
-    // Security check: Prevent overwriting if already approved
     const existing = await Document.findOne({ user: userId, type });
     if (existing && existing.status === "approved") {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Cannot modify approved document" });
+      return res.status(400).json({
+        ok: false,
+        message: "Overwrite blocked: This document has already been approved.",
+      });
     }
 
-    // Upsert the document record to ensure consistency with S3
     const doc = await Document.findOneAndUpdate(
       { user: userId, type },
       {
@@ -175,7 +155,9 @@ export const uploadComplete = async (req: Request, res: Response) => {
   }
 };
 
-// POST /api/uploads/presign-get
+/**
+ * POST /api/uploads/presign-get
+ */
 export const presignGet = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -186,22 +168,17 @@ export const presignGet = async (req: Request, res: Response) => {
     if (!fileUrl)
       return res.status(400).json({ ok: false, message: "Missing fileUrl" });
 
-    // Ownership Check: verify user is the owner or is an HR
     const doc = await Document.findOne({ fileUrl });
-    if (!doc) {
+    if (!doc)
       return res
         .status(404)
         .json({ ok: false, message: "Document record not found" });
-    }
 
     const isOwner = doc.user.toString() === user.userId;
     const isHR = user.role === "hr";
 
     if (!isOwner && !isHR) {
-      return res.status(403).json({
-        ok: false,
-        message: "Forbidden: You do not have permission to access this file",
-      });
+      return res.status(403).json({ ok: false, message: "Forbidden" });
     }
 
     if (!BUCKET)

@@ -209,6 +209,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     if (decision === "approved") {
       const hasUnapproved = await Document.exists({
         user: app.user,
+        category: "onboarding",
         status: { $ne: "approved" },
       });
       if (hasUnapproved) {

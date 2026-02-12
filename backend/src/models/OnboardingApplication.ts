@@ -4,14 +4,14 @@ const OnboardingSchema = new Schema(
   {
     user: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
 
     status: {
       type: String,
-      enum: ['never_submitted', 'pending', 'approved', 'rejected'],
-      default: 'never_submitted',
+      enum: ["never_submitted", "pending", "approved", "rejected"],
+      default: "never_submitted",
     },
 
     formData: {
@@ -22,10 +22,18 @@ const OnboardingSchema = new Schema(
       type: String,
     },
 
+    history: [
+      {
+        status: { type: String },
+        updatedAt: { type: Date, default: Date.now },
+        action: { type: String },
+      },
+    ],
+
     submittedAt: Date,
     reviewedAt: Date,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default model('OnboardingApplication', OnboardingSchema);

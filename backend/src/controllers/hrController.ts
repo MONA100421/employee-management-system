@@ -11,30 +11,34 @@ import mongoose from "mongoose";
  */
 export const listEmployees = async (_req: Request, res: Response) => {
   try {
-    const employees = await User.find({ role: "employee" }).lean();
-
-    const applications = await OnboardingApplication.find().lean();
-
-    const result = employees.map((emp) => {
-      const app = applications.find(
-        (a) => a.user.toString() === emp._id.toString(),
-      );
-      return {
-        id: app?._id || emp._id,
-        employee: {
-          id: emp._id,
-          username: emp.username,
-          email: emp.email,
+    const result = await User.aggregate([
+      { $match: { role: "employee" } },
+      {
+        $lookup: {
+          from: "onboardingapplications",
+          localField: "_id",
+          foreignField: "user",
+          as: "appData",
         },
-        status: app?.status || "never_submitted",
-        submittedAt: app?.submittedAt || null,
-      };
-    });
-
+      },
+      { $unwind: { path: "$appData", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          id: { $ifNull: ["$appData._id", "$_id"] },
+          employee: {
+            id: "$_id",
+            username: "$username",
+            email: "$email",
+          },
+          status: { $ifNull: ["$appData.status", "never_submitted"] },
+          submittedAt: "$appData.submittedAt",
+        },
+      },
+    ]);
     return res.json({ ok: true, employees: result });
   } catch (err) {
-    console.error("listEmployees error:", err);
-    return res.status(500).json({ ok: false, message: "Server Error" });
+    console.error("Aggregation error:", err);
+    return res.status(500).json({ ok: false });
   }
 };
 

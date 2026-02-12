@@ -143,7 +143,7 @@ export const inviteHistory = async (_req: Request, res: Response) => {
       .populate("createdBy", "username")
       .sort({ createdAt: -1 })
       .lean();
-
+    const now = Date.now();
     const out = tokens.map((t: any) => ({
       id: t._id,
       email: t.email,
@@ -152,7 +152,7 @@ export const inviteHistory = async (_req: Request, res: Response) => {
       expiresAt: t.expiresAt,
       used: t.used,
       usedAt: t.usedAt,
-      status: t.used ? "used" : new Date() > t.expiresAt ? "expired" : "active",
+      status: t.used ? "used" : now > t.expiresAt.getTime() ? "expired" : "active",
       sentBy: t.createdBy?.username || "System",
     }));
 

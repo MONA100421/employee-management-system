@@ -36,4 +36,6 @@ const OnboardingSchema = new Schema(
   { timestamps: true },
 );
 
+OnboardingSchema.index({ user: 1 }, { unique: true });
+
 export default model('OnboardingApplication', OnboardingSchema);

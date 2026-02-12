@@ -1,46 +1,41 @@
-import { Request, Response, NextFunction } from "express";
-import { validateVisaOrderForUser } from "../utils/visaOrder";
+import { Router } from "express";
+import { authMiddleware } from "../middleware/authMiddleware";
+import {
+  presignUpload,
+  presignGet,
+  uploadComplete,
+} from "../controllers/uploadController";
+import { enforceVisaOrder } from "../middleware/enforceVisaOrder";
 
+const router = Router();
 
-export const enforceVisaOrder = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const user = (req as any).user;
-    const { type, category } = req.body;
+/**
+ * POST /api/uploads/presign
+ * Get a presigned URL to upload a file directly to S3
+ */
+router.post(
+  "/presign",
+  authMiddleware,
+  enforceVisaOrder,
+  presignUpload,
+);
 
-    // Skip validation if it's not a visa-related document
-    if (category !== "visa") {
-      return next();
-    }
+/**
+ * POST /api/uploads/complete
+ * Sync database record after successful S3 upload
+ * This aligns with Project-B requirement for document visibility and status management
+ */
+router.post(
+  "/complete",
+  authMiddleware,
+  enforceVisaOrder,
+  uploadComplete,
+);
 
-    // Perform sequence validation for visa category
-    if (!type) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Document type is required" });
-    }
+/**
+ * POST /api/uploads/presign-get
+ * Get a presigned URL to download/view a file
+ */
+router.post("/presign-get", authMiddleware, presignGet);
 
-    const result = await validateVisaOrderForUser(user.userId, type);
-
-    if (!result.ok) {
-      return res.status(400).json({
-        ok: false,
-        message: result.message,
-      });
-    }
-
-    // Validation passed, proceed to the controller
-    next();
-  } catch (error) {
-    console.error("enforceVisaOrder error:", error);
-    return res
-      .status(500)
-      .json({
-        ok: false,
-        message: "Internal server error during visa order validation",
-      });
-  }
-};
+export default router;

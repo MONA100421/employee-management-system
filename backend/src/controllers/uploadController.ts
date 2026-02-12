@@ -5,8 +5,9 @@ import { s3Client } from "../utils/s3";
 import { randomUUID } from "crypto";
 import Document from "../models/Document";
 import mongoose from "mongoose";
+import { checkS3ObjectExists } from "../utils/s3";
 
-const BUCKET = process.env.AWS_BUCKET_NAME;
+const BUCKET = process.env.AWS_BUCKET_NAME!;
 const REGION = process.env.AWS_REGION;
 
 if (!REGION) {
@@ -104,7 +105,8 @@ export const presignUpload = async (req: Request, res: Response) => {
 
 /**
  * POST /api/uploads/complete
- * Finalizes the document record in DB after the frontend successfully uploads to S3
+ * Syncs DB record after S3 upload. 
+ * 'enforceVisaOrder' middleware handles sequence checks before reaching this point.
  */
 export const uploadComplete = async (req: Request, res: Response) => {
   try {
@@ -117,19 +119,31 @@ export const uploadComplete = async (req: Request, res: Response) => {
     const { fileUrl, fileName, type, category } = req.body || {};
 
     if (!fileUrl || !fileName || !type || !category) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Missing required fields" });
+      return res.status(400).json({ ok: false, message: "Missing required fields" });
     }
 
     const existing = await Document.findOne({ user: userId, type });
     if (existing && existing.status === "approved") {
       return res.status(400).json({
         ok: false,
-        message: "Overwrite blocked: This document has already been approved.",
+        message: "Action forbidden: Approved documents are locked.",
       });
     }
 
+    const bucket = BUCKET;
+    const key = fileUrl.replace(`s3://${bucket}/`, "");
+
+    const exists = await checkS3ObjectExists(bucket, key);
+    if (!exists) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          message: "File not found in storage. Please re-upload.",
+        });
+    }
+
+    // Upsert the document. Re-uploading (if not approved) resets status to 'pending'.
     const doc = await Document.findOneAndUpdate(
       { user: userId, type },
       {
@@ -149,9 +163,7 @@ export const uploadComplete = async (req: Request, res: Response) => {
     return res.json({ ok: true, document: doc });
   } catch (err) {
     console.error("uploadComplete error:", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Failed to sync document record" });
+    return res.status(500).json({ ok: false, message: "Failed to sync document record" });
   }
 };
 

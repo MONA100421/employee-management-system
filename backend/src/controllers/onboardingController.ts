@@ -156,8 +156,10 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     const app = await OnboardingApplication.findById(id);
     if (!app) return res.status(404).json({ ok: false, message: "Application not found" });
 
-    if (!ALLOWED_TRANSITIONS[app.status].includes(decision)) {
-      return res.status(400).json({ ok: false, message: "Invalid state transition" });
+    if (!ALLOWED_TRANSITIONS[app.status]?.includes(decision)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid state transition" });
     }
 
     if (decision === "approved") {
@@ -214,7 +216,8 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
 export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user || user.role !== "hr") return res.status(403).json({ ok: false });
+    if (!user)
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
 
     const { id } = req.params;
     
@@ -222,7 +225,9 @@ export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
       .populate("user", "username email")
       .lean();
 
-    if (!app) return res.status(404).json({ ok: false, message: "Not found" });
+    if (!app) return res
+      .status(404)
+      .json({ ok: false, message: "Application not found" });
 
     return res.json({
       ok: true,
@@ -242,6 +247,6 @@ export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error('getOnboardingDetailForHR error', err);
-    return res.status(500).json({ ok: false });
+    return res.status(500).json({ ok: false, message: "Server error" });
   }
 };

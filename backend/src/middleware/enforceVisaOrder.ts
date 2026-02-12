@@ -10,9 +10,8 @@ export const enforceVisaOrder = async (
   const { type, category } = req.body;
   const userId = req.user.userId;
 
-  if (category !== "visa" || !VISA_FLOW.includes(type)) {
-    return next();
-  }
+  if (category !== "visa") return next();
+  if (!VISA_FLOW.includes(type)) return next();
 
   try {
     const docs = await Document.find({

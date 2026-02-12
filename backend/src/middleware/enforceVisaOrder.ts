@@ -7,30 +7,52 @@ export const enforceVisaOrder = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const { type } = req.body; // document type
+  const { type, category } = req.body;
   const userId = req.user.userId;
 
-  if (!VISA_FLOW.includes(type)) {
-    return next(); // not visa flow document
+  if (category !== "visa" || !VISA_FLOW.includes(type)) {
+    return next();
   }
 
-  const currentIndex = VISA_FLOW.indexOf(type);
+  try {
+    const existingDoc = await Document.findOne({ user: userId, type });
+    if (existingDoc?.status === "approved") {
+      return res.status(400).json({
+        ok: false,
+        message: "This step is already approved and cannot be modified.",
+      });
+    }
 
-  if (currentIndex === 0) return next();
-
-  const previousType = VISA_FLOW[currentIndex - 1];
-
-  const previousDoc = await Document.findOne({
-    user: userId,
-    type: previousType,
-  });
-
-  if (!previousDoc || previousDoc.status !== "approved") {
-    return res.status(400).json({
-      ok: false,
-      message: `Previous step (${previousType}) must be approved first.`,
+    const allDocs = await Document.find({
+      user: userId,
+      type: { $in: VISA_FLOW },
     });
-  }
+    const approvedDocs = allDocs.filter((d) => d.status === "approved");
 
-  next();
+    if (approvedDocs.length === VISA_FLOW.length) {
+      return res.status(400).json({
+        ok: false,
+        message: "Visa flow already completed and locked.",
+      });
+    }
+
+    const currentIndex = VISA_FLOW.indexOf(type);
+    if (currentIndex > 0) {
+      const previousType = VISA_FLOW[currentIndex - 1];
+      const previousDoc = allDocs.find((d) => d.type === previousType);
+
+      if (!previousDoc || previousDoc.status !== "approved") {
+        return res.status(400).json({
+          ok: false,
+          message: `Previous step (${previousType}) must be approved first.`,
+        });
+      }
+    }
+
+    next();
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ ok: false, message: "Server error in visa validation" });
+  }
 };

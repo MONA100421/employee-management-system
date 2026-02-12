@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
+import { enforceVisaOrder } from "../middleware/enforceVisaOrder";
 import { requireRole } from "../utils/requireRole";
 import {
   getMyDocuments,
@@ -13,7 +14,7 @@ const router = Router();
 
 // employee
 router.get("/me", authMiddleware, getMyDocuments);
-router.post("/", authMiddleware, uploadDocument);
+router.post("/", authMiddleware, enforceVisaOrder, uploadDocument);
 
 // HR
 router.get(

@@ -202,7 +202,12 @@ const VisaStatus: React.FC = () => {
                 <Step key={step.type} completed={step.status === "approved"}>
                   <StepLabel
                     icon={getStepIcon(step.status)}
-                    optional={<StatusChip status={step.status} size="small" />}
+                    optional={
+                      <StatusChip
+                        status={isLocked ? "inactive" : step.status}
+                        size="small"
+                      />
+                    }
                   >
                     <Typography fontWeight={600}>{step.title}</Typography>
                   </StepLabel>

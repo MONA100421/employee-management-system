@@ -3,6 +3,7 @@ import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Client } from "../utils/s3";
 import { randomUUID } from "crypto";
+import Document from "../models/Document";
 
 const BUCKET = process.env.AWS_BUCKET_NAME;
 const REGION = process.env.AWS_REGION;
@@ -100,21 +101,38 @@ export const presignUpload = async (req: Request, res: Response) => {
 // POST /api/uploads/presign-get
 export const presignGet = async (req: Request, res: Response) => {
   try {
+    const user = (req as any).user;
     const { fileUrl } = req.body;
-    if (!fileUrl) {
+
+    if (!user)
+      return res.status(401).json({ ok: false, message: "Unauthorized" });
+    if (!fileUrl)
       return res.status(400).json({ ok: false, message: "Missing fileUrl" });
+
+    // Ownership Check
+    const doc = await Document.findOne({ fileUrl });
+    if (!doc) {
+      return res
+        .status(404)
+        .json({ ok: false, message: "Document record not found" });
     }
 
-    if (!BUCKET) {
-      return res.status(500).json({
+    const isOwner = doc.user.toString() === user.userId;
+    const isHR = user.role === "hr";
+
+    if (!isOwner && !isHR) {
+      return res.status(403).json({
         ok: false,
-        message: "S3 bucket not configured on server",
+        message: "Forbidden: You do not have permission to access this file",
       });
     }
 
-    // Extract S3 object key from stored fileUrl
-    let key: string;
+    if (!BUCKET)
+      return res
+        .status(500)
+        .json({ ok: false, message: "S3 bucket not configured" });
 
+    let key: string;
     if (fileUrl.startsWith("s3://")) {
       key = fileUrl.replace(`s3://${BUCKET}/`, "");
     } else {
@@ -122,25 +140,17 @@ export const presignGet = async (req: Request, res: Response) => {
       key = url.pathname.slice(1);
     }
 
-    const getCommand = new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-    });
-
+    const getCommand = new GetObjectCommand({ Bucket: BUCKET, Key: key });
     const downloadUrl = await getSignedUrl(s3Client, getCommand, {
-      expiresIn: 3600, // 1 hour
+      expiresIn: 3600,
     });
 
-    return res.json({
-      ok: true,
-      downloadUrl,
-    });
+    return res.json({ ok: true, downloadUrl });
   } catch (err) {
     console.error("presignGet error:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Failed to generate download URL",
-    });
+    return res
+      .status(500)
+      .json({ ok: false, message: "Failed to generate download URL" });
   }
 };
 

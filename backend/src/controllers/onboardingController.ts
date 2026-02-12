@@ -146,20 +146,22 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
  * POST /api/hr/onboarding/:id/review
  * HR only: Approves or rejects an onboarding application
  */
+
 export const reviewOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const { id } = req.params;
-    const { decision, feedback } = req.body; // decision: 'approved' | 'rejected'
+    const { decision, feedback } = req.body; 
+
+    if (!["approved", "rejected"].includes(decision)) {
+      return res.status(400).json({ ok: false, message: "Invalid decision value" });
+    }
 
     const app = await OnboardingApplication.findById(id);
-    if (!app) return res.status(404).json({ ok: false });
+    if (!app) return res.status(404).json({ ok: false, message: "Application not found" });
 
-    // HR can only review if status is 'pending'
     if (!ALLOWED_TRANSITIONS[app.status].includes(decision)) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Invalid state transition" });
+      return res.status(400).json({ ok: false, message: "Invalid state transition" });
     }
 
     if (decision === "approved") {
@@ -169,9 +171,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
         status: { $ne: "approved" },
       });
       if (pendingDocs.length > 0) {
-        return res
-          .status(400)
-          .json({ ok: false, message: "Approve all documents first" });
+        return res.status(400).json({ ok: false, message: "Approve all documents first" });
       }
       app.status = "approved";
     } else {
@@ -182,24 +182,15 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     app.reviewedAt = new Date();
     await app.save();
 
-    // Notification and Email logic...
     const employee = await User.findById(app.user);
     if (employee) {
       await NotificationModel.create({
         user: employee._id,
-        type:
-          decision === "approved"
+        type: decision === "approved"
             ? NotificationTypes.ONBOARDING_REVIEW_APPROVED
             : NotificationTypes.ONBOARDING_REVIEW_REJECTED,
-        title:
-          decision === "approved"
-            ? "Onboarding Approved"
-            : "Onboarding Rejected",
-        message:
-          feedback ||
-          (decision === "approved"
-            ? "Your application is complete."
-            : "Please check feedback."),
+        title: decision === "approved" ? "Onboarding Approved" : "Onboarding Rejected",
+        message: feedback || (decision === "approved" ? "Your application is complete." : "Please check feedback."),
       });
       if (employee.email) {
         await enqueueOnboardingDecisionEmail({
@@ -214,7 +205,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
 
     return res.json({ ok: true, status: dbToUIStatus(app.status) });
   } catch (err) {
-    return res.status(500).json({ ok: false });
+    return res.status(500).json({ ok: false, message: "Server error during review" });
   }
 };
 

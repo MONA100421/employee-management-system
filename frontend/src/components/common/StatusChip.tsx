@@ -23,68 +23,68 @@ interface StatusChipProps {
 }
 
 const statusConfig: Record<
-  Exclude<StatusType, 'unknown'>,
-  { label: string; color?: ChipProps['color']; sx?: object }
+  Exclude<StatusType, "unknown">,
+  { label: string; color?: ChipProps["color"]; sx?: object }
 > = {
   pending: {
-    label: 'Pending',
-    color: 'warning',
-    sx: { backgroundColor: '#FFF3E0', color: '#E65100' },
+    label: "Pending",
+    color: "warning",
+    sx: { backgroundColor: "#FFF3E0", color: "#E65100" },
   },
   approved: {
-    label: 'Approved',
-    color: 'success',
-    sx: { backgroundColor: '#E8F5E9', color: '#2E7D32' },
+    label: "Approved",
+    color: "success",
+    sx: { backgroundColor: "#E8F5E9", color: "#2E7D32" },
   },
   rejected: {
-    label: 'Rejected',
-    color: 'error',
-    sx: { backgroundColor: '#FFEBEE', color: '#C62828' },
+    label: "Rejected",
+    color: "error",
+    sx: { backgroundColor: "#FFEBEE", color: "#C62828" },
   },
-  'in-progress': {
-    label: 'In Progress',
-    color: 'info',
-    sx: { backgroundColor: '#E3F2FD', color: '#1565C0' },
+  "in-progress": {
+    label: "In Progress",
+    color: "info",
+    sx: { backgroundColor: "#E3F2FD", color: "#1565C0" },
   },
   completed: {
-    label: 'Completed',
-    color: 'success',
-    sx: { backgroundColor: '#E8F5E9', color: '#2E7D32' },
+    label: "Completed",
+    color: "success",
+    sx: { backgroundColor: "#E8F5E9", color: "#2E7D32" },
   },
-  'not-started': {
-    label: 'Not Started',
-    color: 'default',
-    sx: { backgroundColor: '#F5F5F5', color: '#616161' },
+  "not-started": {
+    label: "Not Started",
+    color: "default",
+    sx: { backgroundColor: "#F5F5F5", color: "#616161" },
   },
   active: {
-    label: 'Active',
-    color: 'success',
-    sx: { backgroundColor: '#E8F5E9', color: '#2E7D32' },
+    label: "Active",
+    color: "success",
+    sx: { backgroundColor: "#E8F5E9", color: "#2E7D32" },
   },
   inactive: {
-    label: 'Inactive',
-    color: 'default',
-    sx: { backgroundColor: '#F5F5F5', color: '#616161' },
+    label: "Locked",
+    color: "default",
+    sx: { backgroundColor: "#EEEEEE", color: "#9E9E9E" },
   },
   expired: {
-    label: 'Expired',
-    color: 'error',
-    sx: { backgroundColor: '#FFEBEE', color: '#C62828' },
+    label: "Expired",
+    color: "error",
+    sx: { backgroundColor: "#FFEBEE", color: "#C62828" },
   },
   sent: {
-    label: 'Sent',
-    color: 'info',
-    sx: { backgroundColor: '#E3F2FD', color: '#1565C0' },
+    label: "Sent",
+    color: "info",
+    sx: { backgroundColor: "#E3F2FD", color: "#1565C0" },
   },
   used: {
-    label: 'Used',
-    color: 'success',
-    sx: { backgroundColor: '#E8F5E9', color: '#2E7D32' },
+    label: "Used",
+    color: "success",
+    sx: { backgroundColor: "#E8F5E9", color: "#2E7D32" },
   },
-  'never-submitted': {
-    label: 'Not Submitted',
-    color: 'default',
-    sx: { backgroundColor: '#EEEEEE', color: '#616161' },
+  "never-submitted": {
+    label: "Not Submitted",
+    color: "default",
+    sx: { backgroundColor: "#EEEEEE", color: "#616161" },
   },
 };
 

@@ -33,11 +33,15 @@ export const enforceVisaOrder = async (
 
     const docMap = new Map<string, any>(docs.map((d) => [d.type, d]));
 
-    // Check if the current step is already approved (prevent overwrite)
-    if (docMap.get(type)?.status === "approved") {
+    const allApproved = VISA_FLOW.every(
+      (step) => docMap.get(step)?.status === "approved",
+    );
+
+    if (allApproved) {
       return res.status(400).json({
         ok: false,
-        message: "This step is already approved and cannot be modified.",
+        message:
+          "Your entire visa flow has been approved and locked. No further changes allowed.",
       });
     }
 

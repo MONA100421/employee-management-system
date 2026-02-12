@@ -1,31 +1,41 @@
 import { Request, Response } from "express";
-import crypto from "crypto";
-import mongoose from "mongoose";
+import User from "../models/User";
+import OnboardingApplication from "../models/OnboardingApplication";
 import RegistrationToken from "../models/RegistrationToken";
 import { emailQueue } from "../queues/emailQueue";
+import crypto from "crypto";
+import mongoose from "mongoose";
 
 /**
  * GET /api/hr/employees
  */
-export const listEmployees = (_req: Request, res: Response) => {
-  const employees = [
-    {
-      id: "1",
-      firstName: "John",
-      lastName: "Doe",
-      email: "john.doe@example.com",
-      visa: "F1 (OPT)",
-    },
-    {
-      id: "2",
-      firstName: "Sarah",
-      lastName: "Johnson",
-      email: "sarah.j@example.com",
-      visa: "H1-B",
-    },
-  ];
+export const listEmployees = async (_req: Request, res: Response) => {
+  try {
+    const employees = await User.find({ role: "employee" }).lean();
 
-  res.json({ ok: true, employees });
+    const applications = await OnboardingApplication.find().lean();
+
+    const result = employees.map((emp) => {
+      const app = applications.find(
+        (a) => a.user.toString() === emp._id.toString(),
+      );
+      return {
+        id: app?._id || emp._id,
+        employee: {
+          id: emp._id,
+          username: emp.username,
+          email: emp.email,
+        },
+        status: app?.status || "never_submitted",
+        submittedAt: app?.submittedAt || null,
+      };
+    });
+
+    return res.json({ ok: true, employees: result });
+  } catch (err) {
+    console.error("listEmployees error:", err);
+    return res.status(500).json({ ok: false, message: "Server Error" });
+  }
 };
 
 /**

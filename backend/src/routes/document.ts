@@ -13,11 +13,14 @@ import {
 const router = Router();
 
 // EMPLOYEE ROUTES
+// Get documents owned by the current logged-in employee
 router.get("/me", authMiddleware, getMyDocuments);
+
+// Upload a new document
 router.post("/", authMiddleware, enforceVisaOrder, uploadDocument);
 
-// HR ROUTES (All protected by requireRole)
-// View specific employee documents
+// HR ROUTES
+// View documents of a specific employee by their User ID
 router.get(
   "/hr/:userId",
   authMiddleware,
@@ -25,7 +28,7 @@ router.get(
   getDocumentsForHRByUser,
 );
 
-// View all visa status management records
+// View all visa status management records (used by VisaManagement.tsx)
 router.get(
   "/hr/visa",
   authMiddleware,
@@ -33,7 +36,7 @@ router.get(
   getVisaDocumentsForHR,
 );
 
-// Approve or Reject a document
+// Approve or Reject a document and provide feedback
 router.post("/:id/review", authMiddleware, requireRole("hr"), reviewDocument);
 
 export default router;

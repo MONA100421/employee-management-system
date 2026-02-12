@@ -23,14 +23,14 @@ import {
   Cancel as RejectIcon,
   Visibility as ViewIcon,
   Download as DownloadIcon,
-  Send as SendIcon,
 } from "@mui/icons-material";
 import StatusChip from "../../components/common/StatusChip";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
-
 import PreviewDialog from "../../components/common/PreviewDialog";
 import { getPresignedGet } from "../../lib/upload";
 import { forceDownloadPresigned } from "../../lib/download";
+// IMPORTANT: Import your axios instance
+import api from "../../lib/api";
 
 type HRVisaDocument = {
   id: string;
@@ -67,21 +67,23 @@ const VisaManagement: React.FC = () => {
     record: null,
   });
 
+  // Load all visa documents using the authenticated API instance
+  const loadDocuments = async () => {
+    setLoading(true);
+    try {
+      // Replaced fetch with api.get to include JWT token
+      const res = await api.get("/documents/hr/visa");
+      setDocuments(res.data.documents ?? []);
+    } catch (err) {
+      console.error("Failed to load visa documents", err);
+      setDocuments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/documents/hr/visa");
-        const data = await res.json();
-        setDocuments(data.documents ?? []);
-      } catch (err) {
-        console.error("Failed to load visa documents", err);
-        setDocuments([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    loadDocuments();
   }, []);
 
   const handleApprove = (record: HRVisaDocument) => {
@@ -95,18 +97,13 @@ const VisaManagement: React.FC = () => {
   const handleFeedbackSubmit = async (feedback: string) => {
     if (!feedbackDialog.record) return;
     try {
-      await fetch(`/api/documents/${feedbackDialog.record.id}/review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          decision: feedbackDialog.type === "approve" ? "approved" : "rejected",
-          feedback,
-        }),
+      // Replaced fetch with api.post
+      await api.post(`/documents/${feedbackDialog.record.id}/review`, {
+        decision: feedbackDialog.type === "approve" ? "approved" : "rejected",
+        feedback,
       });
-      // reload
-      const res = await fetch("/api/documents/hr/visa");
-      const data = await res.json();
-      setDocuments(data.documents ?? []);
+      // Refresh the list after review
+      await loadDocuments();
     } catch (err) {
       console.error("Failed to review document", err);
     } finally {
@@ -114,12 +111,8 @@ const VisaManagement: React.FC = () => {
     }
   };
 
-  // Preview / Download handlers for HR
   const handlePreview = async (doc: HRVisaDocument) => {
-    if (!doc.fileUrl) {
-      console.warn("No fileUrl for preview");
-      return;
-    }
+    if (!doc.fileUrl) return;
     try {
       const res = await getPresignedGet({ fileUrl: doc.fileUrl });
       setPreviewUrl(res.downloadUrl);
@@ -134,30 +127,19 @@ const VisaManagement: React.FC = () => {
   };
 
   const handleDownload = async (doc: HRVisaDocument) => {
-    if (!doc.fileUrl) {
-      console.warn("No fileUrl for download");
-      return;
-    }
+    if (!doc.fileUrl) return;
     try {
       await forceDownloadPresigned(doc.fileUrl, doc.fileName);
     } catch (err) {
       console.error("Download failed", err);
-      try {
-        const res = await getPresignedGet({ fileUrl: doc.fileUrl });
-        window.open(res.downloadUrl, "_blank");
-      } catch (err2) {
-        console.error("Fallback failed", err2);
-      }
     }
   };
 
-  // UI mapping
   const inProgress = documents.filter((d) => d.status === "pending");
   const shownRecords = tabValue === 0 ? inProgress : documents;
 
   return (
     <Box>
-      {/* Header */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
@@ -172,12 +154,15 @@ const VisaManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Tabs */}
       <Card>
         <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-            <Tab label={`In Progress (${inProgress.length})`} />
-            <Tab label={`All (${documents.length})`} />
+            {/* Added keys to Tabs to prevent warnings */}
+            <Tab
+              label={`In Progress (${inProgress.length})`}
+              key="tab-progress"
+            />
+            <Tab label={`All (${documents.length})`} key="tab-all" />
           </Tabs>
         </Box>
 
@@ -187,7 +172,6 @@ const VisaManagement: React.FC = () => {
               <TableRow>
                 <TableCell>Employee</TableCell>
                 <TableCell>Visa Type</TableCell>
-                <TableCell>Current Step</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -198,14 +182,11 @@ const VisaManagement: React.FC = () => {
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                        {record.user?.username
-                          ?.split(" ")
-                          .map((n) => n[0])
-                          .join("")}
+                        {record.user?.username?.[0]?.toUpperCase()}
                       </Avatar>
                       <Box>
                         <Typography fontWeight={500}>
-                          {record.user?.username ?? "Unknown"}
+                          {record.user?.username}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {record.user?.email}
@@ -213,70 +194,69 @@ const VisaManagement: React.FC = () => {
                       </Box>
                     </Box>
                   </TableCell>
-
                   <TableCell>
-                    <Chip label={record.type} size="small" variant="outlined" />
+                    <Chip
+                      label={record.type.toUpperCase()}
+                      size="small"
+                      variant="outlined"
+                    />
                   </TableCell>
-
-                  <TableCell>{record.type}</TableCell>
-
                   <TableCell>
                     <StatusChip status={record.status} size="small" />
                   </TableCell>
-
                   <TableCell align="right">
-                    {record.status === "pending" && (
-                      <Box sx={{ display: "flex", gap: 0.5 }}>
-                        <Tooltip title="Preview document">
-                          <IconButton
-                            size="small"
-                            onClick={() => handlePreview(record)}
-                          >
-                            <ViewIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Download document">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDownload(record)}
-                          >
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Approve">
-                          <IconButton
-                            size="small"
-                            sx={{ color: theme.palette.success.main }}
-                            onClick={() => handleApprove(record)}
-                          >
-                            <ApproveIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Reject">
-                          <IconButton
-                            size="small"
-                            sx={{ color: theme.palette.error.main }}
-                            onClick={() => handleReject(record)}
-                          >
-                            <RejectIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {record.type === "i_983" && (
-                          <Tooltip title="Send Notification">
-                            <IconButton size="small" color="primary">
-                              <SendIcon fontSize="small" />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 0.5,
+                      }}
+                    >
+                      <Tooltip title="Preview">
+                        <IconButton
+                          size="small"
+                          onClick={() => handlePreview(record)}
+                        >
+                          <ViewIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Download">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDownload(record)}
+                        >
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {record.status === "pending" && (
+                        <>
+                          <Tooltip title="Approve">
+                            <IconButton
+                              size="small"
+                              sx={{ color: "success.main" }}
+                              onClick={() => handleApprove(record)}
+                            >
+                              <ApproveIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                        )}
-                      </Box>
-                    )}
+                          <Tooltip title="Reject">
+                            <IconButton
+                              size="small"
+                              sx={{ color: "error.main" }}
+                              onClick={() => handleReject(record)}
+                            >
+                              <RejectIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
-
         {shownRecords.length === 0 && (
           <Box sx={{ p: 4, textAlign: "center" }}>
             <Typography color="text.secondary">
@@ -288,11 +268,7 @@ const VisaManagement: React.FC = () => {
 
       <PreviewDialog
         open={previewOpen}
-        onClose={() => {
-          setPreviewOpen(false);
-          setPreviewUrl(undefined);
-          setPreviewName(undefined);
-        }}
+        onClose={() => setPreviewOpen(false)}
         fileUrl={previewUrl}
         fileName={previewName}
       />
@@ -312,9 +288,7 @@ const VisaManagement: React.FC = () => {
         }
         requireFeedback={feedbackDialog.type === "reject"}
         onSubmit={handleFeedbackSubmit}
-        onCancel={() =>
-          setFeedbackDialog({ open: false, type: "approve", record: null })
-        }
+        onCancel={() => setFeedbackDialog({ ...feedbackDialog, open: false })}
       />
     </Box>
   );

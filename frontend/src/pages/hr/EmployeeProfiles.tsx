@@ -40,12 +40,12 @@ export default function EmployeeProfiles() {
   const load = async () => {
     setLoading(true);
     try {
-      const resp = await api.get('/hr/onboarding');
+      const resp = await api.get("/hr/employees");
       if (resp.data.ok) {
-        setRows(resp.data.applications || []);
+        setRows(resp.data.employees || []);
       }
     } catch (err) {
-      console.error('Failed to load onboarding list', err);
+      console.error("Failed to load onboarding list", err);
     } finally {
       setLoading(false);
     }

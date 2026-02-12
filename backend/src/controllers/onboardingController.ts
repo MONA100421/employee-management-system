@@ -199,14 +199,16 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     if (!ALLOWED_TRANSITIONS[app.status]?.includes(decision)) {
       return res
         .status(400)
-        .json({ ok: false, message: "Invalid state transition" });
+        .json({
+          ok: false,
+          message: `Cannot change status from ${app.status} to ${decision}`,
+        });
     }
 
     // Pre-approval check for documents
     if (decision === "approved") {
       const hasUnapproved = await Document.exists({
         user: app.user,
-        category: "onboarding",
         status: { $ne: "approved" },
       });
       if (hasUnapproved) {
@@ -214,18 +216,23 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
           .status(400)
           .json({
             ok: false,
-            message: "All onboarding documents must be approved first",
+            message:
+              "Please approve all documents before approving the application.",
           });
       }
     }
 
-    // Optimistic Update: Match ID AND Version
+    const filter: any = { _id: id };
+    if (version !== undefined) {
+      filter.__v = version;
+    }
+
     const updatedApp = await OnboardingApplication.findOneAndUpdate(
-      { _id: id, __v: version },
+      filter,
       {
         $set: {
           status: decision,
-          hrFeedback: decision === "rejected" ? feedback : "",
+          hrFeedback: feedback || "",
           reviewedAt: new Date(),
         },
         $inc: { __v: 1 },

@@ -29,15 +29,16 @@ export const enforceVisaOrder = async (
       });
     }
 
-    if (
-      docs.length === VISA_FLOW.length &&
-      docs.every((d) => d.status === "approved")
-    ) {
+    const allApproved = VISA_FLOW.every(
+      (step) => docMap.get(step)?.status === "approved",
+    );
+
+    if (allApproved) {
       return res.status(400).json({
         ok: false,
         message: "Visa flow already completed and locked.",
       });
-    }
+    } 
 
     const currentIndex = VISA_FLOW.indexOf(type);
     if (currentIndex > 0) {

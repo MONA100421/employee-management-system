@@ -84,7 +84,7 @@ export const submitOnboarding = async (req: Request, res: Response) => {
     let app = await OnboardingApplication.findOne({ user: user.userId });
     const currentStatus = app ? app.status : "never_submitted";
 
-    if (!ALLOWED_TRANSITIONS[currentStatus].includes("pending")) {
+    if (!ALLOWED_TRANSITIONS[currentStatus]?.includes("pending")) {
       return res.status(400).json({
         ok: false,
         message: `Submission not allowed when status is ${currentStatus}`,
@@ -161,13 +161,15 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     }
 
     if (decision === "approved") {
-      const pendingDocs = await Document.find({
+      const hasPending = await Document.exists({
         user: app.user,
         category: "onboarding",
         status: { $ne: "approved" },
       });
-      if (pendingDocs.length > 0) {
-        return res.status(400).json({ ok: false, message: "Approve all documents first" });
+      if (hasPending) {
+        return res
+          .status(400)
+          .json({ ok: false, message: "Approve all documents first" });
       }
       app.status = "approved";
     } else {

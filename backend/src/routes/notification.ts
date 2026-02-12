@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authMiddleware } from "../utils/authMiddleware";
+import { authMiddleware } from "../middleware/authMiddleware";
 import {
   listNotifications,
   getUnreadCount,

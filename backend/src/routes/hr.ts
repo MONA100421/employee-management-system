@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { inviteEmployee, listEmployees } from "../controllers/hrController";
-import { authMiddleware } from "../utils/authMiddleware";
+import { authMiddleware } from "../middleware/authMiddleware";
 import { requireRole } from "../utils/requireRole";
 
 const router = Router();

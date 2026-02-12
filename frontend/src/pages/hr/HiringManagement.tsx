@@ -244,9 +244,11 @@ const HiringManagement: React.FC = () => {
           </Typography>
 
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-            {/* Added explicit keys to Tabs to prevent warnings */}
-            {applicationTabs.map((label, index) => (
-              <Tab label={label.charAt(0).toUpperCase() + label.slice(1)} key={`tab-${label}`} />
+            {applicationTabs.map((label) => (
+              <Tab
+                label={label.charAt(0).toUpperCase() + label.slice(1)}
+                key={`tab-${label}`}
+              />
             ))}
           </Tabs>
 

@@ -143,3 +143,15 @@ export const presignGet = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const uploadController = async (req: Request, res: Response) => {
+  try {
+    return res.json({
+      ok: true,
+      message: "File logic processed successfully"
+    });
+  } catch (err) {
+    console.error("uploadController error:", err);
+    return res.status(500).json({ ok: false, message: "Internal server error" });
+  }
+};

@@ -6,7 +6,7 @@ import {
   reviewOnboarding,
   getOnboardingDetailForHR
 } from '../controllers/onboardingController';
-import { authMiddleware } from '../utils/authMiddleware';
+import { authMiddleware } from '../middleware/authMiddleware';
 import { requireRole } from '../utils/requireRole';
 
 const router = Router();

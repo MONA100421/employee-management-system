@@ -8,11 +8,11 @@ import {
   Divider,
   useTheme,
   Alert,
+  Button,
 } from "@mui/material";
 import type { OnboardingFormValues } from "./onboarding.schema";
 import type { OnboardingDocument } from "../../types/document";
 import StatusChip from "../../components/common/StatusChip";
-import { Schedule as ScheduleIcon } from "@mui/icons-material";
 
 type Props = {
   formData: OnboardingFormValues;
@@ -29,9 +29,18 @@ function InfoBlock({
   children: React.ReactNode;
 }) {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" sx={{ height: "100%" }}>
       <CardContent>
-        <Typography variant="subtitle2" sx={{ color: "text.secondary", mb: 1 }}>
+        <Typography
+          variant="subtitle2"
+          sx={{
+            color: "text.secondary",
+            mb: 1,
+            textTransform: "uppercase",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+          }}
+        >
           {title}
         </Typography>
         {children}
@@ -50,15 +59,22 @@ export default function OnboardingReview({
 
   return (
     <Box>
-      <Typography variant="h6" fontWeight={600} mb={2}>
-        Review Your Information
+      <Typography variant="h6" fontWeight={600} mb={1}>
+        Review Your Application
       </Typography>
+
+      {readOnly && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          This application is currently locked because it is under review or has
+          been approved.
+        </Alert>
+      )}
 
       <Typography
         variant="body2"
         sx={{ color: theme.palette.text.secondary, mb: 3 }}
       >
-        Please review your information carefully before submitting.
+        Please confirm all details below are accurate.
       </Typography>
 
       <Grid container spacing={3}>
@@ -70,7 +86,7 @@ export default function OnboardingReview({
               {formData.lastName}
             </Typography>
             <Typography variant="body2">
-              <strong>Date of Birth:</strong> {formData.dateOfBirth || "—"}
+              <strong>DOB:</strong> {formData.dateOfBirth || "—"}
             </Typography>
             <Typography variant="body2">
               <strong>SSN:</strong> ***-**-{formData.ssn?.slice(-4) || "****"}
@@ -83,90 +99,95 @@ export default function OnboardingReview({
 
         {/* Address */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <InfoBlock title="Address">
-            <Typography variant="body2">{formData.address || "—"}</Typography>
+          <InfoBlock title="Contact & Address">
+            <Typography variant="body2">
+              <strong>Phone:</strong> {formData.phone || "—"}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Address:</strong> {formData.address || "—"}
+            </Typography>
             <Typography variant="body2">
               {formData.city}, {formData.state} {formData.zipCode}
             </Typography>
           </InfoBlock>
         </Grid>
 
-        {/* Documents */}
+        {/* Documents Section */}
         <Grid size={{ xs: 12 }}>
-          <InfoBlock title="Documents">
-            <Grid container spacing={2}>
-              {documents.map((doc) => (
-                <Grid size={{ xs: 12, md: 6 }} key={doc.id}>
-                  <Box
-                    onClick={
-                      !readOnly && doc.status === "rejected"
-                        ? () => onFixDocument?.(doc.id)
-                        : undefined
-                    }
-                    sx={{
-                      p: 2,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 2,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 2,
-                      cursor:
-                        !readOnly && doc.status === "rejected"
-                          ? "pointer"
-                          : "default",
-                      bgcolor:
-                        doc.status === "rejected"
-                          ? "rgba(198,40,40,0.06)"
-                          : "transparent",
-                    }}
-                  >
-                    <Box>
-                      <Typography fontWeight={600}>{doc.title}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {doc.fileName
-                          ? `Uploaded ${doc.uploadedAt}`
-                          : "Not uploaded"}
-                      </Typography>
+          <Typography
+            variant="subtitle1"
+            fontWeight={600}
+            sx={{ mt: 2, mb: 2 }}
+          >
+            Uploaded Documents
+          </Typography>
+          <Grid container spacing={2}>
+            {documents.map((doc) => (
+              <Grid size={{ xs: 12, md: 6 }} key={doc.id}>
+                <Box
+                  sx={{
+                    p: 2,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    bgcolor:
+                      doc.status === "rejected"
+                        ? "rgba(211, 47, 47, 0.04)"
+                        : "background.paper",
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>
+                      {doc.title}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                    >
+                      {doc.fileName
+                        ? `File: ${doc.fileName}`
+                        : "No file selected"}
+                    </Typography>
 
-                      {!readOnly && doc.status === "rejected" && (
-                        <Typography variant="caption" color="error">
-                          Click to re-upload
-                        </Typography>
-                      )}
-
-                      {!readOnly && doc.status === "pending" && (
-                        <Box sx={{ display: "flex", gap: 0.5 }}>
-                          <ScheduleIcon fontSize="inherit" color="warning" />
-                          <Typography variant="caption" color="warning.main">
-                            Pending HR review
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-
-                    <StatusChip status={doc.status} size="small" />
+                    {!readOnly && doc.status === "rejected" && (
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => onFixDocument?.(doc.id)}
+                        sx={{ mt: 1, fontSize: "0.7rem" }}
+                      >
+                        Re-upload required
+                      </Button>
+                    )}
                   </Box>
 
-                  {doc.status === "rejected" && doc.hrFeedback && (
-                    <Alert severity="error" sx={{ mt: 1 }}>
-                      <strong>Feedback:</strong> {doc.hrFeedback}
-                    </Alert>
-                  )}
-                </Grid>
-              ))}
-            </Grid>
-          </InfoBlock>
+                  <StatusChip status={doc.status} size="small" />
+                </Box>
+
+                {doc.status === "rejected" && doc.hrFeedback && (
+                  <Alert severity="error" sx={{ mt: 1, py: 0 }}>
+                    <Typography variant="caption">
+                      <strong>HR Feedback:</strong> {doc.hrFeedback}
+                    </Typography>
+                  </Alert>
+                )}
+              </Grid>
+            ))}
+          </Grid>
         </Grid>
       </Grid>
 
       <Divider sx={{ my: 4 }} />
 
-      <Typography variant="caption" sx={{ color: "text.secondary" }}>
-        By submitting, you confirm that the information provided is accurate and
-        complete.
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          Status: {readOnly ? "Locked (Submitted)" : "Draft (Editable)"}
+        </Typography>
+      </Box>
     </Box>
   );
 }

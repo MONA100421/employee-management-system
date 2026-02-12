@@ -36,11 +36,6 @@ const UserSchema = new Schema(
       startDate: Date,
       endDate: Date,
     },
-    onboardingStatus: {
-      type: String,
-      enum: ["never_submitted", "pending", "approved", "rejected"],
-      default: "never_submitted",
-    },
   },
   { timestamps: true },
 );

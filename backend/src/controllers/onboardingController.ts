@@ -7,6 +7,14 @@ import { enqueueOnboardingDecisionEmail } from "../queues/emailQueue";
 import { NotificationTypes } from "../utils/notificationTypes";
 
 
+// Define strict state transition rules
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  never_submitted: ["pending"],
+  pending: ["approved", "rejected"],
+  rejected: ["pending"], // Employee resubmits
+  approved: [], // Final state
+};
+
 const dbToUIStatus = (s: string | undefined) => {
   switch (s) {
     case "never_submitted":
@@ -29,11 +37,9 @@ const dbToUIStatus = (s: string | undefined) => {
 export const getMyOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user) {
+    if (!user)
       return res.status(401).json({ ok: false, message: "Unauthenticated" });
-    }
 
-    // Use user.userId to match the JWT payload from authMiddleware
     const app = await OnboardingApplication.findOne({
       user: user.userId,
     }).lean();
@@ -46,8 +52,6 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
           status: "never-submitted",
           formData: {},
           hrFeedback: null,
-          submittedAt: null,
-          reviewedAt: null,
         },
       });
     }
@@ -64,28 +68,28 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("getMyOnboarding error", err);
     return res.status(500).json({ ok: false, message: "Server error" });
   }
 };
 
 /**
  * POST /api/onboarding
- * Submits or updates the onboarding application for the employee
+ * Employee submits or resubmits application
  */
 export const submitOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user)
-      return res.status(401).json({ ok: false, message: "Unauthenticated" });
-
     const { formData } = req.body;
-    if (!formData || typeof formData !== "object") {
-      return res.status(400).json({ ok: false, message: "Missing formData" });
-    }
 
-    // Use user.userId from JWT
     let app = await OnboardingApplication.findOne({ user: user.userId });
+    const currentStatus = app ? app.status : "never_submitted";
+
+    if (!ALLOWED_TRANSITIONS[currentStatus].includes("pending")) {
+      return res.status(400).json({
+        ok: false,
+        message: `Submission not allowed when status is ${currentStatus}`,
+      });
+    }
 
     if (!app) {
       app = new OnboardingApplication({
@@ -95,14 +99,6 @@ export const submitOnboarding = async (req: Request, res: Response) => {
         submittedAt: new Date(),
       });
     } else {
-      if (!["never_submitted", "rejected"].includes(app.status)) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            message: `Cannot submit when status is ${app.status}`,
-          });
-      }
       app.formData = formData;
       app.status = "pending";
       app.submittedAt = new Date();
@@ -111,7 +107,6 @@ export const submitOnboarding = async (req: Request, res: Response) => {
     await app.save();
     return res.json({ ok: true, status: dbToUIStatus(app.status) });
   } catch (err) {
-    console.error("submitOnboarding error", err);
     return res.status(500).json({ ok: false, message: "Server error" });
   }
 };
@@ -154,42 +149,29 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
 export const reviewOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user || user.role !== "hr") {
-      return res.status(403).json({ ok: false });
-    }
-
     const { id } = req.params;
-    const { decision, feedback } = req.body;
-
-    if (!["approved", "rejected"].includes(decision)) {
-      return res.status(400).json({ ok: false, message: "Invalid decision" });
-    }
+    const { decision, feedback } = req.body; // decision: 'approved' | 'rejected'
 
     const app = await OnboardingApplication.findById(id);
     if (!app) return res.status(404).json({ ok: false });
 
-    if (app.status !== "pending") {
+    // HR can only review if status is 'pending'
+    if (!ALLOWED_TRANSITIONS[app.status].includes(decision)) {
       return res
         .status(400)
-        .json({
-          ok: false,
-          message: "Only pending applications can be reviewed",
-        });
+        .json({ ok: false, message: "Invalid state transition" });
     }
 
-    // If approving, check if all onboarding documents are already approved
     if (decision === "approved") {
       const pendingDocs = await Document.find({
         user: app.user,
         category: "onboarding",
         status: { $ne: "approved" },
       });
-
       if (pendingDocs.length > 0) {
-        return res.status(400).json({
-          ok: false,
-          message: "All onboarding documents must be approved first",
-        });
+        return res
+          .status(400)
+          .json({ ok: false, message: "Approve all documents first" });
       }
       app.status = "approved";
     } else {
@@ -200,10 +182,9 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     app.reviewedAt = new Date();
     await app.save();
 
+    // Notification and Email logic...
     const employee = await User.findById(app.user);
-
     if (employee) {
-      // Create in-app notification using the renamed NotificationModel
       await NotificationModel.create({
         user: employee._id,
         type:
@@ -213,30 +194,26 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
         title:
           decision === "approved"
             ? "Onboarding Approved"
-            : "Onboarding Requires Changes",
+            : "Onboarding Rejected",
         message:
           feedback ||
           (decision === "approved"
             ? "Your application is complete."
             : "Please check feedback."),
-        data: { onboardingId: app._id.toString() },
       });
-
-      // Enqueue email notification
       if (employee.email) {
         await enqueueOnboardingDecisionEmail({
           to: employee.email,
           decision,
-          reviewer: user.username || "HR",
+          reviewer: user.username,
           onboardingId: app._id.toString(),
-          feedback: feedback || "No reason provided",
+          feedback,
         });
       }
     }
 
     return res.json({ ok: true, status: dbToUIStatus(app.status) });
   } catch (err) {
-    console.error("reviewOnboarding error", err);
     return res.status(500).json({ ok: false });
   }
 };

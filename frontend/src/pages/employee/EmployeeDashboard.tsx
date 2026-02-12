@@ -6,6 +6,8 @@ import {
   Avatar,
   LinearProgress,
   useTheme,
+  Alert,
+  Button,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import {
@@ -13,13 +15,13 @@ import {
   Assignment as AssignmentIcon,
   Description as DescriptionIcon,
   CheckCircle as CheckIcon,
-  Warning as WarningIcon,
 } from "@mui/icons-material";
 
 import { useAuth } from "../../contexts/useAuth";
 import StatusChip from "../../components/common/StatusChip";
 import { useDocuments } from "../../hooks/useDocuments";
 import { getMyOnboarding } from "../../lib/onboarding";
+import { useNavigate } from "react-router-dom";
 
 import { useEffect, useState } from "react";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
@@ -28,16 +30,19 @@ import { useNotifications } from "../../hooks/useNotifications";
 const EmployeeDashboard: React.FC = () => {
   const theme = useTheme();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
-  // Onboarding
+  // Onboarding status from single source of truth (Backend Application)
   const [onboardingStatus, setOnboardingStatus] =
     useState<UIOnboardingStatus>("never-submitted");
+  const [hrFeedback, setHrFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         const app = await getMyOnboarding();
         setOnboardingStatus(app.status);
+        setHrFeedback(app.hrFeedback);
       } catch {
         setOnboardingStatus("never-submitted");
       }
@@ -51,17 +56,27 @@ const EmployeeDashboard: React.FC = () => {
     (d) => d.status === "approved",
   ).length;
 
-  const visaTotal = visaDocs.length || 4;
+  const visaTotal = 4; // Expected OPT steps
 
-  // Dashboard cards
+  // Progress Calculation
+  // If approved, 100%. If pending/rejected, base it on form submission + visa progress
+  const onboardingProgress =
+    onboardingStatus === "approved"
+      ? 100
+      : onboardingStatus === "never-submitted"
+        ? 0
+        : 25;
+
+  // Dashboard cards configuration
   const dashboardCards = [
     {
       title: "Personal Information",
       description: "View and update your profile details",
       icon: <PersonIcon sx={{ fontSize: 32 }} />,
       color: theme.palette.primary.main,
-      status: "completed" as const,
+      status: onboardingStatus === "approved" ? "completed" : "locked",
       link: "/employee/personal-info",
+      disabled: onboardingStatus !== "approved",
     },
     {
       title: "Onboarding Application",
@@ -70,6 +85,7 @@ const EmployeeDashboard: React.FC = () => {
       color: theme.palette.success.main,
       status: onboardingStatus,
       link: "/employee/onboarding",
+      disabled: false,
     },
     {
       title: "Visa Status",
@@ -78,31 +94,59 @@ const EmployeeDashboard: React.FC = () => {
       color: theme.palette.warning.main,
       status: visaApprovedCount === visaTotal ? "approved" : "in-progress",
       link: "/employee/visa-status",
+      disabled: onboardingStatus !== "approved",
     },
   ];
 
-  // Onboarding Progress
-  const onboardingProgress = Math.round((visaApprovedCount / visaTotal) * 100);
-
-  // Recent Activity
   const { notifications } = useNotifications();
-
-  const recentActivity = notifications.map((n) => ({
+  const recentActivity = notifications.slice(0, 3).map((n) => ({
     action: n.message,
     date: new Date(n.createdAt).toLocaleDateString(),
     icon: <CheckIcon />,
     color: theme.palette.success.main,
   }));
 
-  // Action Required
   const firstPending = visaDocs.find((d) => d.status !== "approved");
 
   if (loading) {
-    return <Typography>Loading dashboard…</Typography>;
+    return <Typography sx={{ p: 3 }}>Loading dashboard...</Typography>;
   }
 
   return (
     <Box>
+      {/* Critical Status Alerts */}
+      {onboardingStatus === "rejected" && (
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => navigate("/employee/onboarding")}
+            >
+              EDIT FORM
+            </Button>
+          }
+        >
+          <strong>Onboarding Rejected:</strong>{" "}
+          {hrFeedback || "Please review your documents and resubmit."}
+        </Alert>
+      )}
+
+      {onboardingStatus === "pending" && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Your onboarding application is currently under review by HR.
+        </Alert>
+      )}
+
+      {firstPending && onboardingStatus === "approved" && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Action Required: Your <strong>{firstPending.type}</strong> is
+          currently {firstPending.status}.
+        </Alert>
+      )}
+
       {/* Welcome Section */}
       <Card
         sx={{
@@ -121,21 +165,22 @@ const EmployeeDashboard: React.FC = () => {
                 fontWeight: 700,
               }}
             >
-              {user?.firstName?.[0]}
-              {user?.lastName?.[0]}
+              {user?.username?.[0].toUpperCase()}
             </Avatar>
             <Box>
               <Typography
                 variant="h4"
                 sx={{ color: "white", fontWeight: 700, mb: 0.5 }}
               >
-                Welcome back, {user?.firstName}!
+                Welcome back, {user?.username}!
               </Typography>
               <Typography
                 variant="body1"
                 sx={{ color: "rgba(255,255,255,0.8)" }}
               >
-                Here's an overview of your employee portal
+                {onboardingStatus === "approved"
+                  ? "Your onboarding is complete. You can now manage your visa and profile."
+                  : "Please complete your onboarding to unlock all features."}
               </Typography>
             </Box>
           </Box>
@@ -145,18 +190,21 @@ const EmployeeDashboard: React.FC = () => {
       {/* Quick Links */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         {dashboardCards.map((card) => (
-          <Grid size={{ xs: 12, sm: 4 }} key={card.title}>
+          <Grid size={{ xs: 12, md: 4 }} key={card.title}>
             <Card
               sx={{
                 height: "100%",
-                cursor: "pointer",
+                cursor: card.disabled ? "not-allowed" : "pointer",
+                opacity: card.disabled ? 0.7 : 1,
                 transition: "all 0.2s ease",
-                "&:hover": {
-                  transform: "translateY(-4px)",
-                  boxShadow: theme.shadows[4],
-                },
+                "&:hover": !card.disabled
+                  ? {
+                      transform: "translateY(-4px)",
+                      boxShadow: theme.shadows[4],
+                    }
+                  : {},
               }}
-              onClick={() => (window.location.href = card.link)}
+              onClick={() => !card.disabled && navigate(card.link)}
             >
               <CardContent>
                 <Box
@@ -189,7 +237,9 @@ const EmployeeDashboard: React.FC = () => {
                   variant="body2"
                   sx={{ color: theme.palette.text.secondary }}
                 >
-                  {card.description}
+                  {card.disabled
+                    ? "Unlock after onboarding approval"
+                    : card.description}
                 </Typography>
               </CardContent>
             </Card>
@@ -197,11 +247,10 @@ const EmployeeDashboard: React.FC = () => {
         ))}
       </Grid>
 
-      {/* Progress and Activity */}
       <Grid container spacing={3}>
-        {/* Onboarding Progress */}
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <Card>
+        {/* Progress Tracker */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card sx={{ height: "100%" }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={3}>
                 Onboarding Progress
@@ -215,7 +264,7 @@ const EmployeeDashboard: React.FC = () => {
                   }}
                 >
                   <Typography color="text.secondary">
-                    Overall completion
+                    Current Stage: {onboardingStatus}
                   </Typography>
                   <Typography fontWeight={600}>
                     {onboardingProgress}%
@@ -228,10 +277,6 @@ const EmployeeDashboard: React.FC = () => {
                     height: 10,
                     borderRadius: 5,
                     backgroundColor: theme.palette.grey[200],
-                    "& .MuiLinearProgress-bar": {
-                      borderRadius: 5,
-                      background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
-                    },
                   }}
                 />
               </Box>
@@ -240,8 +285,8 @@ const EmployeeDashboard: React.FC = () => {
         </Grid>
 
         {/* Recent Activity */}
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <Card>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card sx={{ height: "100%" }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} mb={3}>
                 Recent Activity
@@ -249,7 +294,7 @@ const EmployeeDashboard: React.FC = () => {
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {recentActivity.length === 0 ? (
                   <Typography color="text.secondary">
-                    No recent activity
+                    No recent updates
                   </Typography>
                 ) : (
                   recentActivity.map((activity, index) => (
@@ -259,27 +304,14 @@ const EmployeeDashboard: React.FC = () => {
                         display: "flex",
                         alignItems: "center",
                         gap: 2,
-                        p: 2,
+                        p: 1.5,
                         bgcolor: theme.palette.background.default,
                         borderRadius: 2,
                       }}
                     >
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          bgcolor: `${activity.color}15`,
-                          color: activity.color,
-                        }}
-                      >
-                        {activity.icon}
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography fontWeight={500}>
+                      <Box sx={{ color: activity.color }}>{activity.icon}</Box>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>
                           {activity.action}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -294,27 +326,6 @@ const EmployeeDashboard: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
-
-      {/* Action Required */}
-      {firstPending && (
-        <Card
-          sx={{
-            mt: 3,
-            bgcolor: theme.palette.warning.main + "10",
-            border: `1px solid ${theme.palette.warning.main}30`,
-          }}
-        >
-          <CardContent sx={{ display: "flex", gap: 2 }}>
-            <WarningIcon sx={{ color: theme.palette.warning.main }} />
-            <Box>
-              <Typography fontWeight={600}>Action Required</Typography>
-              <Typography color="text.secondary">
-                Your {firstPending.type} document is pending upload or approval.
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      )}
     </Box>
   );
 };

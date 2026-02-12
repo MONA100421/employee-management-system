@@ -5,6 +5,7 @@ import { s3Client } from "../utils/s3";
 import { randomUUID } from "crypto";
 import Document from "../models/Document";
 import mongoose from "mongoose";
+import { validateVisaOrderForUser } from "../utils/visaOrder";
 
 const BUCKET = process.env.AWS_BUCKET_NAME;
 const REGION = process.env.AWS_REGION;
@@ -118,6 +119,15 @@ export const uploadComplete = async (req: Request, res: Response) => {
       return res
         .status(400)
         .json({ ok: false, message: "Missing required fields" });
+    }
+
+    if (category === "visa") {
+      const orderValidation = await validateVisaOrderForUser(userId, type);
+      if (!orderValidation.ok) {
+        return res
+          .status(400)
+          .json({ ok: false, message: orderValidation.message });
+      }
     }
 
     // Validation: ensure type belongs to correct category

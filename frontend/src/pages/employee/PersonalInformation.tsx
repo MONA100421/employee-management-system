@@ -9,9 +9,15 @@ type Props = {
   control: Control<OnboardingFormValues>;
   errors: FieldErrors<OnboardingFormValues>;
   mode: Mode;
+  readOnly?: boolean;
 };
 
-export default function PersonalInformation({ control, errors, mode }: Props) {
+export default function PersonalInformation({
+  control,
+  errors,
+  mode,
+  readOnly,
+}: Props) {
   if (mode === "address") {
     return (
       <Grid container spacing={3}>
@@ -24,6 +30,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
                 {...field}
                 fullWidth
                 label="Street Address"
+                disabled={readOnly}
                 required
                 error={!!errors.address}
                 helperText={errors.address?.message}
@@ -41,6 +48,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
                 {...field}
                 fullWidth
                 label="City"
+                disabled={readOnly}
                 required
                 error={!!errors.city}
                 helperText={errors.city?.message}
@@ -59,6 +67,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
                 fullWidth
                 label="State"
                 required
+                disabled={readOnly}
                 error={!!errors.state}
                 helperText={errors.state?.message}
               />
@@ -76,6 +85,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
                 fullWidth
                 label="ZIP Code"
                 required
+                disabled={readOnly}
                 error={!!errors.zipCode}
                 helperText={errors.zipCode?.message}
               />
@@ -99,6 +109,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
               fullWidth
               label="First Name"
               required
+              disabled={readOnly}
               error={!!errors.firstName}
               helperText={errors.firstName?.message}
             />
@@ -116,6 +127,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
               fullWidth
               label="Last Name"
               required
+              disabled={readOnly}
               error={!!errors.lastName}
               helperText={errors.lastName?.message}
             />
@@ -126,6 +138,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="middleName"
+          disabled={readOnly}
           control={control}
           render={({ field }) => (
             <TextField {...field} fullWidth label="Middle Name" />
@@ -136,6 +149,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="preferredName"
+          disabled={readOnly}
           control={control}
           render={({ field }) => (
             <TextField {...field} fullWidth label="Preferred Name" />
@@ -154,6 +168,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
               label="Social Security Number"
               placeholder="XXX-XX-XXXX"
               required
+              disabled={readOnly}
               error={!!errors.ssn}
               helperText={errors.ssn?.message}
             />
@@ -173,6 +188,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
               label="Date of Birth"
               InputLabelProps={{ shrink: true }}
               required
+              disabled={readOnly}
               error={!!errors.dateOfBirth}
               helperText={errors.dateOfBirth?.message}
             />
@@ -183,6 +199,7 @@ export default function PersonalInformation({ control, errors, mode }: Props) {
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="gender"
+          disabled={readOnly}
           control={control}
           render={({ field }) => (
             <TextField {...field} select fullWidth label="Gender">

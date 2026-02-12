@@ -12,11 +12,12 @@ import {
 
 const router = Router();
 
-// employee
+// EMPLOYEE ROUTES
 router.get("/me", authMiddleware, getMyDocuments);
 router.post("/", authMiddleware, enforceVisaOrder, uploadDocument);
 
-// HR
+// HR ROUTES (All protected by requireRole)
+// View specific employee documents
 router.get(
   "/hr/:userId",
   authMiddleware,
@@ -24,6 +25,7 @@ router.get(
   getDocumentsForHRByUser,
 );
 
+// View all visa status management records
 router.get(
   "/hr/visa",
   authMiddleware,
@@ -31,6 +33,7 @@ router.get(
   getVisaDocumentsForHR,
 );
 
+// Approve or Reject a document
 router.post("/:id/review", authMiddleware, requireRole("hr"), reviewDocument);
 
 export default router;

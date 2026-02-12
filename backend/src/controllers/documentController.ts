@@ -5,6 +5,7 @@ import Notification from "../models/Notification";
 import { reviewDocumentService } from "../services/documentReviewService";
 import { enqueueDocumentRejectedEmail } from "../queues/emailQueue";
 import { NotificationTypes } from "../utils/notificationTypes";
+import { validateVisaOrderForUser } from "../utils/visaOrder";
 
 const dbToUIStatus = (s: string) => {
   switch (s) {
@@ -51,6 +52,15 @@ export const uploadDocument = async (req: Request, res: Response) => {
   const { type, category, fileName, fileUrl } = req.body;
   if (!type || !category || !fileName) {
     return res.status(400).json({ ok: false, message: "Missing fields" });
+  }
+
+  if (category === "visa") {
+    const orderValidation = await validateVisaOrderForUser(user.userId, type);
+    if (!orderValidation.ok) {
+      return res
+        .status(400)
+        .json({ ok: false, message: orderValidation.message });
+    }
   }
 
   let doc = await Document.findOne({ user: user.userId, type });

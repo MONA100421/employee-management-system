@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import RegistrationToken, {
   RegistrationTokenDocument,
 } from "../models/RegistrationToken";
@@ -38,17 +39,24 @@ export const listEmployees = (req: Request, res: Response) => {
  * Generate registration token and queue invitation email
  */
 export const inviteEmployee = async (req: Request, res: Response) => {
+  // Start a MongoDB session for transaction
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const user = (req as any).user;
-    const { email, name } = req.body; 
+    const { email, name } = req.body;
 
     if (!email || !name) {
-      return res.status(400).json({ 
-        ok: false, 
-        message: "Both email and name are required to send an invitation" 
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        ok: false,
+        message: "Both email and name are required to send an invitation",
       });
     }
 
+    // Atomically expire any existing active tokens for this email
     await RegistrationToken.updateMany(
       {
         email,
@@ -58,6 +66,7 @@ export const inviteEmployee = async (req: Request, res: Response) => {
       {
         $set: { expiresAt: new Date() }, // Force immediate expiration
       },
+      { session }, // Bind to transaction
     );
 
     const rawToken = crypto.randomBytes(32).toString("hex");
@@ -70,27 +79,38 @@ export const inviteEmployee = async (req: Request, res: Response) => {
     const THREE_HOURS_IN_MS = 3 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + THREE_HOURS_IN_MS);
 
-    // Save token to MongoDB
-    await RegistrationToken.create({
-      email,
-      tokenHash,
-      expiresAt,
-      createdBy: user.userId,
-      role: "employee",
-    } as Partial<RegistrationTokenDocument>);
+    // Create new token within the transaction
+    // Use an array for create when using sessions
+    await RegistrationToken.create(
+      [
+        {
+          email,
+          tokenHash,
+          expiresAt,
+          createdBy: user.userId,
+          role: "employee",
+          used: false,
+        },
+      ],
+      { session },
+    );
 
-    console.log(`[Database] Token created for ${email} (Name: ${name})`);
+    // Commit all changes to database
+    await session.commitTransaction();
+    session.endSession();
+
+    console.log(`[Database] Atomic token creation successful for ${email}`);
 
     const job = await emailQueue.add(
       "registrationInvite",
-      { 
-        to: email, 
-        rawToken, 
-        fullName: name
+      {
+        to: email,
+        rawToken,
+        fullName: name,
       },
       {
         attempts: 3,
-        backoff: 5000, 
+        backoff: 5000,
         removeOnComplete: true,
       },
     );
@@ -98,14 +118,29 @@ export const inviteEmployee = async (req: Request, res: Response) => {
     console.log(`[Queue] Job enqueued successfully! ID: ${job.id}`);
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const registrationLink = `${frontendUrl}/register?token=${rawToken}&email=${encodeURIComponent(email)}`;
+    const registrationLink = `${frontendUrl}/register?token=${rawToken}&email=${encodeURIComponent(
+      email,
+    )}`;
 
     return res.json({
       ok: true,
       message: "Invitation link generated and email queued",
       registrationLink,
     });
-  } catch (err) {
+  } catch (err: any) {
+    // Abort transaction on any error
+    await session.abortTransaction();
+    session.endSession();
+
+    // Handle Duplicate Key Error
+    if (err.code === 11000) {
+      return res.status(409).json({
+        ok: false,
+        message:
+          "A conflict occurred. Please try sending the invitation again.",
+      });
+    }
+
     console.error("inviteEmployee error:", err);
     return res.status(500).json({
       ok: false,

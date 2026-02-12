@@ -87,7 +87,7 @@ export const submitOnboarding = async (req: Request, res: Response) => {
     if (!ALLOWED_TRANSITIONS[currentStatus]?.includes("pending")) {
       return res.status(400).json({
         ok: false,
-        message: `Submission not allowed when status is ${currentStatus}`,
+        message: `Status is ${currentStatus}. Submitting is not allowed in this state.`,
       });
     }
 
@@ -97,11 +97,25 @@ export const submitOnboarding = async (req: Request, res: Response) => {
         status: "pending",
         formData,
         submittedAt: new Date(),
+        history: [
+          {
+            status: "pending",
+            updatedAt: new Date(),
+            action: "Initial Submission",
+          },
+        ],
       });
     } else {
       app.formData = formData;
       app.status = "pending";
       app.submittedAt = new Date();
+      // Record resubmission in history
+      (app as any).history = (app as any).history || [];
+      (app as any).history.push({
+        status: "pending",
+        updatedAt: new Date(),
+        action: "Resubmission",
+      });
     }
 
     await app.save();

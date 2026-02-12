@@ -9,6 +9,7 @@
     "start-all": "concurrently --kill-others \"npm run dev:backend\" \"npm run dev:frontend\""
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "eslint-plugin-mui": "^0.1.1"
   }
 }

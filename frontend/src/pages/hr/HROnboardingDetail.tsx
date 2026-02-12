@@ -85,6 +85,8 @@ const HROnboardingDetailPage = () => {
     loadAll(id);
   }, [id]);
 
+  const canReview = application?.status === "pending";
+
   /* Document approve/reject - use API then refresh via loadAll */
   const handleApproveDoc = async (docId: string) => {
     try {
@@ -126,19 +128,16 @@ const HROnboardingDetailPage = () => {
     navigate("/hr/hiring");
   };
 
-  if (loading) {
+  if (loading)
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+      <Box sx={{ display: "center", mt: 6 }}>
         <CircularProgress />
       </Box>
     );
-  }
-
-  if (!application) {
+  if (!application)
     return (
       <Alert severity="error">Failed to load onboarding application.</Alert>
     );
-  }
 
   return (
     <Box>
@@ -178,7 +177,7 @@ const HROnboardingDetailPage = () => {
 
       <HRDocumentReviewPanel
         documents={baseDocuments}
-        readonly={false}
+        readonly={!canReview}
         onApprove={handleApproveDoc}
         onReject={handleRejectDoc}
         onRefresh={() => loadAll(application.id)}
@@ -203,7 +202,7 @@ const HROnboardingDetailPage = () => {
         </Alert>
       )}
 
-      {application.status === "pending" && (
+      {canReview ? (
         <Stack direction="row" spacing={2}>
           <Button
             variant="contained"
@@ -231,6 +230,23 @@ const HROnboardingDetailPage = () => {
             Back
           </Button>
         </Stack>
+      ) : (
+        <Box
+          sx={{
+            p: 2,
+            bgcolor: "action.hover",
+            borderRadius: 1,
+            textAlign: "center",
+          }}
+        >
+          <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+            This application is already <strong>{application.status}</strong>.
+            No further actions are required.
+          </Alert>
+          <Button variant="contained" onClick={() => navigate("/hr/hiring")}>
+            Return to Management List
+          </Button>
+        </Box>
       )}
 
       <FeedbackDialog

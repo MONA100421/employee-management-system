@@ -5,8 +5,10 @@ import { requireRole } from "../utils/requireRole";
 
 const router = Router();
 
-router.get("/employees", authMiddleware, requireRole("HR"), listEmployees);
+// List all employees - HR ONLY
+router.get("/employees", authMiddleware, requireRole("hr"), listEmployees);
 
-router.post("/invite", authMiddleware, requireRole("HR"), inviteEmployee);
+// Send invitation - HR ONLY
+router.post("/invite", authMiddleware, requireRole("hr"), inviteEmployee);
 
 export default router;

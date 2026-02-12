@@ -110,7 +110,16 @@ const Onboarding = () => {
     load();
   }, [reset]);
 
+  const isReadOnly = status === "pending" || status === "approved";
+
+  const hasIncompleteDocuments = documents.some((d) => d.status !== "approved");
+  const canSubmit =
+    !isReadOnly &&
+    !hasIncompleteDocuments &&
+    (status === "never-submitted" || status === "rejected");
+
   const validateStep = async (step: number) => {
+    if (isReadOnly) return true;
     if (step === 0) {
       return await trigger(["firstName", "lastName", "ssn", "dateOfBirth"]);
     } else if (step === 1) {
@@ -143,11 +152,6 @@ const Onboarding = () => {
     }
   };
 
-  const hasIncompleteDocuments = documents.some((d) => d.status !== "approved");
-  const canSubmit =
-    !hasIncompleteDocuments &&
-    (status === "never-submitted" || status === "rejected");
-
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
@@ -159,10 +163,14 @@ const Onboarding = () => {
   return (
     <Box>
       {status === "pending" && (
-        <Alert severity="info">Application Pending Review</Alert>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Application Pending Review
+        </Alert>
       )}
       {status === "approved" && (
-        <Alert severity="success">Application Approved</Alert>
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Application Approved
+        </Alert>
       )}
       {status === "rejected" && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -170,16 +178,22 @@ const Onboarding = () => {
           <br />
           Please review the feedback below, fix the issues, and resubmit.
           {rejectionFeedback && (
-            <>
-              <br />
+            <Box mt={1}>
               <strong>HR Feedback:</strong> {rejectionFeedback}
-            </>
+            </Box>
           )}
         </Alert>
       )}
 
       <Card>
         <CardContent>
+          {isReadOnly && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              Your application is currently {status}. Fields are locked for
+              editing.
+            </Alert>
+          )}
+
           <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3 }}>
             {stepsLabels.map((label) => (
               <Step key={label}>
@@ -196,6 +210,7 @@ const Onboarding = () => {
               control={control}
               errors={errors}
               mode="personal"
+              readOnly={isReadOnly}
             />
           )}
 
@@ -205,6 +220,7 @@ const Onboarding = () => {
               control={control}
               errors={errors}
               mode="address"
+              readOnly={isReadOnly}
             />
           )}
 
@@ -224,9 +240,9 @@ const Onboarding = () => {
                         label="Work Authorization Type"
                         required
                         InputLabelProps={{ shrink: true }}
-                        value={field.value || ""}
                         error={!!errors.workAuthType}
                         helperText={errors.workAuthType?.message as string}
+                        disabled={isReadOnly}
                       >
                         <MenuItem value="">
                           <em>Select...</em>
@@ -243,7 +259,6 @@ const Onboarding = () => {
                   />
                 </Grid>
 
-                {/* Other */}
                 {getValues("workAuthType") === "other" && (
                   <Grid size={{ xs: 12 }}>
                     <Controller
@@ -256,13 +271,13 @@ const Onboarding = () => {
                           label="Please specify (Visa Title)"
                           required
                           InputLabelProps={{ shrink: true }}
+                          disabled={isReadOnly}
                         />
                       )}
                     />
                   </Grid>
                 )}
 
-                {/* F1 */}
                 {getValues("workAuthType") === "f1" && (
                   <Grid size={{ xs: 12 }}>
                     <Alert severity="info">
@@ -277,7 +292,10 @@ const Onboarding = () => {
 
           {/* Documents */}
           {activeStep === 3 && (
-            <DocumentList documents={documents} onUpload={uploadDocument} />
+            <DocumentList
+              documents={documents}
+              onUpload={isReadOnly ? undefined : uploadDocument}
+            />
           )}
 
           {/* Review */}

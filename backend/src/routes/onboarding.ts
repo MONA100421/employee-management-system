@@ -18,12 +18,27 @@ router.get('/onboarding/me', authMiddleware, getMyOnboarding);
 router.post('/onboarding', authMiddleware, submitOnboarding);
 
 // HR: list
-router.get('/hr/onboarding', authMiddleware, listOnboardingsForHR);
+router.get(
+  "/hr",
+  authMiddleware,
+  requireRole("hr"),
+  listOnboardingsForHR,
+);
 
 // HR: get detail
-router.get('/hr/onboarding/:id', authMiddleware, getOnboardingDetailForHR);
+router.get(
+  "/hr/onboarding/:id",
+  authMiddleware,
+  requireRole("hr"),
+  getOnboardingDetailForHR,
+);
 
 // HR: review
-router.post('/hr/onboarding/:id/review', authMiddleware, reviewOnboarding);
+router.post(
+  "/hr/onboarding/:id/review",
+  authMiddleware,
+  requireRole("hr"),
+  reviewOnboarding,
+);
 
 export default router;

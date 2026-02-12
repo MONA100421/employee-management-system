@@ -15,21 +15,24 @@ export const enforceVisaOrder = async (
   }
 
   try {
-    const existingDoc = await Document.findOne({ user: userId, type });
-    if (existingDoc?.status === "approved") {
+    const docs = await Document.find({
+      user: userId,
+      type: { $in: VISA_FLOW },
+    }).lean();
+
+    const docMap = new Map<string, any>(docs.map((d) => [d.type, d]));
+
+    if (docMap.get(type)?.status === "approved") {
       return res.status(400).json({
         ok: false,
-        message: "This step is already approved and cannot be modified.",
+        message: "This step is already approved.",
       });
     }
 
-    const allDocs = await Document.find({
-      user: userId,
-      type: { $in: VISA_FLOW },
-    });
-    const approvedDocs = allDocs.filter((d) => d.status === "approved");
-
-    if (approvedDocs.length === VISA_FLOW.length) {
+    if (
+      docs.length === VISA_FLOW.length &&
+      docs.every((d) => d.status === "approved")
+    ) {
       return res.status(400).json({
         ok: false,
         message: "Visa flow already completed and locked.",
@@ -38,21 +41,21 @@ export const enforceVisaOrder = async (
 
     const currentIndex = VISA_FLOW.indexOf(type);
     if (currentIndex > 0) {
-      const previousType = VISA_FLOW[currentIndex - 1];
-      const previousDoc = allDocs.find((d) => d.type === previousType);
+      const prevType = VISA_FLOW[currentIndex - 1];
+      
+      const prevDoc = docMap.get(prevType);
 
-      if (!previousDoc || previousDoc.status !== "approved") {
+      if (!prevDoc || prevDoc.status !== "approved") {
         return res.status(400).json({
           ok: false,
-          message: `Previous step (${previousType}) must be approved first.`,
+          message: `Previous step (${prevType}) must be approved first.`,
         });
       }
     }
 
     next();
   } catch (error) {
-    return res
-      .status(500)
-      .json({ ok: false, message: "Server error in visa validation" });
+    console.error("Visa Order Middleware Error:", error);
+    return res.status(500).json({ ok: false, message: "Validation error" });
   }
 };

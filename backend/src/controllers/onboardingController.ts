@@ -117,10 +117,6 @@ export const submitOnboarding = async (req: Request, res: Response) => {
  */
 export const listOnboardingsForHR = async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
-    if (!user || user.role !== "hr")
-      return res.status(403).json({ ok: false, message: "Forbidden" });
-
     const apps = await OnboardingApplication.find()
       .populate("user", "username email")
       .sort({ submittedAt: -1 })

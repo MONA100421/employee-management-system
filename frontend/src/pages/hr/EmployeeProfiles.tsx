@@ -45,7 +45,7 @@ export default function EmployeeProfiles() {
         setRows(resp.data.employees || []);
       }
     } catch (err) {
-      console.error("Failed to load onboarding list", err);
+      console.error("Failed to load employee profiles", err);
     } finally {
       setLoading(false);
     }

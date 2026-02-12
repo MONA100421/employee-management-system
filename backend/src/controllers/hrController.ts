@@ -99,11 +99,15 @@ export const inviteEmployee = async (req: Request, res: Response) => {
     session.endSession();
 
     // send email
-    await emailQueue.add("registrationInvite", {
-      to: email,
-      rawToken,
-      fullName: name,
-    });
+    await emailQueue.add(
+      "registrationInvite",
+      {
+        to: email,
+        rawToken,
+        fullName: name,
+      },
+      { attempts: 3, backoff: 5000, removeOnComplete: true },
+    );
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -143,22 +147,36 @@ export const inviteHistory = async (_req: Request, res: Response) => {
       .populate("createdBy", "username")
       .sort({ createdAt: -1 })
       .lean();
+
     const now = Date.now();
-    const out = tokens.map((t: any) => ({
-      id: t._id,
-      email: t.email,
-      name: t.name || "N/A",
-      createdAt: t.createdAt,
-      expiresAt: t.expiresAt,
-      used: t.used,
-      usedAt: t.usedAt,
-      status: t.used ? "used" : now > t.expiresAt.getTime() ? "expired" : "active",
-      sentBy: t.createdBy?.username || "System",
-    }));
+    const out = tokens.map((t: any) => {
+      const expiresAtTime =
+        t.expiresAt instanceof Date
+          ? t.expiresAt.getTime()
+          : new Date(t.expiresAt).getTime();
+
+      const status = t.used
+        ? "used"
+        : now > expiresAtTime
+          ? "expired"
+          : "active";
+
+      return {
+        id: t._id,
+        email: t.email,
+        name: t.name || "N/A",
+        createdAt: t.createdAt,
+        expiresAt: t.expiresAt,
+        used: t.used,
+        usedAt: t.usedAt,
+        status,
+        sentBy: t.createdBy?.username || "System",
+      };
+    });
 
     return res.json({ ok: true, history: out });
   } catch (err) {
     console.error("inviteHistory error:", err);
-    return res.status(500).json({ ok: false });
+    return res.status(500).json({ ok: false, message: "Server error" });
   }
 };

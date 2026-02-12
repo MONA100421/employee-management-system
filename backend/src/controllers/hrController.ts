@@ -34,6 +34,11 @@ export const listEmployees = async (_req: Request, res: Response) => {
           submittedAt: "$appData.submittedAt",
         },
       },
+      {
+        $sort: {
+          submittedAt: -1,
+        },
+      },
     ]);
     return res.json({ ok: true, employees: result });
   } catch (err) {

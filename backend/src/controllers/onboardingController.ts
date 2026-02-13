@@ -211,6 +211,7 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
           : null,
         status: dbToUIStatus(a.status),
         submittedAt: a.submittedAt ?? a.createdAt,
+        version: a.__v,
       };
       if (grouped[a.status as keyof typeof grouped]) {
         grouped[a.status as keyof typeof grouped].push(record);

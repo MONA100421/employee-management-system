@@ -123,13 +123,15 @@ const Onboarding = () => {
 
 
   const handleUpload = async (type: string, file: File) => {
-    const isVisaDoc = visaDocs.some((d) => d.type === type);
-    if (isVisaDoc) {
+    const visaTypes = ["opt_receipt", "opt_ead", "i_983", "i_20"];
+
+    if (visaTypes.includes(type)) {
       await uploadVisaDoc(type, file);
     } else {
       await uploadOnboardingDoc(type, file);
     }
   };
+
 
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
   const [version, setVersion] = useState<number>(0);

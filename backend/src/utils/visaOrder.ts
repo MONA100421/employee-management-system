@@ -37,3 +37,23 @@ export async function validateVisaOrderForUser(userId: string, type: string) {
 
   return { ok: true };
 }
+
+export const getNextVisaStep = async (userId: string) => {
+  const VISA_STEPS = ["opt_receipt", "opt_ead", "i_983", "i_20"];
+
+  const approvedDocs = await Document.find({
+    user: userId,
+    category: "visa",
+    status: "approved",
+  }).select("type").lean();
+
+  const approvedTypes = approvedDocs.map((d: any) => d.type);
+
+  for (const step of VISA_STEPS) {
+    if (!approvedTypes.includes(step as any)) {
+      return step.replace("_", "-").toUpperCase();
+    }
+  }
+
+  return "COMPLETED";
+}; "COMPLETED";

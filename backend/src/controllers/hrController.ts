@@ -25,19 +25,18 @@ export const listEmployees = async (_req: Request, res: Response) => {
       {
         $project: {
           id: { $ifNull: ["$appData._id", "$_id"] },
-          employee: {
-            id: "$_id",
-            username: "$username",
-            email: "$email",
-          },
+          firstName: "$appData.personalInfo.firstName",
+          lastName: "$appData.personalInfo.lastName",
+          ssn: "$appData.personalInfo.ssn",
+          phone: "$appData.personalInfo.phone",
+          email: "$email",
+          workAuthTitle: "$appData.workAuthorization.authType",
           status: { $ifNull: ["$appData.status", "never_submitted"] },
           submittedAt: "$appData.submittedAt",
         },
       },
       {
-        $sort: {
-          submittedAt: -1,
-        },
+        $sort: { lastName: 1, firstName: 1 },
       },
     ]);
     return res.json({ ok: true, employees: result });
@@ -203,6 +202,23 @@ export const searchEmployees = async (req: Request, res: Response) => {
     }).lean();
 
     return res.json({ ok: true, employees: users });
+  } catch (err) {
+    return res.status(500).json({ ok: false });
+  }
+};
+
+export const getHRStats = async (_req: Request, res: Response) => {
+  try {
+    const totalEmployees = await User.countDocuments({ role: "employee" });
+    const pendingOnboarding = await OnboardingApplication.countDocuments({ status: "pending" });
+
+    return res.json({ 
+      ok: true, 
+      stats: {
+        totalEmployees,
+        pendingOnboarding
+      }
+    });
   } catch (err) {
     return res.status(500).json({ ok: false });
   }

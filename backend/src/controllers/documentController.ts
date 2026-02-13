@@ -5,7 +5,7 @@ import Notification from "../models/Notification";
 import { reviewDocumentService } from "../services/documentReviewService";
 import { enqueueDocumentRejectedEmail } from "../queues/emailQueue";
 import { NotificationTypes } from "../utils/notificationTypes";
-import { validateVisaOrderForUser } from "../utils/visaOrder";
+import { validateVisaOrderForUser, getNextVisaStep } from "../utils/visaOrder";
 
 const dbToUIStatus = (s: string) => {
   switch (s) {
@@ -184,23 +184,103 @@ export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
 
 export const getVisaDocumentsForHR = async (_req: Request, res: Response) => {
   const docs = await Document.find({ category: "visa" })
-    .populate("user", "username email")
+    .populate("user", "username email workAuthorization")
     .lean();
+
+  const documentsWithNextStep = await Promise.all(
+    docs.map(async (d: any) => {
+      const nextStep = d.user ? await getNextVisaStep(d.user._id) : "N/A";
+      const workAuthTitle = d.user?.workAuthorization?.authType || "N/A";
+
+      let daysRemaining = null;
+      if (d.user?.workAuthorization?.endDate) {
+        const end = new Date(d.user.workAuthorization.endDate);
+        const now = new Date();
+        end.setHours(0, 0, 0, 0);
+        now.setHours(0, 0, 0, 0);
+
+        const diffTime = end.getTime() - now.getTime();
+        daysRemaining = Math.max(
+          0,
+          Math.floor(diffTime / (1000 * 60 * 60 * 24)),
+        );
+      }
+
+      return {
+        id: d._id,
+        type: d.type,
+        category: d.category,
+        status: dbToUIStatus(d.status),
+        fileName: d.fileName ?? null,
+        fileUrl: d.fileUrl ?? null,
+        uploadedAt: d.uploadedAt ?? null,
+        hrFeedback: d.hrFeedback ?? null,
+        nextStep,
+        daysRemaining,
+        workAuthTitle,
+        user: d.user
+          ? {
+              id: d.user._id,
+              username: d.user.username,
+              email: d.user.email,
+              workAuth: d.user.workAuthorization,
+            }
+          : null,
+      };
+    }),
+  );
 
   return res.json({
     ok: true,
-    documents: docs.map((d: any) => ({
-      id: d._id,
-      type: d.type,
-      category: d.category,
-      status: dbToUIStatus(d.status),
-      fileName: d.fileName ?? null,
-      fileUrl: d.fileUrl ?? null,
-      uploadedAt: d.uploadedAt ?? null,
-      hrFeedback: d.hrFeedback ?? null,
-      user: d.user
-        ? { id: d.user._id, username: d.user.username, email: d.user.email }
-        : null,
-    })),
+    documents: documentsWithNextStep,
+  });
+};
+
+
+export const sendNotification = async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!user || user.role !== "hr") {
+    return res.status(403).json({ ok: false, message: "Only HR can send notifications" });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const doc = await Document.findById(id).populate("user");
+    if (!doc) return res.status(404).json({ ok: false, message: "Document not found" });
+
+    await Notification.create({
+      user: doc.user,
+      type: NotificationTypes.DOCUMENT_UPLOADED,
+      title: "Visa Document Reminder",
+      message: `HR is requesting an update or action on your ${doc.type} document.`,
+      data: { documentId: doc._id.toString() },
+    });
+
+    return res.json({ ok: true, message: "Notification sent successfully" });
+  } catch (error) {
+    console.error("Send notification error:", error);
+    return res.status(500).json({ ok: false });
+  }
+};
+
+export const getMyVisaStatus = async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const userData = await User.findById(user.userId).select("workAuthorization");
+  
+  let daysRemaining = null;
+  if (userData?.workAuthorization?.endDate) {
+    const end = new Date(userData.workAuthorization.endDate);
+    const now = new Date();
+    end.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+    const diffTime = end.getTime() - now.getTime();
+    daysRemaining = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+  }
+
+  return res.json({
+    ok: true,
+    workAuth: userData?.workAuthorization,
+    daysRemaining
   });
 };

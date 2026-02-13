@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Typography,
@@ -23,6 +24,7 @@ import {
   Cancel as RejectedIcon,
   Description as DocIcon,
   Info as InfoIcon,
+  CloudDownload as TemplateIcon,
 } from "@mui/icons-material";
 
 import StatusChip from "../../components/common/StatusChip";
@@ -65,7 +67,7 @@ const VISA_FLOW = [
 const VisaStatus: React.FC = () => {
   const theme = useTheme();
 
-  const { documents, loading, isUploading, uploadDocument } =
+  const { documents, loading, isUploading, uploadDocument, daysRemaining } =
     useDocuments("visa");
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -107,6 +109,12 @@ const VisaStatus: React.FC = () => {
     }
   }, [location.state]);
 
+  const downloadLocalTemplate = (fileName: string) => {
+    const link = document.createElement("a");
+    link.href = `/templates/${fileName}`;
+    link.download = fileName;
+    link.click();
+  };
 
   const handlePreview = async (
     fileUrl?: string | null,
@@ -166,6 +174,47 @@ const VisaStatus: React.FC = () => {
             />
           </Box>
 
+          {/* ✨ 插入：Visa Expiration Countdown 區塊 */}
+          {daysRemaining !== null && (
+            <Box
+              sx={{
+                mt: 3,
+                p: 2,
+                bgcolor: daysRemaining < 30 ? "error.light" : "info.light",
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: daysRemaining < 30 ? "error.main" : "info.main",
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <InfoIcon color={daysRemaining < 30 ? "error" : "info"} />
+              <Box>
+                <Typography
+                  variant="body1"
+                  fontWeight={600}
+                  color={daysRemaining < 30 ? "error.dark" : "info.dark"}
+                >
+                  Visa Expiration Countdown: {daysRemaining} days remaining
+                </Typography>
+                {daysRemaining < 30 && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "error.dark",
+                      display: "block",
+                      fontWeight: 500,
+                    }}
+                  >
+                    ⚠️ Your work authorization is expiring soon. Please ensure
+                    all documents are submitted.
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          )}
+
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" fontWeight={600}>
               Overall Progress: {completedSteps} / {steps.length}
@@ -216,6 +265,30 @@ const VisaStatus: React.FC = () => {
                     <Typography color="text.secondary" sx={{ mb: 2 }}>
                       {step.description}
                     </Typography>
+
+                    {isCurrentActive && step.type === "i_983" && (
+                      <Box sx={{ mb: 3, display: "flex", gap: 2 }}>
+                        <Button
+                          variant="outlined"
+                          startIcon={<TemplateIcon />}
+                          onClick={() =>
+                            downloadLocalTemplate("i983-empty.pdf")
+                          }
+                        >
+                          Download Empty Template
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="info"
+                          startIcon={<TemplateIcon />}
+                          onClick={() =>
+                            downloadLocalTemplate("i983-sample.pdf")
+                          }
+                        >
+                          Download Sample
+                        </Button>
+                      </Box>
+                    )}
 
                     {step.status === "rejected" && step.hrFeedback && (
                       <Alert severity="error" sx={{ mb: 2 }}>

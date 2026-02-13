@@ -24,6 +24,7 @@ import {
   Cancel as RejectIcon,
   Visibility as ViewIcon,
   Download as DownloadIcon,
+  Send as SendIcon,
 } from "@mui/icons-material";
 import StatusChip from "../../components/common/StatusChip";
 import FeedbackDialog from "../../components/common/FeedbackDialog";
@@ -42,6 +43,9 @@ type HRVisaDocument = {
   uploadedAt?: string;
   version?: number;
   hrFeedback?: string | null;
+  nextStep?: string;
+  daysRemaining?: number | null;
+  workAuthTitle?: string;
   user: {
     id: string;
     username: string;
@@ -143,6 +147,16 @@ const VisaManagement: React.FC = () => {
     }
   };
 
+  const handleSendNotification = async (record: HRVisaDocument) => {
+    try {
+      await api.post(`/documents/${record.id}/notify`);
+      alert(`Notification sent to ${record.user?.username}`);
+    } catch (err) {
+      console.error("Failed to send notification", err);
+      alert("Failed to send notification");
+    }
+  };
+
   const inProgress = documents.filter((d) => d.status === "pending");
   const shownRecords = tabValue === 0 ? inProgress : documents;
 
@@ -181,6 +195,8 @@ const VisaManagement: React.FC = () => {
                 <TableCell>Employee</TableCell>
                 <TableCell>Visa Type</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell>Next Step</TableCell>
+                <TableCell>Time Remaining</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -195,6 +211,16 @@ const VisaManagement: React.FC = () => {
                       <Box>
                         <Typography fontWeight={500}>
                           {record.user?.username}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            color: "primary.main",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Work Auth: {record.workAuthTitle}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {record.user?.email}
@@ -212,6 +238,46 @@ const VisaManagement: React.FC = () => {
                   <TableCell>
                     <StatusChip status={record.status} size="small" />
                   </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: record.status === "pending" ? 700 : 400,
+                        color:
+                          record.status === "pending"
+                            ? "primary.main"
+                            : "text.secondary",
+                      }}
+                    >
+                      {record.nextStep || "N/A"}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    {typeof record.daysRemaining === "number" ? (
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          fontWeight={700}
+                          color={
+                            record.daysRemaining < 30
+                              ? "error.main"
+                              : "text.primary"
+                          }
+                        >
+                          {record.daysRemaining} days
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          until expiration
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.disabled">
+                        N/A
+                      </Typography>
+                    )}
+                  </TableCell>
+
                   <TableCell align="right">
                     <Box
                       sx={{
@@ -220,6 +286,15 @@ const VisaManagement: React.FC = () => {
                         gap: 0.5,
                       }}
                     >
+                      <Tooltip title="Send Notification">
+                        <IconButton
+                          size="small"
+                          sx={{ color: theme.palette.info.main }}
+                          onClick={() => handleSendNotification(record)}
+                        >
+                          <SendIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Preview">
                         <IconButton
                           size="small"
@@ -264,7 +339,7 @@ const VisaManagement: React.FC = () => {
               ))}
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
@@ -305,6 +380,6 @@ const VisaManagement: React.FC = () => {
       />
     </Box>
   );
-};
+};;
 
 export default VisaManagement;

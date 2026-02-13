@@ -14,6 +14,16 @@ const OnboardingSchema = new Schema(
       default: "never_submitted",
     },
 
+    personalInfo: {
+      firstName: String,
+      lastName: String,
+      ssn: String,
+      phone: String,
+    },
+    workAuthorization: {
+      authType: String,
+    },
+
     formData: {
       type: Schema.Types.Mixed,
     },

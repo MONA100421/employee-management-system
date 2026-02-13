@@ -5,11 +5,6 @@ import { uploadFilePresigned } from "../lib/upload";
 
 export type UseDocumentsScope = DocumentCategory | "all";
 
-/**
- * ⚠️ 注意：
- * 這個 cache 只存在於 module scope，
- * 用於「登入期間」避免重複 fetch
- */
 let internalCache: BaseDocument[] | null = null;
 
 export const resetDocumentsCache = () => {
@@ -20,6 +15,7 @@ export const useDocuments = (scope: UseDocumentsScope) => {
   const [documents, setDocuments] = useState<BaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
 
   const applyScope = useCallback(
     (docs: BaseDocument[]) =>
@@ -35,12 +31,18 @@ export const useDocuments = (scope: UseDocumentsScope) => {
         internalCache = res.data.documents || [];
       }
       setDocuments(applyScope(internalCache ?? []));
+      if (scope === "visa") {
+        const res = await api.get("/documents/my-visa-status");
+        if (res.data.ok) {
+          setDaysRemaining(res.data.daysRemaining);
+        }
+      }
     } catch (err) {
       console.error("Failed to load documents", err);
     } finally {
       setLoading(false);
     }
-  }, [applyScope]);
+  }, [applyScope, scope]);
 
   useEffect(() => {
     load();
@@ -52,6 +54,10 @@ export const useDocuments = (scope: UseDocumentsScope) => {
       const res = await api.get("/documents/me");
       internalCache = res.data.documents || [];
       setDocuments(applyScope(internalCache ?? []));
+      if (scope === "visa") {
+        const visaRes = await api.get("/documents/my-visa-status");
+        setDaysRemaining(visaRes.data.daysRemaining);
+      }
     } catch (err) {
       console.error("Failed to refresh documents", err);
     } finally {
@@ -93,5 +99,6 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     uploadDocument,
     reviewDocument,
     refresh,
+    daysRemaining,
   };
 };

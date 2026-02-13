@@ -24,13 +24,19 @@ import {
 
 type OnboardingRow = {
   id: string;
+  firstName?: string;
+  lastName?: string;
+  ssn?: string;
+  phone?: string;
+  email?: string;
+  workAuthTitle?: string;
+  status: UIOnboardingStatus;
+  submittedAt?: string;
   version?: number;
   employee?: {
     username?: string;
     email?: string;
   } | null;
-  status: UIOnboardingStatus;
-  submittedAt?: string;
 };
 
 export default function EmployeeProfiles() {
@@ -48,10 +54,17 @@ export default function EmployeeProfiles() {
     setLoading(true);
     try {
       const grouped = await getHROnboardings();
+      const allItems = [
+        ...grouped.pending,
+        ...grouped.approved,
+        ...grouped.rejected,
+      ].map((item: any) => ({
+        ...item,
+        email: item.email || item.employee?.email || "",
+      }));
 
-      setRows([...grouped.pending, ...grouped.approved, ...grouped.rejected]);
+      setRows(allItems as OnboardingRow[]);
     } catch (err) {
-      console.error("Failed to load employee profiles", err);
       setRows([]);
     } finally {
       setLoading(false);
@@ -62,7 +75,7 @@ export default function EmployeeProfiles() {
     load();
   }, []);
 
-  // map backend UI status -> StatusChip status
+  // map backend UI status
   const mapStatus = (s: UIOnboardingStatus): StatusType => {
     switch (s) {
       case "approved":
@@ -92,11 +105,12 @@ export default function EmployeeProfiles() {
   // Filter rows based on search query.
   const filteredRows = useMemo(() => {
     const query = searchQuery.toLowerCase();
-
     return rows.filter((row) => {
-      const name = row.employee?.username?.toLowerCase() || "";
-      const email = row.employee?.email?.toLowerCase() || "";
-      return name.includes(query) || email.includes(query);
+      const firstName = row.firstName || "";
+      const lastName = row.lastName || "";
+      const fullName = `${firstName} ${lastName}`.toLowerCase();
+      const email = (row.email || row.employee?.email || "").toLowerCase();
+      return fullName.includes(query) || email.includes(query);
     });
   }, [rows, searchQuery]);
 
@@ -151,10 +165,12 @@ export default function EmployeeProfiles() {
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Employee</TableCell>
+            <TableCell>Full Name (Legal)</TableCell>
+            <TableCell>SSN</TableCell>
+            <TableCell>Work Auth</TableCell>
+            <TableCell>Phone</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Status</TableCell>
-            <TableCell>Submitted At</TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -162,8 +178,26 @@ export default function EmployeeProfiles() {
         <TableBody>
           {filteredRows.map((row) => (
             <TableRow key={row.id} hover>
-              <TableCell>{row.employee?.username ?? "—"}</TableCell>
-              <TableCell>{row.employee?.email ?? "—"}</TableCell>
+              {/* Legal Full Name */}
+              <TableCell sx={{ fontWeight: 500 }}>
+                {row.firstName ? `${row.firstName} ${row.lastName}` : "N/A"}
+              </TableCell>
+
+              {/* SSN */}
+              <TableCell>{row.ssn ?? "—"}</TableCell>
+
+              {/* Work Auth Title */}
+              <TableCell>
+                <Typography variant="body2" color="primary">
+                  {row.workAuthTitle ?? "—"}
+                </Typography>
+              </TableCell>
+
+              {/* Phone */}
+              <TableCell>{row.phone ?? "—"}</TableCell>
+
+              {/* Email */}
+              <TableCell>{row.email}</TableCell>
               <TableCell>
                 <StatusChip status={mapStatus(row.status)} />
               </TableCell>
@@ -201,7 +235,7 @@ export default function EmployeeProfiles() {
 
           {!loading && filteredRows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5}>
+              <TableCell colSpan={7}>
                 <Typography
                   variant="body2"
                   color="text.secondary"
@@ -226,7 +260,11 @@ export default function EmployeeProfiles() {
             ? "Approve Onboarding Application"
             : "Reject Onboarding Application"
         }
-        itemName={activeRow?.employee?.username}
+        itemName={
+          activeRow?.firstName
+            ? `${activeRow.firstName} ${activeRow.lastName}`
+            : activeRow?.employee?.username || "Employee"
+        }
         requireFeedback={dialogType === "reject"}
         onSubmit={handleDialogSubmit}
         onCancel={() => {

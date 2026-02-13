@@ -132,34 +132,35 @@ export const reviewDocument = async (req: Request, res: Response) => {
   }
 
   const docId = String(req.params.id);
-  const { decision, feedback } = req.body;
+  const { decision, feedback, version } = req.body;
 
   if (!["approved", "rejected"].includes(decision)) {
     return res.status(400).json({ ok: false });
   }
 
-  const updatedDoc = await reviewDocumentService({
-    docId,
-    decision,
-    reviewer: { id: user.userId, username: user.username },
-    feedback,
-  });
+  const updatedDoc = await Document.findOneAndUpdate(
+    {
+      _id: docId,
+      __v: version,
+      status: "pending",
+    },
+    {
+      $set: {
+        status: decision,
+        hrFeedback: decision === "rejected" ? feedback : null,
+        reviewedAt: new Date(),
+        reviewedBy: user.userId,
+      },
+      $inc: { __v: 1 },
+    },
+    { new: true },
+  );
 
-  if (decision === "rejected") {
-    try {
-      const employee = await User.findById(updatedDoc.user);
-
-      if (employee && employee.email) {
-        await enqueueDocumentRejectedEmail({
-          to: employee.email,
-          documentType: updatedDoc.type,
-          reviewer: user.username || "HR Manager",
-          feedback: feedback || "No specific reason provided.",
-        });
-      }
-    } catch (emailError) {
-      console.error("Failed to enqueue rejection email:", emailError);
-    }
+  if (!updatedDoc) {
+    return res.status(409).json({
+      ok: false,
+      message: "This document has already been modified by another HR.",
+    });
   }
 
   return res.json({
@@ -167,6 +168,7 @@ export const reviewDocument = async (req: Request, res: Response) => {
     status: dbToUIStatus(updatedDoc.status),
   });
 };
+
 
 export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
   const { userId } = req.params;

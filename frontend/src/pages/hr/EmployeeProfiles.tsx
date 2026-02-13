@@ -244,7 +244,7 @@ export default function EmployeeProfiles() {
 
           {!loading && filteredRows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7}>
+              <TableCell colSpan={8}>
                 <Typography
                   variant="body2"
                   color="text.secondary"

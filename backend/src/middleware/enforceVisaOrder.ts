@@ -9,6 +9,22 @@ export const enforceVisaOrder = async (
   next: NextFunction,
 ) => {
   const { type, category } = req.body;
+  const validTypes = [
+    "id_card",
+    "work_auth",
+    "profile_photo",
+    "opt_receipt",
+    "opt_ead",
+    "i_983",
+    "i_20",
+  ];
+
+  if (!validTypes.includes(type)) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid document type",
+    });
+  }
   const userId = req.user?.userId;
 
   if (!userId) {

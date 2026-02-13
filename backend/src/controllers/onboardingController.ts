@@ -43,7 +43,6 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
       user: user.userId,
     });
 
-    // First time initialization
     if (!app) {
       app = await OnboardingApplication.create({
         user: user.userId,
@@ -59,16 +58,32 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
       });
     }
 
-    // Ensure required onboarding docs always exist
     const baseDocs = [
       { type: "profile_photo", category: "onboarding" },
       { type: "id_card", category: "onboarding" },
       { type: "work_auth", category: "onboarding" },
     ];
 
-    if (app.formData?.workAuthType === "f1") {
+    for (const doc of baseDocs) {
       await Document.findOneAndUpdate(
-        { user: user.userId, type: "opt_receipt" },
+        { user: user.userId, type: doc.type, deletedAt: null },
+        {
+          $setOnInsert: {
+            user: user.userId,
+            type: doc.type,
+            category: doc.category,
+            status: "not_started",
+          },
+        },
+        { upsert: true },
+      );
+    }
+
+    const workAuthType = app.formData?.workAuthType;
+
+    if (workAuthType === "f1") {
+      await Document.findOneAndUpdate(
+        { user: user.userId, type: "opt_receipt", deletedAt: null },
         {
           $setOnInsert: {
             user: user.userId,
@@ -78,21 +93,6 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
           },
         },
         { upsert: true },
-      );
-    }
-
-    for (const doc of baseDocs) {
-      await Document.findOneAndUpdate(
-        { user: user.userId, type: doc.type },
-        {
-          $setOnInsert: {
-            user: user.userId,
-            type: doc.type,
-            category: doc.category,
-            status: "not_started",
-          },
-        },
-        { upsert: true }
       );
     }
 
@@ -241,7 +241,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     }
 
     const app = await OnboardingApplication.findOne({
-      user: user.userId,
+      _id: id,
       __v: version,
     }).session(session);
 

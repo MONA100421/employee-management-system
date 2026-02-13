@@ -114,8 +114,7 @@ const HROnboardingDetailPage = () => {
       await reviewOnboarding(
         application.id,
         "approved",
-        "",
-        application.version,
+        ""
       );
       navigate("/hr/hiring");
     } catch (err: any) {
@@ -142,7 +141,6 @@ const HROnboardingDetailPage = () => {
         application.id,
         "rejected",
         feedback,
-        application.version,
       );
       navigate("/hr/hiring");
     } catch (err: any) {

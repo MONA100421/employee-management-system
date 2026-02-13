@@ -65,12 +65,11 @@ export async function reviewOnboarding(
   onboardingId: string,
   decision: ReviewDecision,
   feedback?: string,
-  version?: number
 ): Promise<{ ok: boolean }> {
-  const resp = await api.post(
-    `/hr/onboarding/${onboardingId}/review`,
-    { decision, feedback, version } 
-  );
+  const resp = await api.post(`/hr/onboarding/${onboardingId}/review`, {
+    decision,
+    feedback,
+  });
 
   return resp.data;
 }
@@ -88,7 +87,7 @@ export type HROnboardingListItem = {
   version: number;
 };
 
-export async function getHROnboardings(): Promise<GroupedOnboardings> {
+export async function getHROnboardings() {
   const res = await api.get("/hr/onboarding");
   return res.data.grouped;
 }

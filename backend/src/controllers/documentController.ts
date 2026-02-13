@@ -200,7 +200,7 @@ export const getDocumentsForHRByUser = async (req: Request, res: Response) => {
 
 export const getVisaDocumentsForHR = async (_req: Request, res: Response) => {
   const docs = await Document.find({ category: "visa" })
-    .populate("user", "username email workAuthorization")
+    .populate("user")
     .lean();
 
   const documentsWithNextStep = await Promise.all(

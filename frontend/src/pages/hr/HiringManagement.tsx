@@ -77,16 +77,11 @@ const HiringManagement: React.FC = () => {
   const loadApplications = async () => {
     setLoadingApps(true);
     try {
-      const res: any = await getHROnboardings();
+      const data = await getHROnboardings();
 
-      if (res && res.grouped) {
-        const { pending = [], approved = [], rejected = [] } = res.grouped;
-        setApplications([...pending, ...approved, ...rejected]);
-      } else if (Array.isArray(res)) {
-        setApplications(res);
-      } else {
-        setApplications([]);
-      }
+      const { pending = [], approved = [], rejected = [] } = data || {};
+
+      setApplications([...pending, ...approved, ...rejected]);
     } catch (err) {
       console.error("Failed to load applications", err);
       setApplications([]);
@@ -94,6 +89,7 @@ const HiringManagement: React.FC = () => {
       setLoadingApps(false);
     }
   };
+
 
   // Fetch invitation history
   const loadHistory = async () => {
@@ -200,7 +196,6 @@ const HiringManagement: React.FC = () => {
         feedbackDialog.application.id,
         feedbackDialog.type === "approve" ? "approved" : "rejected",
         feedbackDialog.type === "reject" ? feedback : undefined,
-        feedbackDialog.application.version,
       );
 
       setFeedbackDialog({ open: false, type: "approve", application: null });

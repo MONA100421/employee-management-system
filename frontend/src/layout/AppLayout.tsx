@@ -138,7 +138,7 @@ const AppLayout: React.FC = () => {
 
       <List sx={{ flex: 1, py: 2 }}>
         {menuItems.map((item) => (
-          <ListItem disablePadding sx={{ px: 2, py: 0.5 }}>
+          <ListItem key={item.path} disablePadding sx={{ px: 2, py: 0.5 }}>
             <ListItemButton
               component={NavLink}
               to={item.path}

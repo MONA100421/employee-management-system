@@ -163,30 +163,47 @@ export const inviteHistory = async (_req: Request, res: Response) => {
       .lean();
 
     const now = Date.now();
-    const out = tokens.map((t: any) => {
-      const expiresAtTime =
-        t.expiresAt instanceof Date
-          ? t.expiresAt.getTime()
-          : new Date(t.expiresAt).getTime();
 
-      const status = t.used
-        ? "used"
-        : now > expiresAtTime
-          ? "expired"
-          : "active";
+    const out = await Promise.all(
+      tokens.map(async (t: any) => {
+        const expiresAtTime =
+          t.expiresAt instanceof Date
+            ? t.expiresAt.getTime()
+            : new Date(t.expiresAt).getTime();
 
-      return {
-        id: t._id,
-        email: t.email,
-        name: t.name || "N/A",
-        createdAt: t.createdAt,
-        expiresAt: t.expiresAt,
-        used: t.used,
-        usedAt: t.usedAt,
-        status,
-        sentBy: t.createdBy?.username || "System",
-      };
-    });
+        const status = t.used
+          ? "used"
+          : now > expiresAtTime
+            ? "expired"
+            : "active";
+
+        let onboarding = null;
+        if (t.usedBy) {
+          onboarding = await OnboardingApplication.findOne({
+            user: t.usedBy,
+          }).lean();
+        }
+
+
+        return {
+          id: t._id,
+          email: t.email,
+          name: t.name || "N/A",
+          createdAt: t.createdAt,
+          expiresAt: t.expiresAt,
+          used: t.used,
+          usedAt: t.usedAt,
+          status,
+          sentBy: t.createdBy?.username || "System",
+
+          registrationLink: t.used
+            ? null
+            : "Invitation link was sent via email",
+
+          onboardingSubmitted: !!onboarding,
+        };
+      }),
+    );
 
     return res.json({ ok: true, history: out });
   } catch (err) {
@@ -196,6 +213,7 @@ export const inviteHistory = async (_req: Request, res: Response) => {
       .json({ ok: false, message: "Internal server error" });
   }
 };
+
 
 export const searchEmployees = async (req: Request, res: Response) => {
   try {

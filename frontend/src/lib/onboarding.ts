@@ -22,6 +22,8 @@ export interface InvitationRecord {
   name: string;
   status: "active" | "expired" | "used";
   createdAt: string;
+  registrationLink?: string;
+  onboardingSubmitted?: boolean;
 }
 
 /**

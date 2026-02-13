@@ -17,6 +17,7 @@ import {
   IconButton,
   Tooltip,
   useTheme,
+  Button,
   CircularProgress,
 } from "@mui/material";
 import {
@@ -209,9 +210,21 @@ const VisaManagement: React.FC = () => {
                         {record.user?.username?.charAt(0).toUpperCase() || "?"}
                       </Avatar>
                       <Box>
-                        <Typography fontWeight={500}>
-                          {record.user?.username || "Unknown User"}
-                        </Typography>
+                        <Button
+                          variant="text"
+                          onClick={() =>
+                            window.open(
+                              `/hr/employee/${record.user?.id}`,
+                              "_blank",
+                            )
+                          }
+                          sx={{ textTransform: "none", p: 0, minWidth: 0 }}
+                        >
+                          <Typography fontWeight={500}>
+                            {record.user?.username || "Unknown User"}
+                          </Typography>
+                        </Button>
+
                         <Typography
                           variant="caption"
                           sx={{
@@ -311,7 +324,7 @@ const VisaManagement: React.FC = () => {
                           <DownloadIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      {record.status === "pending" && (
+                      {tabValue === 0 && record.status === "pending" && (
                         <>
                           <Tooltip title="Approve">
                             <IconButton

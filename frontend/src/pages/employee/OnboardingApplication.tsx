@@ -13,6 +13,7 @@ import {
   Grid,
   TextField,
   MenuItem,
+  Typography,
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -175,9 +176,11 @@ const Onboarding = () => {
     <Box>
       {status === "pending" && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Application Pending Review
+          Application Pending Review — your uploaded documents are read-only
+          while HR reviews.
         </Alert>
       )}
+
       {status === "approved" && (
         <Alert severity="success" sx={{ mb: 2 }}>
           Application Approved
@@ -198,6 +201,15 @@ const Onboarding = () => {
 
       <Card>
         <CardContent>
+          {status === "pending" && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Submitted documents (read-only while pending)
+              </Typography>
+              <DocumentList documents={documents} onUpload={undefined} />
+            </Box>
+          )}
+
           {isReadOnly && (
             <Alert severity="warning" sx={{ mb: 3 }}>
               Your application is currently {status}. Fields are locked for
@@ -305,7 +317,7 @@ const Onboarding = () => {
           {activeStep === 3 && (
             <DocumentList
               documents={documents}
-              onUpload={isReadOnly ? undefined : uploadDocument}
+              onUpload={isReadOnly ? undefined : uploadDocument} // 保持現有
             />
           )}
 

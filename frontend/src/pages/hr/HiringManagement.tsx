@@ -40,11 +40,9 @@ import {
   type HROnboardingListItem,
   type InvitationRecord,
 } from "../../lib/onboarding";
-import { useNavigate } from "react-router-dom";
 
 const HiringManagement: React.FC = () => {
-  const navigate = useNavigate();
-
+  
   const [tabValue, setTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -330,18 +328,43 @@ const HiringManagement: React.FC = () => {
                       <TableRow key={item.id} hover>
                         <TableCell>
                           <Typography variant="body2" fontWeight={500}>
-                            {item.email}
+                            {item.name ?? item.email}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                          >
                             Sent:{" "}
                             {new Date(item.createdAt).toLocaleString([], {
                               dateStyle: "short",
                               timeStyle: "short",
                             })}
                           </Typography>
+                          {item.registrationLink && (
+                            <Typography
+                              variant="caption"
+                              sx={{ display: "block", mt: 0.5 }}
+                            >
+                              Link:{" "}
+                              <a
+                                href={item.registrationLink}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {item.registrationLink}
+                              </a>
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell>
                           <StatusChip status={item.status} />
+                          {typeof item.onboardingSubmitted !== "undefined" && (
+                            <Typography variant="caption" display="block">
+                              Submitted:{" "}
+                              {item.onboardingSubmitted ? "Yes" : "No"}
+                            </Typography>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -415,9 +438,24 @@ const HiringManagement: React.FC = () => {
                                 {app.employee?.username?.[0]}
                               </Avatar>
                               <Box>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {app.employee?.username}
-                                </Typography>
+                                <Button
+                                  variant="text"
+                                  onClick={() =>
+                                    window.open(
+                                      `/hr/employee/${app.employee?.id || app.id}`,
+                                      "_blank",
+                                    )
+                                  }
+                                  sx={{
+                                    textTransform: "none",
+                                    p: 0,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {app.employee?.username}
+                                  </Typography>
+                                </Button>
                                 <Typography variant="caption">
                                   {app.employee?.email}
                                 </Typography>
@@ -451,7 +489,10 @@ const HiringManagement: React.FC = () => {
                             )}
                             <IconButton
                               onClick={() =>
-                                navigate(`/hr/onboarding/${app.id}`)
+                                window.open(
+                                  `/hr/onboarding/${app.id}`,
+                                  "_blank",
+                                )
                               }
                             >
                               <ViewIcon />

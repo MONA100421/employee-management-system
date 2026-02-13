@@ -26,12 +26,10 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // ===== form state =====
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // ===== ui state =====
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +38,7 @@ const Login: React.FC = () => {
     setError(null);
 
     if (!username.trim() || !password.trim()) {
-      setError('Please enter both username and password');
+      setError("Please enter both username and password");
       return;
     }
 
@@ -52,21 +50,19 @@ const Login: React.FC = () => {
       if (res.ok && res.user) {
         if (res.user.role === "hr") {
           navigate("/hr/dashboard");
-        } else if (res.user.role === "employee") {
-          navigate("/employee/onboarding");
         } else {
-          navigate("/");
+          navigate("/employee/onboarding");
         }
       } else {
         setError(res.message ?? "Invalid username or password");
       }
     } catch (err) {
-      console.error('Login error', err);
-      setError('An unexpected error occurred. Please try again.');
+      setError("Unexpected error occurred.");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <Box

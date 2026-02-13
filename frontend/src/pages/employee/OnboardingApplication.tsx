@@ -98,23 +98,18 @@ const Onboarding = () => {
     let merged = [...onboardingDocs];
 
     if (workAuthType === "f1") {
-      const hasOptReceipt = visaDocs.some((d) => d.type === "opt_receipt");
+      const optReceipt = visaDocs.find((d) => d.type === "opt_receipt");
 
-      if (!hasOptReceipt) {
+      if (optReceipt) {
+        merged = [...merged, optReceipt];
+      } else {
         merged.push({
           id: "temp-opt",
           type: "opt_receipt",
           category: "visa",
           status: "not-started",
           fileName: undefined,
-          fileUrl: undefined,
-          uploadedAt: undefined,
-          reviewedAt: undefined,
-          hrFeedback: undefined,
-        });
-
-      } else {
-        merged = [...merged, ...visaDocs];
+        } as BaseDocument);
       }
     }
 
@@ -193,7 +188,11 @@ const Onboarding = () => {
 
 
   const hasRequiredDocs = requiredDocTypes.every((type) =>
-    documents.some((d) => d.type === type && d.status !== "not-started"),
+    documents.some(
+      (d) =>
+        d.type === type &&
+        (d.status === "pending" || d.status === "approved" || !!d.fileName),
+    ),
   );
 
   const canSubmit =
@@ -222,16 +221,13 @@ const Onboarding = () => {
   const handleSubmit = async () => {
     try {
       const formData = getValues();
-
       const res = await submitOnboarding({
         formData,
         version,
       });
 
       if (res.ok) {
-        setStatus(
-          (res.status?.replace("_", "-") as UIOnboardingStatus) ?? "pending",
-        );
+        setStatus("pending");
         setActiveStep(0);
       }
     } catch (err) {

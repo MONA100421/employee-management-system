@@ -5,7 +5,7 @@ import User from "../models/User";
 import NotificationModel from "../models/Notification";
 import { enqueueOnboardingDecisionEmail } from "../queues/emailQueue";
 import { NotificationTypes } from "../utils/notificationTypes";
-import mongoose from "mongoose";
+import EmployeeProfile from "../models/EmployeeProfile";
 
 
 // Define strict state transition rules
@@ -188,7 +188,6 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
  * POST /api/hr/onboarding/:id/review
  * HR only: Approves or rejects an onboarding application
  */
-
 export const reviewOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -209,30 +208,47 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
 
     // Validate State Transition
     if (!ALLOWED_TRANSITIONS[app.status]?.includes(decision)) {
-      return res
-        .status(400)
-        .json({
-          ok: false,
-          message: `Cannot change status from ${app.status} to ${decision}`,
-        });
+      return res.status(400).json({
+        ok: false,
+        message: `Cannot change status from ${app.status} to ${decision}`,
+      });
     }
 
-    // Pre-approval check for documents
     if (decision === "approved") {
-      const hasUnapproved = await Document.exists({
-        user: app.user,
-        category: "onboarding",
-        status: { $ne: "approved" },
+      const formData = app.formData || {};
+
+      await User.findByIdAndUpdate(app.user, {
+        $set: {
+          "profile.firstName": formData.firstName,
+          "profile.lastName": formData.lastName,
+          "profile.middleName": formData.middleName,
+          "profile.preferredName": formData.preferredName,
+          workAuthorization: {
+            authType: formData.workAuthType,
+          },
+        },
       });
-      if (hasUnapproved) {
-        return res
-          .status(400)
-          .json({
-            ok: false,
-            message:
-              "Please approve all documents before approving the application.",
-          });
-      }
+      await EmployeeProfile.findOneAndUpdate(
+        { user: app.user },
+        {
+          $set: {
+            phone: formData.phone,
+            address: {
+              street: formData.address,
+              city: formData.city,
+              state: formData.state,
+              zipCode: formData.zipCode,
+              country: formData.country || "USA", 
+            },
+            emergency: {
+              contactName: formData.emergencyContact,
+              relationship: formData.emergencyRelationship,
+              phone: formData.emergencyPhone,
+            },
+          },
+        },
+        { upsert: true, new: true },
+      );
     }
 
     const filter: any = { _id: id };

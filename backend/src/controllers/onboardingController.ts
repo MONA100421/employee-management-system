@@ -236,28 +236,19 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
 
     if (!["approved", "rejected"].includes(decision)) {
       await session.abortTransaction();
-      return res
-        .status(400)
-        .json({ ok: false, message: "Invalid decision value" });
+      return res.status(400).json({ ok: false, message: "Invalid decision" });
     }
 
     const app = await OnboardingApplication.findById(id).session(session);
 
     if (!app) {
       await session.abortTransaction();
-      return res.status(409).json({
-        ok: false,
-        message:
-          "Conflict: This application has been updated by someone else. Please refresh.",
-      });
+      return res.status(404).json({ ok: false, message: "Application not found" });
     }
 
-    if (!ALLOWED_TRANSITIONS[app.status]?.includes(decision)) {
+    if (app.status === "approved") {
       await session.abortTransaction();
-      return res.status(400).json({
-        ok: false,
-        message: `Cannot change status from ${app.status} to ${decision}`,
-      });
+      return res.status(400).json({ ok: false, message: "Already approved" });
     }
 
     if (decision === "approved") {
@@ -276,19 +267,14 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
       }
 
       const formData = app.formData || {};
-
-      const userUpdate: any = {};
-      if (formData.firstName)
-        userUpdate["profile.firstName"] = formData.firstName;
-      if (formData.lastName) userUpdate["profile.lastName"] = formData.lastName;
-      if (formData.middleName)
-        userUpdate["profile.middleName"] = formData.middleName;
-      if (formData.preferredName)
-        userUpdate["profile.preferredName"] = formData.preferredName;
-      if (formData.workAuthType)
-        userUpdate["workAuthorization.authType"] = formData.workAuthType;
-
-      await User.findByIdAndUpdate(app.user, { $set: userUpdate }, { session });
+      
+      await User.findByIdAndUpdate(app.user, { 
+        $set: { 
+          "profile.firstName": formData.firstName,
+          "profile.lastName": formData.lastName,
+          "workAuthorization.authType": formData.workAuthType
+        } 
+      }, { session });
 
       await EmployeeProfile.findOneAndUpdate(
         { user: app.user },
@@ -299,14 +285,9 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
             "address.city": formData.city,
             "address.state": formData.state,
             "address.zipCode": formData.zipCode,
-            "address.country": formData.country || "USA",
-            "emergency.contactName": formData.emergencyContact,
-            "emergency.relationship": formData.emergencyRelationship,
-            "emergency.phone": formData.emergencyPhone,
-            "emergency.email": formData.emergencyEmail,
           },
         },
-        { upsert: true, session },
+        { upsert: true, session }
       );
     }
 
@@ -320,7 +301,6 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     });
 
     await app.save({ session });
-
     await session.commitTransaction();
 
     setImmediate(async () => {
@@ -329,16 +309,11 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
         if (employee) {
           await NotificationModel.create({
             user: employee._id,
-            type:
-              decision === "approved"
-                ? NotificationTypes.ONBOARDING_REVIEW_APPROVED
-                : NotificationTypes.ONBOARDING_REVIEW_REJECTED,
+            type: decision === "approved" 
+              ? NotificationTypes.ONBOARDING_REVIEW_APPROVED 
+              : NotificationTypes.ONBOARDING_REVIEW_REJECTED,
             title: `Onboarding ${decision === "approved" ? "Approved" : "Rejected"}`,
-            message:
-              feedback ||
-              (decision === "approved"
-                ? "Your application is complete."
-                : "Please check feedback."),
+            message: feedback || "Your application status has been updated.",
           });
 
           if (employee.email) {
@@ -357,12 +332,11 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     });
 
     return res.json({ ok: true, status: dbToUIStatus(app.status) });
+
   } catch (err) {
     await session.abortTransaction();
     console.error("reviewOnboarding error", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Server error during review" });
+    return res.status(500).json({ ok: false, message: "Server error" });
   } finally {
     session.endSession();
   }

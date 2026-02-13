@@ -26,6 +26,7 @@ import {
   type Control,
   type FieldErrors,
 } from "react-hook-form";
+import CircularProgress from "@mui/material/CircularProgress";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import ConfirmDialog from "../../components/common/ConfirmDialog";
@@ -43,11 +44,14 @@ type SectionProps = {
   title: string;
   icon: React.ReactNode;
   editing: boolean;
+  sectionKey?: string;
+  savingSection?: string | null;
   onEdit?: () => void;
   onSave?: () => void;
   onCancel?: () => void;
   children: React.ReactNode;
 };
+
 
 type FieldProps = {
   name: keyof EmployeeProfileFormValues;
@@ -66,6 +70,8 @@ function Section({
   title,
   icon,
   editing,
+  sectionKey,
+  savingSection,
   onEdit,
   onSave,
   onCancel,
@@ -107,10 +113,16 @@ function Section({
               <Box sx={{ display: "flex", gap: 0.5 }}>
                 <IconButton
                   onClick={onSave}
+                  disabled={savingSection === sectionKey}
                   sx={{ color: theme.palette.success.main }}
                 >
-                  <SaveIcon />
+                  {savingSection === sectionKey ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    <SaveIcon />
+                  )}
                 </IconButton>
+
                 <IconButton
                   onClick={onCancel}
                   sx={{ color: theme.palette.error.main }}
@@ -188,6 +200,7 @@ export default function EmployeePersonalInfoPage() {
   const theme = useTheme();
   const { user: authUser } = useAuth();
 
+  const [savingSection, setSavingSection] = useState<string | null>(null);
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -279,8 +292,13 @@ export default function EmployeePersonalInfoPage() {
   };
 
   const submitSection = async (section: string) => {
+    if (savingSection === section) return;
+
+    setSavingSection(section);
+
     await handleSubmit(async (values) => {
       const payload: any = {};
+
       if (section === "name") {
         payload.firstName = values.firstName;
         payload.lastName = values.lastName;
@@ -308,13 +326,17 @@ export default function EmployeePersonalInfoPage() {
 
       try {
         await patchMyEmployee(payload);
+
         setEditing(null);
         await loadData();
       } catch (err) {
         console.error("Update failed:", err);
+      } finally {
+        setSavingSection(null);
       }
     })();
   };
+
 
   return (
     <Box sx={{ p: 1 }}>
@@ -355,6 +377,8 @@ export default function EmployeePersonalInfoPage() {
             title="Name Information"
             icon={<PersonIcon />}
             editing={editing === "name"}
+            sectionKey="name"
+            savingSection={savingSection}
             onEdit={() => setEditing("name")}
             onSave={() => saveSection("name")}
             onCancel={handleCancelClick}
@@ -381,6 +405,8 @@ export default function EmployeePersonalInfoPage() {
           <Section
             title="Address"
             icon={<HomeIcon />}
+            savingSection={savingSection}
+            sectionKey="address"
             editing={editing === "address"}
             onEdit={() => setEditing("address")}
             onSave={() => saveSection("address")}
@@ -409,6 +435,8 @@ export default function EmployeePersonalInfoPage() {
             title="Contact Information"
             icon={<PhoneIcon />}
             editing={editing === "contact"}
+            savingSection={savingSection}
+            sectionKey="contact"
             onEdit={() => setEditing("contact")}
             onSave={() => saveSection("contact")}
             onCancel={handleCancelClick}
@@ -441,6 +469,8 @@ export default function EmployeePersonalInfoPage() {
           <Section
             title="Emergency Contact"
             icon={<EmergencyIcon />}
+            savingSection={savingSection}
+            sectionKey="emergency"
             editing={editing === "emergency"}
             onEdit={() => setEditing("emergency")}
             onSave={() => saveSection("emergency")}

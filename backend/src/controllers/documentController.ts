@@ -50,26 +50,46 @@ export const uploadDocument = async (req: Request, res: Response) => {
   if (!user) return res.status(401).json({ ok: false });
 
   const { type, category, fileName, fileUrl } = req.body;
-  if (!type || !category || !fileName) {
-    return res.status(400).json({ ok: false, message: "Missing fields" });
+
+  if (!type || !category || !fileName || !fileUrl) {
+    return res.status(400).json({
+      ok: false,
+      message: "Missing required fields (type, category, fileName, fileUrl)",
+    });
+  }
+
+  if (typeof fileUrl !== "string" || fileUrl.trim() === "") {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid fileUrl",
+    });
   }
 
   if (category === "visa") {
     const orderValidation = await validateVisaOrderForUser(user.userId, type);
     if (!orderValidation.ok) {
-      return res
-        .status(400)
-        .json({ ok: false, message: orderValidation.message });
+      return res.status(400).json({
+        ok: false,
+        message: orderValidation.message,
+      });
     }
   }
 
   let doc = await Document.findOne({ user: user.userId, type });
+
   if (!doc) {
-    doc = new Document({ user: user.userId, type, category });
+    doc = new Document({
+      user: user.userId,
+      type,
+      category,
+    });
   }
 
   if (doc.status === "approved") {
-    return res.status(400).json({ ok: false, message: "Already approved" });
+    return res.status(400).json({
+      ok: false,
+      message: "Already approved document cannot be modified",
+    });
   }
 
   doc.fileName = fileName;
@@ -77,6 +97,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
   doc.status = "pending";
   doc.uploadedAt = new Date();
   doc.hrFeedback = undefined;
+
   await doc.save();
 
   await Notification.create({
@@ -102,6 +123,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
     },
   });
 };
+
 
 // HR
 export const reviewDocument = async (req: Request, res: Response) => {

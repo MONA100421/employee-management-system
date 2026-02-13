@@ -28,7 +28,7 @@ export async function uploadFilePresigned({
 }): Promise<UploadResult> {
   const presignRes = await api.post<PresignResponse>("/uploads/presign", {
     fileName: file.name,
-    fileType: file.type || "application/octet-stream",
+    contentType: file.type || "application/octet-stream",
     type,
     category,
   });

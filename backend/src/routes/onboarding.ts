@@ -11,11 +11,12 @@ import { requireRole } from '../utils/requireRole';
 
 const router = Router();
 
-// Employee: get my
-router.get('/onboarding/me', authMiddleware, getMyOnboarding);
+// Employee: get my onboarding
+router.get('/me', authMiddleware, getMyOnboarding);
 
-// Employee: submit
-router.post('/onboarding', authMiddleware, submitOnboarding);
+// Employee: submit onboarding
+router.post('/', authMiddleware, submitOnboarding);
+
 
 // HR: list
 router.get(

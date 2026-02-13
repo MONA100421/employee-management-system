@@ -79,14 +79,11 @@ const HiringManagement: React.FC = () => {
     setLoadingApps(true);
     try {
       const res: any = await getHROnboardings();
+
       if (res && res.grouped) {
-        setApplications([
-          ...(res.grouped.pending || []),
-          ...(res.grouped.approved || []),
-          ...(res.grouped.rejected || []),
-        ]);
-      }
-      else if (Array.isArray(res)) {
+        const { pending = [], approved = [], rejected = [] } = res.grouped;
+        setApplications([...pending, ...approved, ...rejected]);
+      } else if (Array.isArray(res)) {
         setApplications(res);
       } else {
         setApplications([]);
@@ -196,6 +193,7 @@ const HiringManagement: React.FC = () => {
         feedbackDialog.application.id,
         feedbackDialog.type === "approve" ? "approved" : "rejected",
         feedbackDialog.type === "reject" ? feedback : undefined,
+        feedbackDialog.application.version,
       );
 
       setFeedbackDialog({ open: false, type: "approve", application: null });
@@ -480,6 +478,6 @@ const HiringManagement: React.FC = () => {
       />
     </Box>
   );
-}
+};
 
 export default HiringManagement;

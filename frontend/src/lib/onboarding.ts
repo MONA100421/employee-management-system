@@ -20,7 +20,7 @@ export interface InvitationRecord {
   id: string;
   email: string;
   name: string;
-  status: "sent" | "registered";
+  status: "active" | "expired" | "used";
   createdAt: string;
 }
 
@@ -45,8 +45,8 @@ export async function submitOnboarding(
 
 export type ReviewDecision = 'approved' | 'rejected';
 
-export async function sendInvitation(name: string, email: string) {
-  const res = await api.post("/hr/invite", { name, email });
+export async function sendInvitation(email: string, name: string) {
+  const res = await api.post("/hr/invite", { email, name });
   return res.data;
 }
 
@@ -79,11 +79,12 @@ export type HROnboardingListItem = {
   } | null;
   status: UIOnboardingStatus;
   submittedAt: string;
+  version: number;
 };
 
-export async function getHROnboardings(): Promise<any> {
+export async function getHROnboardings(): Promise<GroupedOnboardings> {
   const res = await api.get("/hr/onboarding");
-  return res.data;
+  return res.data.grouped;
 }
 
 export interface HROnboardingDetail {

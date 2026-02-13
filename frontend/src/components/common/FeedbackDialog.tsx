@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -39,6 +39,14 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
 }) => {
   const theme = useTheme();
   const [feedback, setFeedback] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setFeedback("");
+      setError(false);
+    }
+  }, [open]);
+
   const [error, setError] = useState(false);
 
   /**

@@ -24,6 +24,7 @@ import {
 
 type OnboardingRow = {
   id: string;
+  version?: number;
   employee?: {
     username?: string;
     email?: string;
@@ -119,6 +120,7 @@ export default function EmployeeProfiles() {
         activeRow.id,
         decision,
         dialogType === "reject" ? feedback : undefined,
+        activeRow.version,
       );
       setDialogOpen(false);
       setActiveRow(null);
@@ -207,7 +209,7 @@ export default function EmployeeProfiles() {
             </TableRow>
           ))}
 
-          {rows.length === 0 && (
+          {filteredRows.length === 0 && (
             <TableRow>
               <TableCell colSpan={5}>
                 <Typography

@@ -401,6 +401,6 @@ const Onboarding = () => {
       </Card>
     </Box>
   );
-};;;
+};
 
 export default Onboarding;

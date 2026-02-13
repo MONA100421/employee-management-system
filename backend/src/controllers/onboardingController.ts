@@ -232,7 +232,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
   try {
     const hrUser = (req as any).user;
     const { id } = req.params;
-    const { decision, feedback, version } = req.body;
+    const { decision, feedback } = req.body;
 
     if (!["approved", "rejected"].includes(decision)) {
       await session.abortTransaction();
@@ -241,10 +241,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
         .json({ ok: false, message: "Invalid decision value" });
     }
 
-    const app = await OnboardingApplication.findOne({
-      _id: id,
-      __v: version,
-    }).session(session);
+    const app = await OnboardingApplication.findById(id).session(session);
 
     if (!app) {
       await session.abortTransaction();

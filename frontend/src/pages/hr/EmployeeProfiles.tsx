@@ -123,8 +123,8 @@ export default function EmployeeProfiles() {
         activeRow.id,
         decision,
         dialogType === "reject" ? feedback : undefined,
-        activeRow.version ?? 0,
       );
+
 
       setDialogOpen(false);
       setActiveRow(null);

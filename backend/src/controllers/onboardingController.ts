@@ -252,29 +252,19 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     }
 
     if (decision === "approved") {
-      const hasUnapproved = await Document.exists({
-        user: app.user,
-        category: { $in: ["onboarding", "visa"] },
-        status: { $ne: "approved" },
-      }).session(session);
-
-      if (hasUnapproved) {
-        await session.abortTransaction();
-        return res.status(400).json({
-          ok: false,
-          message: "All onboarding documents must be approved by HR first.",
-        });
-      }
-
       const formData = app.formData || {};
-      
-      await User.findByIdAndUpdate(app.user, { 
-        $set: { 
-          "profile.firstName": formData.firstName,
-          "profile.lastName": formData.lastName,
-          "workAuthorization.authType": formData.workAuthType
-        } 
-      }, { session });
+
+      await User.findByIdAndUpdate(
+        app.user,
+        {
+          $set: {
+            "profile.firstName": formData.firstName,
+            "profile.lastName": formData.lastName,
+            "workAuthorization.authType": formData.workAuthType,
+          },
+        },
+        { session },
+      );
 
       await EmployeeProfile.findOneAndUpdate(
         { user: app.user },
@@ -287,7 +277,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
             "address.zipCode": formData.zipCode,
           },
         },
-        { upsert: true, session }
+        { upsert: true, session },
       );
     }
 

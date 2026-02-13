@@ -138,10 +138,14 @@ export default function PersonalInformation({
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="middleName"
-          disabled={readOnly}
           control={control}
           render={({ field }) => (
-            <TextField {...field} fullWidth label="Middle Name" />
+            <TextField
+              {...field}
+              fullWidth
+              label="Middle Name"
+              disabled={readOnly}
+            />
           )}
         />
       </Grid>
@@ -149,10 +153,14 @@ export default function PersonalInformation({
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="preferredName"
-          disabled={readOnly}
           control={control}
           render={({ field }) => (
-            <TextField {...field} fullWidth label="Preferred Name" />
+            <TextField
+              {...field}
+              fullWidth
+              label="Preferred Name"
+              disabled={readOnly}
+            />
           )}
         />
       </Grid>
@@ -199,10 +207,15 @@ export default function PersonalInformation({
       <Grid size={{ xs: 12, sm: 6 }}>
         <Controller
           name="gender"
-          disabled={readOnly}
           control={control}
           render={({ field }) => (
-            <TextField {...field} select fullWidth label="Gender">
+            <TextField
+              {...field}
+              select
+              fullWidth
+              label="Gender"
+              disabled={readOnly}
+            >
               <MenuItem value="">Select...</MenuItem>
               <MenuItem value="male">Male</MenuItem>
               <MenuItem value="female">Female</MenuItem>

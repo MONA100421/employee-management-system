@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import api from "../lib/api";
 import { AuthContext, type User, type AuthContextType } from "./AuthContext";
-import { resetDocumentsCache } from "../hooks/useDocuments";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Initialize user from localStorage safely
@@ -25,7 +24,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const resp = await api.post("/auth/login", { username, password });
       if (resp.data.ok) {
         const { token, user: loggedInUser } = resp.data;
-        resetDocumentsCache();
         localStorage.setItem("auth_token", token);
         localStorage.setItem("auth_user", JSON.stringify(loggedInUser));
         setUser(loggedInUser);
@@ -49,8 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setUser(null);
       localStorage.removeItem("auth_user");
-      localStorage.removeItem("auth_token");
-      resetDocumentsCache();
+      localStorage.removeItem("auth_token");      
       window.location.href = "/login";
     }
   };

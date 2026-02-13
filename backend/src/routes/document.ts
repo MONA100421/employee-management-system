@@ -8,6 +8,7 @@ import {
   reviewDocument,
   getDocumentsForHRByUser,
   getVisaDocumentsForHR,
+  getMyVisaStatus,
 } from "../controllers/documentController";
 
 const router = Router();
@@ -15,6 +16,8 @@ const router = Router();
 // EMPLOYEE ROUTES
 // Get documents owned by the current logged-in employee
 router.get("/me", authMiddleware, getMyDocuments);
+
+router.get("/my-visa-status", authMiddleware, getMyVisaStatus);
 
 // Upload a new document
 router.post("/", authMiddleware, enforceVisaOrder, uploadDocument);

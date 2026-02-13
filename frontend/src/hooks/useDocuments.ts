@@ -5,12 +5,6 @@ import { uploadFilePresigned } from "../lib/upload";
 
 export type UseDocumentsScope = DocumentCategory | "all";
 
-let internalCache: BaseDocument[] | null = null;
-
-export const resetDocumentsCache = () => {
-  internalCache = null;
-};
-
 export const useDocuments = (scope: UseDocumentsScope) => {
   const [documents, setDocuments] = useState<BaseDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,47 +17,45 @@ export const useDocuments = (scope: UseDocumentsScope) => {
     [scope],
   );
 
+  const fetchVisaStatus = async () => {
+    if (scope !== "visa") return;
+
+    try {
+      const res = await api.get("/documents/my-visa-status");
+      if (res.data?.ok) {
+        setDaysRemaining(res.data.daysRemaining ?? null);
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        console.warn("Visa status endpoint not implemented.");
+        setDaysRemaining(null);
+      } else {
+        console.error("Failed to fetch visa status:", err);
+      }
+    }
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (!internalCache) {
-        const res = await api.get("/documents/me");
-        internalCache = res.data.documents || [];
-      }
-      setDocuments(applyScope(internalCache ?? []));
-      if (scope === "visa") {
-        const res = await api.get("/documents/my-visa-status");
-        if (res.data.ok) {
-          setDaysRemaining(res.data.daysRemaining);
-        }
-      }
+      const res = await api.get("/documents/me");
+      const docs = res.data.documents || [];
+      setDocuments(applyScope(docs));
+      await fetchVisaStatus();
     } catch (err) {
       console.error("Failed to load documents", err);
     } finally {
       setLoading(false);
     }
-  }, [applyScope, scope]);
+  }, [applyScope]);
 
   useEffect(() => {
-    internalCache = null;
     load();
-  }, [scope]);
+  }, [load]);
+
 
   const refresh = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/documents/me");
-      internalCache = res.data.documents || [];
-      setDocuments(applyScope(internalCache ?? []));
-      if (scope === "visa") {
-        const visaRes = await api.get("/documents/my-visa-status");
-        setDaysRemaining(visaRes.data.daysRemaining);
-      }
-    } catch (err) {
-      console.error("Failed to refresh documents", err);
-    } finally {
-      setLoading(false);
-    }
+    await load();
   };
 
   const uploadDocument = async (type: string, file: File) => {

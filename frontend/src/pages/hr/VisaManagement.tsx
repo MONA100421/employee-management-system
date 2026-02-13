@@ -157,7 +157,7 @@ const VisaManagement: React.FC = () => {
     }
   };
 
-  const inProgress = documents.filter((d) => d.status === "pending");
+  const inProgress = documents.filter((d) => d.nextStep !== "COMPLETED");
   const shownRecords = tabValue === 0 ? inProgress : documents;
 
   return (

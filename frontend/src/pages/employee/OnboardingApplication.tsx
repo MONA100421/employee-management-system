@@ -15,7 +15,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
-
+import { useNavigate } from "react-router-dom";
 import { getMyOnboarding, submitOnboarding } from "../../lib/onboarding";
 import type { UIOnboardingStatus } from "../../lib/onboarding";
 import PersonalInformation from "./PersonalInformation";
@@ -109,6 +109,17 @@ const Onboarding = () => {
     };
     load();
   }, [reset]);
+
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (status === "approved") {
+      const timer = setTimeout(() => {
+        navigate("/");
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [status, navigate]);
 
   const isReadOnly = status === "pending" || status === "approved";
 

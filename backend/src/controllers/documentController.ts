@@ -3,7 +3,6 @@ import Document from "../models/Document";
 import User from "../models/User";
 import Notification from "../models/Notification";
 import { reviewDocumentService } from "../services/documentReviewService";
-import { enqueueDocumentRejectedEmail } from "../queues/emailQueue";
 import { NotificationTypes } from "../utils/notificationTypes";
 import { validateVisaOrderForUser, getNextVisaStep } from "../utils/visaOrder";
 
@@ -62,6 +61,13 @@ export const uploadDocument = async (req: Request, res: Response) => {
     return res.status(400).json({
       ok: false,
       message: "Invalid fileUrl",
+    });
+  }
+
+  if (!fileUrl.startsWith("s3://")) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid storage source",
     });
   }
 
@@ -134,6 +140,13 @@ export const reviewDocument = async (req: Request, res: Response) => {
 
   const docId = String(req.params.id);
   const { decision, feedback, version } = req.body;
+  if (typeof version !== "number") {
+    return res.status(400).json({
+      ok: false,
+      message: "Version is required for optimistic locking",
+    });
+  }
+
 
   if (!["approved", "rejected"].includes(decision)) {
     return res.status(400).json({ ok: false });

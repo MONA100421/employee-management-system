@@ -292,19 +292,51 @@ const VisaStatus: React.FC = () => {
                       </Box>
                     )}
 
+                    {step.status === "pending" && (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        Waiting for HR to approve your {step.title}.
+                      </Alert>
+                    )}
+
+                    {step.status === "approved" &&
+                      step.type === "opt_receipt" && (
+                        <Alert severity="success" sx={{ mb: 2 }}>
+                          Please upload your OPT EAD.
+                        </Alert>
+                      )}
+
+                    {step.status === "approved" && step.type === "opt_ead" && (
+                      <Alert severity="success" sx={{ mb: 2 }}>
+                        Please upload your I-983 form.
+                      </Alert>
+                    )}
+
+                    {step.status === "approved" && step.type === "i_983" && (
+                      <Alert severity="success" sx={{ mb: 2 }}>
+                        Please upload your I-20.
+                      </Alert>
+                    )}
+
+                    {step.status === "approved" && step.type === "i_20" && (
+                      <Alert severity="success" sx={{ mb: 2 }}>
+                        🎉 All visa documents completed.
+                      </Alert>
+                    )}
+
                     {step.status === "rejected" && step.hrFeedback && (
                       <Alert severity="error" sx={{ mb: 2 }}>
                         {step.hrFeedback}
                       </Alert>
                     )}
 
-                    {step.fileName ? (
+                    {step.fileName && step.status !== "rejected" ? (
                       <Paper sx={{ p: 2, display: "flex", gap: 2 }}>
                         <DocIcon />
                         <Box sx={{ flex: 1 }}>
                           <Typography>{step.fileName}</Typography>
                           <Typography variant="caption">
-                            Uploaded at {step.uploadedAt}
+                            Uploaded at{" "}
+                            {new Date(step.uploadedAt!).toLocaleString()}
                           </Typography>
                         </Box>
                         <IconButton

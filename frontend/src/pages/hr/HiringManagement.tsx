@@ -46,6 +46,7 @@ const HiringManagement: React.FC = () => {
   const navigate = useNavigate();
 
   const [tabValue, setTabValue] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Invitation token states
   const [newHireEmail, setNewHireEmail] = useState("");
@@ -116,9 +117,17 @@ const HiringManagement: React.FC = () => {
 
   const applicationTabs = ["pending", "approved", "rejected"] as const;
 
-  const filteredApplications = applications.filter(
-    (app) => app.status === applicationTabs[tabValue],
-  );
+  const filteredApplications = applications
+    .filter((app) => app.status === applicationTabs[tabValue])
+    .filter((app) => {
+      const query = searchQuery.toLowerCase();
+      const username = app.employee?.username?.toLowerCase() || "";
+      const email = app.employee?.email?.toLowerCase() || "";
+
+      return username.includes(query) || email.includes(query);
+    });
+
+
 
   /**
    * Handles the generation of a registration token and sends the invitation email.
@@ -357,6 +366,13 @@ const HiringManagement: React.FC = () => {
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                 Onboarding Applications
               </Typography>
+              <TextField
+                fullWidth
+                placeholder="Search employee..."
+                sx={{ mb: 2 }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
               <Tabs
                 value={tabValue}
                 onChange={(_, v) => setTabValue(v)}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Box,
   Table,
@@ -47,22 +47,9 @@ export default function EmployeeProfiles() {
   const load = async () => {
     setLoading(true);
     try {
-      const response: any = await getHROnboardings();
+      const grouped = await getHROnboardings();
 
-      if (response && response.grouped) {
-        const allRows = [
-          ...(response.grouped.pending || []),
-          ...(response.grouped.approved || []),
-          ...(response.grouped.rejected || []),
-        ];
-        setRows(allRows);
-      }
-      else if (Array.isArray(response)) {
-        setRows(response);
-      }
-      else {
-        setRows([]);
-      }
+      setRows([...grouped.pending, ...grouped.approved, ...grouped.rejected]);
     } catch (err) {
       console.error("Failed to load employee profiles", err);
       setRows([]);
@@ -103,12 +90,15 @@ export default function EmployeeProfiles() {
   };
 
   // Filter rows based on search query.
-  const filteredRows = rows.filter((row) => {
-    const name = row.employee?.username?.toLowerCase() || "";
-    const email = row.employee?.email?.toLowerCase() || "";
+  const filteredRows = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return name.includes(query) || email.includes(query);
-  });
+
+    return rows.filter((row) => {
+      const name = row.employee?.username?.toLowerCase() || "";
+      const email = row.employee?.email?.toLowerCase() || "";
+      return name.includes(query) || email.includes(query);
+    });
+  }, [rows, searchQuery]);
 
   const handleDialogSubmit = async (feedback: string) => {
     if (!activeRow) return;
@@ -209,7 +199,7 @@ export default function EmployeeProfiles() {
             </TableRow>
           ))}
 
-          {filteredRows.length === 0 && (
+          {!loading && filteredRows.length === 0 && (
             <TableRow>
               <TableCell colSpan={5}>
                 <Typography

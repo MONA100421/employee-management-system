@@ -12,8 +12,8 @@ import mongoose from "mongoose";
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   never_submitted: ["pending"],
   pending: ["approved", "rejected"],
-  rejected: ["pending"], // Employee resubmits
-  approved: [], // Final state
+  rejected: ["pending"],
+  approved: [],
 };
 
 const dbToUIStatus = (s: string | undefined) => {

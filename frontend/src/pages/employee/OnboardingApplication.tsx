@@ -50,23 +50,11 @@ const toOnboardingDoc = (d: BaseDocument): OnboardingDocument => ({
 
 const Onboarding = () => {
   const {
-    documents: rawDocs,
-    loading,
-    uploadDocument,
-  } = useDocuments("onboarding");
-  const documents = rawDocs.map(toOnboardingDoc);
-
-  const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
-  const [activeStep, setActiveStep] = useState(0);
-  const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(
-    null,
-  );
-
-  const {
     control,
     formState: { errors },
     trigger,
     getValues,
+    watch,
     reset,
   } = useForm<OnboardingFormValues>({
     defaultValues: {
@@ -91,6 +79,24 @@ const Onboarding = () => {
     mode: "onTouched",
     resolver: zodResolver(onboardingSchema),
   });
+  
+  const workAuthType = watch("workAuthType");
+
+  const documentCategory = workAuthType === "f1" ? "visa" : "onboarding";
+
+  const {
+    documents: rawDocs,
+    loading,
+    uploadDocument,
+  } = useDocuments(documentCategory);
+
+  const documents = rawDocs.map(toOnboardingDoc);
+
+  const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
+  const [activeStep, setActiveStep] = useState(0);
+  const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -124,11 +130,21 @@ const Onboarding = () => {
 
   const isReadOnly = status === "pending" || status === "approved";
 
-  const hasIncompleteDocuments = documents.some((d) => d.status !== "approved");
+  const requiredDocTypes =
+    documentCategory === "onboarding"
+      ? ["id_card", "work_auth", "profile_photo"]
+      : ["opt_receipt", "opt_ead", "i_983", "i_20"];
+
+  const hasIncompleteDocuments = requiredDocTypes.some((type) => {
+    const doc = documents.find((d) => d.type === type);
+    return !doc || !doc.fileName;
+  });
+
   const canSubmit =
     !isReadOnly &&
     !hasIncompleteDocuments &&
     (status === "never-submitted" || status === "rejected");
+
 
   const validateStep = async (step: number) => {
     if (isReadOnly) return true;
@@ -282,7 +298,7 @@ const Onboarding = () => {
                   />
                 </Grid>
 
-                {getValues("workAuthType") === "other" && (
+                {workAuthType === "other" && (
                   <Grid size={{ xs: 12 }}>
                     <Controller
                       name="workAuthOther"
@@ -301,7 +317,7 @@ const Onboarding = () => {
                   </Grid>
                 )}
 
-                {getValues("workAuthType") === "f1" && (
+                {workAuthType === "f1" && (
                   <Grid size={{ xs: 12 }}>
                     <Alert severity="info">
                       Per OPT flow requirements, you will be required to upload

@@ -45,8 +45,9 @@ export const useDocuments = (scope: UseDocumentsScope) => {
   }, [applyScope, scope]);
 
   useEffect(() => {
+    internalCache = null;
     load();
-  }, [load]);
+  }, [scope]);
 
   const refresh = async () => {
     setLoading(true);

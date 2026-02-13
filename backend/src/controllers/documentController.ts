@@ -127,6 +127,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
 // HR
 export const reviewDocument = async (req: Request, res: Response) => {
   const user = (req as any).user;
+
   if (!user || user.role !== "hr") {
     return res.status(403).json({ ok: false });
   }
@@ -138,36 +139,30 @@ export const reviewDocument = async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false });
   }
 
-  const updatedDoc = await Document.findOneAndUpdate(
-    {
-      _id: docId,
-      __v: version,
-      status: "pending",
-    },
-    {
-      $set: {
-        status: decision,
-        hrFeedback: decision === "rejected" ? feedback : null,
-        reviewedAt: new Date(),
-        reviewedBy: user.userId,
+  try {
+    const updatedDoc = await reviewDocumentService({
+      docId,
+      decision,
+      reviewer: {
+        id: user.userId,
+        username: user.username,
       },
-      $inc: { __v: 1 },
-    },
-    { new: true },
-  );
+      feedback,
+      version,
+    });
 
-  if (!updatedDoc) {
+    return res.json({
+      ok: true,
+      status: dbToUIStatus(updatedDoc.status),
+    });
+  } catch (err: any) {
     return res.status(409).json({
       ok: false,
-      message: "This document has already been modified by another HR.",
+      message: err.message || "Review failed",
     });
   }
-
-  return res.json({
-    ok: true,
-    status: dbToUIStatus(updatedDoc.status),
-  });
 };
+
 
 
 export const getDocumentsForHRByUser = async (req: Request, res: Response) => {

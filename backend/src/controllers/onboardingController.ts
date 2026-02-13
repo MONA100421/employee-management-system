@@ -72,14 +72,18 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
 
 // POST /api/onboarding
 export const submitOnboarding = async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const user = (req as any).user;
     const { formData, version } = req.body;
 
-    let app = await OnboardingApplication.findOne({ user: user.userId });
+    let app = await OnboardingApplication.findOne({ user: user.userId }).session(session);
     const currentStatus = app ? app.status : "never_submitted";
 
     if (!ALLOWED_TRANSITIONS[currentStatus]?.includes("pending")) {
+      await session.abortTransaction();
       return res.status(400).json({
         ok: false,
         message: `Status is ${currentStatus}. Submitting is not allowed.`,
@@ -92,49 +96,75 @@ export const submitOnboarding = async (req: Request, res: Response) => {
         status: "pending",
         formData,
         submittedAt: new Date(),
-        history: [
-          {
-            status: "pending",
-            updatedAt: new Date(),
-            action: "Initial Submission",
-          },
-        ],
+        history: [{ status: "pending", updatedAt: new Date(), action: "Initial Submission" }],
       });
-      await app.save();
+      await app.save({ session });
     } else {
       const updatedApp = await OnboardingApplication.findOneAndUpdate(
-        {
-          _id: app._id,
-          __v: version,
-          status: { $in: ["never_submitted", "rejected"] },
-        },
+        { _id: app._id, __v: version, status: { $in: ["never_submitted", "rejected"] } },
         {
           $set: { formData, status: "pending", submittedAt: new Date() },
-          $push: {
-            history: {
-              status: "pending",
-              updatedAt: new Date(),
-              action: "Resubmission",
-            },
-          },
+          $push: { history: { status: "pending", updatedAt: new Date(), action: "Resubmission" } },
           $inc: { __v: 1 },
         },
-        { new: true },
+        { new: true, session },
       );
 
       if (!updatedApp) {
+        await session.abortTransaction();
         return res.status(409).json({
           ok: false,
-          message:
-            "Conflict: Application was modified or already submitted. Please refresh.",
+          message: "Conflict: Application was modified or already submitted. Please refresh.",
         });
       }
       app = updatedApp;
     }
 
+    const requiredDocs = [
+      { type: "profile_photo", category: "onboarding" },
+      { type: "id_card", category: "onboarding" },
+      { type: "work_auth", category: "onboarding" },
+    ];
+
+    for (const doc of requiredDocs) {
+      await Document.findOneAndUpdate(
+        { user: user.userId, type: doc.type },
+        {
+          $setOnInsert: {
+            user: user.userId,
+            type: doc.type,
+            category: doc.category,
+            status: "not_started",
+          },
+        },
+        { upsert: true, session }
+      );
+    }
+
+    if (formData.workAuthType === "f1") {
+      await Document.findOneAndUpdate(
+        { user: user.userId, type: "opt_receipt" },
+        {
+          $setOnInsert: {
+            user: user.userId,
+            type: "opt_receipt",
+            category: "visa",
+            status: "not_started",
+          },
+        },
+        { upsert: true, session }
+      );
+    }
+
+    await session.commitTransaction();
     return res.json({ ok: true, status: dbToUIStatus(app.status) });
+
   } catch (err) {
-    return res.status(500).json({ ok: false, message: "Server error" });
+    await session.abortTransaction();
+    console.error("submitOnboarding error:", err);
+    return res.status(500).json({ ok: false, message: "Server error during submission" });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -354,4 +384,3 @@ export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, message: "Server error" });
   }
 };
-  

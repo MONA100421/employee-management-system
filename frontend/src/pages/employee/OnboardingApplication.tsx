@@ -188,7 +188,7 @@ const Onboarding = () => {
       }
     } catch (err) {
       console.error("Network error during submission:", err);
-      alert("提交失敗，請稍後再試");
+      alert("Submission failed, please try again later.");
     }
   };
 

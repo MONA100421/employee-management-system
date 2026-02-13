@@ -26,6 +26,7 @@ type OnboardingRow = {
   id: string;
   firstName?: string;
   lastName?: string;
+  preferredName?: string;
   ssn?: string;
   phone?: string;
   email?: string;
@@ -105,14 +106,21 @@ export default function EmployeeProfiles() {
   // Filter rows based on search query.
   const filteredRows = useMemo(() => {
     const query = searchQuery.toLowerCase();
+
     return rows.filter((row) => {
       const firstName = row.firstName || "";
       const lastName = row.lastName || "";
-      const fullName = `${firstName} ${lastName}`.toLowerCase();
-      const email = (row.email || row.employee?.email || "").toLowerCase();
+      const preferredName = row.preferredName || "";
+
+      const fullName =
+        `${firstName} ${lastName} ${preferredName}`.toLowerCase();
+
+      const email = (row.email || "").toLowerCase();
+
       return fullName.includes(query) || email.includes(query);
     });
   }, [rows, searchQuery]);
+
 
   const handleDialogSubmit = async (feedback: string) => {
     if (!activeRow) return;
@@ -171,6 +179,7 @@ export default function EmployeeProfiles() {
             <TableCell>Phone</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Status</TableCell>
+            <TableCell>Submitted At</TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>

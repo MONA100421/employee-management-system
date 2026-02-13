@@ -45,15 +45,23 @@ export const getNextVisaStep = async (userId: string) => {
     user: userId,
     category: "visa",
     status: "approved",
-  }).select("type").lean();
+  })
+    .select("type")
+    .lean();
 
   const approvedTypes = approvedDocs.map((d: any) => d.type);
 
   for (const step of VISA_STEPS) {
     if (!approvedTypes.includes(step as any)) {
-      return step.replace("_", "-").toUpperCase();
+      const titles: Record<string, string> = {
+        opt_receipt: "OPT Receipt",
+        opt_ead: "OPT EAD",
+        i_983: "I-983",
+        i_20: "I-20",
+      };
+      return titles[step] ?? step;
     }
   }
 
   return "COMPLETED";
-}; "COMPLETED";
+};

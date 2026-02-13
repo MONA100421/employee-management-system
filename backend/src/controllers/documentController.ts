@@ -124,7 +124,6 @@ export const uploadDocument = async (req: Request, res: Response) => {
   });
 };
 
-
 // HR
 export const reviewDocument = async (req: Request, res: Response) => {
   const user = (req as any).user;
@@ -243,18 +242,20 @@ export const getVisaDocumentsForHR = async (_req: Request, res: Response) => {
   });
 };
 
-
 export const sendNotification = async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!user || user.role !== "hr") {
-    return res.status(403).json({ ok: false, message: "Only HR can send notifications" });
+    return res
+      .status(403)
+      .json({ ok: false, message: "Only HR can send notifications" });
   }
 
   const { id } = req.params;
 
   try {
     const doc = await Document.findById(id).populate("user");
-    if (!doc) return res.status(404).json({ ok: false, message: "Document not found" });
+    if (!doc)
+      return res.status(404).json({ ok: false, message: "Document not found" });
 
     await Notification.create({
       user: doc.user,
@@ -273,8 +274,10 @@ export const sendNotification = async (req: Request, res: Response) => {
 
 export const getMyVisaStatus = async (req: Request, res: Response) => {
   const user = (req as any).user;
+  if (!user)
+    return res.status(401).json({ ok: false, message: "Unauthorized" });
+
   const userData = await User.findById(user.userId).select("workAuthorization");
-  
   let daysRemaining = null;
   if (userData?.workAuthorization?.endDate) {
     const end = new Date(userData.workAuthorization.endDate);
@@ -288,6 +291,6 @@ export const getMyVisaStatus = async (req: Request, res: Response) => {
   return res.json({
     ok: true,
     workAuth: userData?.workAuthorization,
-    daysRemaining
+    daysRemaining,
   });
 };

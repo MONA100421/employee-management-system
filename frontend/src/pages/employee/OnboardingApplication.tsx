@@ -136,14 +136,19 @@ const Onboarding = () => {
 
   const isReadOnly = status === "pending" || status === "approved";
 
-  const hasUploadedAtLeastOneDoc = documents.some((d) => !!d.fileName);
+  const requiredDocTypes =
+    documentCategory === "onboarding"
+      ? ["profile_photo", "id_card", "work_auth"]
+      : ["opt_receipt"];
+
+  const hasRequiredDocs = requiredDocTypes.every((type) =>
+    documents.some((d) => d.type === type && d.fileName),
+  );
 
   const canSubmit =
     !isReadOnly &&
-    hasUploadedAtLeastOneDoc &&
+    hasRequiredDocs &&
     (status === "never-submitted" || status === "rejected");
-
-
 
   const validateStep = async (step: number) => {
     if (isReadOnly) return true;

@@ -17,10 +17,10 @@ import StatusChip from '../../components/common/StatusChip';
 import type { StatusType } from '../../components/common/StatusChip';
 import FeedbackDialog from '../../components/common/FeedbackDialog';
 import {
-  getHROnboardings,
   reviewOnboarding,
   type UIOnboardingStatus,
 } from "../../lib/onboarding";
+import { getEmployeesFull } from "../../lib/hr";
 
 type OnboardingRow = {
   id: string;
@@ -54,17 +54,8 @@ export default function EmployeeProfiles() {
   const load = async () => {
     setLoading(true);
     try {
-      const grouped = await getHROnboardings();
-      const allItems = [
-        ...grouped.pending,
-        ...grouped.approved,
-        ...grouped.rejected,
-      ].map((item: any) => ({
-        ...item,
-        email: item.email || item.employee?.email || "",
-      }));
-
-      setRows(allItems as OnboardingRow[]);
+      const employees = await getEmployeesFull();
+      setRows(employees);
     } catch (err) {
       setRows([]);
     } finally {

@@ -26,23 +26,24 @@ export const listEmployees = async (_req: Request, res: Response) => {
         $project: {
           id: { $ifNull: ["$appData._id", "$_id"] },
 
-          firstName: { $ifNull: ["$appData.personalInfo.firstName", "N/A"] },
-          lastName: { $ifNull: ["$appData.personalInfo.lastName", "User"] },
+          firstName: { $ifNull: ["$appData.formData.firstName", "N/A"] },
+          lastName: { $ifNull: ["$appData.formData.lastName", "User"] },
           preferredName: {
-            $ifNull: ["$appData.personalInfo.preferredName", ""],
+            $ifNull: ["$appData.formData.preferredName", ""],
           },
 
-          ssn: { $ifNull: ["$appData.personalInfo.ssn", "N/A"] },
-          phone: { $ifNull: ["$appData.personalInfo.phone", "N/A"] },
+          ssn: { $ifNull: ["$appData.formData.ssn", "N/A"] },
+          phone: { $ifNull: ["$appData.formData.phone", "N/A"] },
 
           email: "$email",
 
           workAuthTitle: {
-            $ifNull: ["$appData.workAuthorization.authType", "Not Set"],
+            $ifNull: ["$appData.formData.workAuthType", "Not Set"],
           },
 
           status: { $ifNull: ["$appData.status", "never_submitted"] },
           submittedAt: "$appData.submittedAt",
+          version: "$appData.__v",
         },
       },
       {

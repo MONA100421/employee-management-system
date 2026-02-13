@@ -37,12 +37,16 @@ export async function getMyOnboarding(): Promise<OnboardingApplication> {
 /**
  * POST /api/onboarding
  */
-export async function submitOnboarding(
-  formData: Record<string, unknown>,
-  version?: number,
-) {
-  const res = await api.post("/onboarding", { formData, version });
-  return res.data as { ok: boolean; status: UIOnboardingStatus };
+export async function submitOnboarding(payload: {
+  formData: Record<string, unknown>;
+  version?: number;
+}) {
+  const res = await api.post("/onboarding", payload);
+
+  return res.data as {
+    ok: boolean;
+    status: UIOnboardingStatus;
+  };
 }
 
 export type ReviewDecision = 'approved' | 'rejected';

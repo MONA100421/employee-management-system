@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Card,
@@ -10,10 +10,8 @@ import {
   StepLabel,
   Divider,
   CircularProgress,
-  Grid,
   TextField,
   MenuItem,
-  Typography,
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -80,7 +78,7 @@ const Onboarding = () => {
     resolver: zodResolver(onboardingSchema),
   });
 
-  const workAuthType = watch("workAuthType");
+  const workAuthType = watch("workAuthType") ?? "";
 
   const {
     documents: onboardingDocs,
@@ -94,10 +92,14 @@ const Onboarding = () => {
     uploadDocument: uploadVisaDoc,
   } = useDocuments("visa");
 
-  const rawDocs =
-    workAuthType === "f1" ? [...onboardingDocs, ...visaDocs] : onboardingDocs;
-
   const loading = onboardingLoading || visaLoading;
+
+  const documents = useMemo(() => {
+    const merged =
+      workAuthType === "f1" ? [...onboardingDocs, ...visaDocs] : onboardingDocs;
+
+    return merged.map(toOnboardingDoc);
+  }, [workAuthType, onboardingDocs, visaDocs]);
 
   const handleUpload = async (type: string, file: File) => {
     const isVisaDoc = visaDocs.some((d) => d.type === type);
@@ -108,33 +110,40 @@ const Onboarding = () => {
     }
   };
 
-  const documents = rawDocs.map(toOnboardingDoc);
-
   const [status, setStatus] = useState<UIOnboardingStatus>("never-submitted");
+  const [version, setVersion] = useState<number>(0);
   const [activeStep, setActiveStep] = useState(0);
   const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(
     null,
   );
 
+  // Load onboarding
   useEffect(() => {
     const load = async () => {
       try {
         const app = await getMyOnboarding();
-        if (app && app.status) {
+        if (app) {
           setStatus(
             (app.status || "never_submitted").replace(
               "_",
               "-",
             ) as UIOnboardingStatus,
           );
+          setVersion(app.version ?? 0);
           setRejectionFeedback(app.hrFeedback ?? null);
+
           if (app.formData) {
-            reset(app.formData);
+            reset({
+              ...(app.formData as OnboardingFormValues),
+              workAuthType:
+                (app.formData as OnboardingFormValues).workAuthType ?? "",
+              gender: (app.formData as OnboardingFormValues).gender ?? "",
+            });
+
           }
         }
       } catch (err) {
         console.error("Failed to load onboarding data:", err);
-        setStatus("never-submitted");
       }
     };
 
@@ -146,18 +155,18 @@ const Onboarding = () => {
     if (status === "approved") {
       const timer = setTimeout(() => {
         navigate("/");
-      }, 2000);
-
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [status, navigate]);
 
   const isReadOnly = status === "pending" || status === "approved";
 
-  const requiredDocTypes = ["profile_photo", "id_card", "work_auth"];
-  if (workAuthType === "f1") {
-    requiredDocTypes.push("opt_receipt");
-  }
+  const requiredDocTypes = useMemo(() => {
+    const base = ["profile_photo", "id_card", "work_auth"];
+    if (workAuthType === "f1") base.push("opt_receipt");
+    return base;
+  }, [workAuthType]);
 
   const hasRequiredDocs = requiredDocTypes.every((type) =>
     documents.some((d) => d.type === type && d.fileName),
@@ -170,43 +179,39 @@ const Onboarding = () => {
 
   const validateStep = async (step: number) => {
     if (isReadOnly) return true;
-    if (step === 0) {
+    if (step === 0)
       return await trigger(["firstName", "lastName", "ssn", "dateOfBirth"]);
-    } else if (step === 1) {
+    if (step === 1)
       return await trigger(["address", "city", "state", "zipCode"]);
-    } else if (step === 2) {
-      return await trigger(["workAuthType", "workAuthOther"]);
-    }
+    if (step === 2) return await trigger(["workAuthType", "workAuthOther"]);
     return true;
   };
 
   const handleNext = async () => {
     const ok = await validateStep(activeStep);
     if (!ok) return;
-    setActiveStep((s) => Math.min(stepsLabels.length - 1, s + 1));
+    setActiveStep((s) => s + 1);
   };
 
-  const handleBack = () => {
-    setActiveStep((s) => Math.max(0, s - 1));
-  };
+  const handleBack = () => setActiveStep((s) => s - 1);
 
   const handleSubmit = async () => {
     try {
       const formData = getValues();
-      const res = await submitOnboarding(formData);
+
+      const res = await submitOnboarding({
+        formData,
+        version,
+      });
 
       if (res.ok) {
         setStatus(
           (res.status?.replace("_", "-") as UIOnboardingStatus) ?? "pending",
         );
-        setRejectionFeedback(null);
         setActiveStep(0);
-      } else {
-        console.error("Submission failed with status:", res.status);
       }
     } catch (err) {
-      console.error("Network error during submission:", err);
-      alert("Submission failed, please try again later.");
+      console.error("Submission failed:", err);
     }
   };
 
@@ -222,8 +227,7 @@ const Onboarding = () => {
     <Box>
       {status === "pending" && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Application Pending Review — your uploaded documents are read-only
-          while HR reviews.
+          Application Pending Review — documents are read-only.
         </Alert>
       )}
 
@@ -232,11 +236,10 @@ const Onboarding = () => {
           Application Approved
         </Alert>
       )}
+
       {status === "rejected" && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          <strong>Your application was rejected.</strong>
-          <br />
-          Please review the feedback below, fix the issues, and resubmit.
+          Your application was rejected.
           {rejectionFeedback && (
             <Box mt={1}>
               <strong>HR Feedback:</strong> {rejectionFeedback}
@@ -247,22 +250,6 @@ const Onboarding = () => {
 
       <Card>
         <CardContent>
-          {status === "pending" && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Submitted documents (read-only while pending)
-              </Typography>
-              <DocumentList documents={documents} onUpload={undefined} />
-            </Box>
-          )}
-
-          {isReadOnly && (
-            <Alert severity="warning" sx={{ mb: 3 }}>
-              Your application is currently {status}. Fields are locked for
-              editing.
-            </Alert>
-          )}
-
           <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3 }}>
             {stepsLabels.map((label) => (
               <Step key={label}>
@@ -273,7 +260,6 @@ const Onboarding = () => {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* Personal Info */}
           {activeStep === 0 && (
             <PersonalInformation
               control={control}
@@ -283,7 +269,6 @@ const Onboarding = () => {
             />
           )}
 
-          {/* Address */}
           {activeStep === 1 && (
             <PersonalInformation
               control={control}
@@ -293,73 +278,34 @@ const Onboarding = () => {
             />
           )}
 
-          {/* Work Authorization */}
           {activeStep === 2 && (
-            <Box>
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 12 }}>
-                  <Controller
-                    name="workAuthType"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        select
-                        label="Work Authorization Type"
-                        required
-                        InputLabelProps={{ shrink: true }}
-                        error={!!errors.workAuthType}
-                        helperText={errors.workAuthType?.message as string}
-                        disabled={isReadOnly}
-                      >
-                        <MenuItem value="">
-                          <em>Select...</em>
-                        </MenuItem>
-                        <MenuItem value="citizen">U.S. Citizen</MenuItem>
-                        <MenuItem value="green-card">Green Card</MenuItem>
-                        <MenuItem value="f1">F1 (CPT/OPT)</MenuItem>
-                        <MenuItem value="h1b">H1-B</MenuItem>
-                        <MenuItem value="l2">L2</MenuItem>
-                        <MenuItem value="h4">H4</MenuItem>
-                        <MenuItem value="other">Other</MenuItem>
-                      </TextField>
-                    )}
-                  />
-                </Grid>
-
-                {workAuthType === "other" && (
-                  <Grid size={{ xs: 12 }}>
-                    <Controller
-                      name="workAuthOther"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Please specify (Visa Title)"
-                          required
-                          InputLabelProps={{ shrink: true }}
-                          disabled={isReadOnly}
-                        />
-                      )}
-                    />
-                  </Grid>
-                )}
-
-                {workAuthType === "f1" && (
-                  <Grid size={{ xs: 12 }}>
-                    <Alert severity="info">
-                      Per OPT flow requirements, you will be required to upload
-                      your OPT Receipt in the next step.
-                    </Alert>
-                  </Grid>
-                )}
-              </Grid>
-            </Box>
+            <Controller
+              name="workAuthType"
+              control={control}
+              defaultValue=""
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  value={field.value ?? ""}
+                  select
+                  fullWidth
+                  label="Work Authorization Type"
+                >
+                  <MenuItem value="">
+                    <em>Select...</em>
+                  </MenuItem>
+                  <MenuItem value="citizen">U.S. Citizen</MenuItem>
+                  <MenuItem value="green-card">Green Card</MenuItem>
+                  <MenuItem value="f1">F1 (CPT/OPT)</MenuItem>
+                  <MenuItem value="h1b">H1-B</MenuItem>
+                  <MenuItem value="l2">L2</MenuItem>
+                  <MenuItem value="h4">H4</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </TextField>
+              )}
+            />
           )}
 
-          {/* Documents */}
           {activeStep === 3 && (
             <DocumentList
               documents={documents}
@@ -367,7 +313,6 @@ const Onboarding = () => {
             />
           )}
 
-          {/* Review */}
           {activeStep === 4 && (
             <OnboardingReview
               formData={getValues()}
@@ -389,7 +334,7 @@ const Onboarding = () => {
                 onClick={handleSubmit}
                 disabled={!canSubmit}
               >
-                {status === "rejected" ? "Resubmit" : "Submit"}
+                Submit
               </Button>
             ) : (
               <Button variant="contained" onClick={handleNext}>

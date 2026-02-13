@@ -79,16 +79,34 @@ const Onboarding = () => {
     mode: "onTouched",
     resolver: zodResolver(onboardingSchema),
   });
-  
+
   const workAuthType = watch("workAuthType");
 
-  const documentCategory = workAuthType === "f1" ? "visa" : "onboarding";
+  const {
+    documents: onboardingDocs,
+    loading: onboardingLoading,
+    uploadDocument: uploadOnboardingDoc,
+  } = useDocuments("onboarding");
 
   const {
-    documents: rawDocs,
-    loading,
-    uploadDocument,
-  } = useDocuments(documentCategory);
+    documents: visaDocs,
+    loading: visaLoading,
+    uploadDocument: uploadVisaDoc,
+  } = useDocuments("visa");
+
+  const rawDocs =
+    workAuthType === "f1" ? [...onboardingDocs, ...visaDocs] : onboardingDocs;
+
+  const loading = onboardingLoading || visaLoading;
+
+  const handleUpload = async (type: string, file: File) => {
+    const isVisaDoc = visaDocs.some((d) => d.type === type);
+    if (isVisaDoc) {
+      await uploadVisaDoc(type, file);
+    } else {
+      await uploadOnboardingDoc(type, file);
+    }
+  };
 
   const documents = rawDocs.map(toOnboardingDoc);
 
@@ -136,10 +154,10 @@ const Onboarding = () => {
 
   const isReadOnly = status === "pending" || status === "approved";
 
-  const requiredDocTypes =
-    documentCategory === "onboarding"
-      ? ["profile_photo", "id_card", "work_auth"]
-      : ["opt_receipt"];
+  const requiredDocTypes = ["profile_photo", "id_card", "work_auth"];
+  if (workAuthType === "f1") {
+    requiredDocTypes.push("opt_receipt");
+  }
 
   const hasRequiredDocs = requiredDocTypes.every((type) =>
     documents.some((d) => d.type === type && d.fileName),
@@ -345,7 +363,7 @@ const Onboarding = () => {
           {activeStep === 3 && (
             <DocumentList
               documents={documents}
-              onUpload={isReadOnly ? undefined : uploadDocument} // 保持現有
+              onUpload={isReadOnly ? undefined : handleUpload}
             />
           )}
 
@@ -383,6 +401,6 @@ const Onboarding = () => {
       </Card>
     </Box>
   );
-};
+};;;
 
 export default Onboarding;

@@ -111,26 +111,62 @@ const HROnboardingDetailPage = () => {
     if (!application) return;
     try {
       setApproveError(null);
-      await reviewOnboarding(application.id, "approved");
+      await reviewOnboarding(
+        application.id,
+        "approved",
+        "",
+        application.version,
+      );
       navigate("/hr/hiring");
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Unable to approve application. Please try again.";
-      setApproveError(message);
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setApproveError(
+          "The application data has been modified by another user. The page has been refreshed with the latest information.",
+        );
+        loadAll(id);
+      } else {
+        const message =
+          err.response?.data?.message ||
+          err.message ||
+          "Unable to approve application. Please try again.";
+        setApproveError(message);
+      }
     }
   };
 
   const handleRejectApp = async (feedback: string) => {
     if (!application) return;
-    await reviewOnboarding(application.id, "rejected", feedback);
-    navigate("/hr/hiring");
+    try {
+      setApproveError(null);
+      await reviewOnboarding(
+        application.id,
+        "rejected",
+        feedback,
+        application.version,
+      );
+      navigate("/hr/hiring");
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setApproveError(
+          "This application has been modified by another user. Please review the updated data and try again.",
+        );
+        loadAll(id);
+      } else {
+        setApproveError(err.response?.data?.message || "Reject failed");
+      }
+    }
   };
 
   if (loading)
     return (
-      <Box sx={{ display: "center", mt: 6 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          mt: 6,
+        }}
+      >
         <CircularProgress />
       </Box>
     );
@@ -265,17 +301,21 @@ const HROnboardingDetailPage = () => {
           setFeedbackDialog({ open: false, type: "approve", docId: null })
         }
         onSubmit={async (feedback) => {
-          if (feedbackDialog.docId) {
-            await handleRejectDoc(feedbackDialog.docId, feedback);
-          } else if (feedbackDialog.type === "approve") {
-            await handleApproveApp();
-          } else {
-            await handleRejectApp(feedback);
+          try {
+            if (feedbackDialog.docId) {
+              await handleRejectDoc(feedbackDialog.docId, feedback);
+              setFeedbackDialog({ open: false, type: "approve", docId: null });
+            } else if (feedbackDialog.type === "approve") {
+              await handleApproveApp();
+            } else {
+              await handleRejectApp(feedback);
+            }
+          } catch (e) {
           }
         }}
       />
     </Box>
   );
-};
+};;
 
 export default HROnboardingDetailPage;

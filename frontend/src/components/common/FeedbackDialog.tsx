@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -9,18 +9,20 @@ import {
   Typography,
   Box,
   useTheme,
-} from '@mui/material';
+  CircularProgress,
+} from "@mui/material";
 import {
   CheckCircle as ApproveIcon,
   Cancel as RejectIcon,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
 interface FeedbackDialogProps {
   open: boolean;
-  type: 'approve' | 'reject';
+  type: "approve" | "reject";
   title: string;
   itemName?: string;
   requireFeedback?: boolean;
+  loading?: boolean;
   onSubmit: (feedback: string) => void;
   onCancel: () => void;
 }
@@ -31,61 +33,85 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
   title,
   itemName,
   requireFeedback = false,
+  loading = false,
   onSubmit,
   onCancel,
 }) => {
   const theme = useTheme();
-  const [feedback, setFeedback] = useState('');
+  const [feedback, setFeedback] = useState("");
   const [error, setError] = useState(false);
 
+  /**
+   * Validates feedback and triggers the onSubmit callback.
+   * If rejection reason is required but empty, it shows an error.
+   */
   const handleSubmit = () => {
-    if (requireFeedback && type === 'reject' && !feedback.trim()) {
+    if (requireFeedback && type === "reject" && !feedback.trim()) {
       setError(true);
       return;
     }
     onSubmit(feedback);
-    setFeedback('');
     setError(false);
   };
 
+  /**
+   * Resets internal state and calls the onCancel callback.
+   */
   const handleClose = () => {
-    setFeedback('');
+    if (loading) return;
+    setFeedback("");
     setError(false);
     onCancel();
   };
 
-  const isApprove = type === 'approve';
+  const isApprove = type === "approve";
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      // Prevent clicking outside to close while loading
+      disableEscapeKeyDown={loading}
+    >
       <DialogTitle sx={{ pb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           {isApprove ? (
-            <ApproveIcon sx={{ color: theme.palette.success.main, fontSize: 28 }} />
+            <ApproveIcon
+              sx={{ color: theme.palette.success.main, fontSize: 28 }}
+            />
           ) : (
-            <RejectIcon sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+            <RejectIcon
+              sx={{ color: theme.palette.error.main, fontSize: 28 }}
+            />
           )}
           <Typography variant="h6" component="span" sx={{ fontWeight: 600 }}>
             {title}
           </Typography>
         </Box>
       </DialogTitle>
+
       <DialogContent>
         {itemName && (
-          <Typography variant="body2" sx={{ mb: 2, color: theme.palette.text.secondary }}>
-            {isApprove ? 'You are about to approve' : 'You are about to reject'}:{' '}
-            <strong>{itemName}</strong>
+          <Typography
+            variant="body2"
+            sx={{ mb: 2, color: theme.palette.text.secondary }}
+          >
+            {isApprove ? "You are about to approve" : "You are about to reject"}
+            : <strong>{itemName}</strong>
           </Typography>
         )}
         <TextField
           fullWidth
           multiline
           rows={4}
-          label={isApprove ? 'Comments (optional)' : 'Reason for rejection'}
+          disabled={loading} // Disable input while submitting
+          label={isApprove ? "Comments (optional)" : "Reason for rejection"}
           placeholder={
             isApprove
-              ? 'Add any comments or notes...'
-              : 'Please provide a reason for rejection...'
+              ? "Add any comments or notes..."
+              : "Please provide a reason for rejection..."
           }
           value={feedback}
           onChange={(e) => {
@@ -93,20 +119,29 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
             if (error) setError(false);
           }}
           error={error}
-          helperText={error ? 'Rejection reason is required' : ''}
+          helperText={error ? "Rejection reason is required" : ""}
           required={!isApprove && requireFeedback}
         />
       </DialogContent>
+
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleClose} color="inherit">
+        <Button
+          onClick={handleClose}
+          color="inherit"
+          disabled={loading} // Prevent canceling during submission
+        >
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
-          color={isApprove ? 'success' : 'error'}
+          color={isApprove ? "success" : "error"}
+          disabled={loading} // Prevent double submission
+          startIcon={
+            loading ? <CircularProgress size={20} color="inherit" /> : null
+          }
         >
-          {isApprove ? 'Approve' : 'Reject'}
+          {loading ? "Submitting..." : isApprove ? "Approve" : "Reject"}
         </Button>
       </DialogActions>
     </Dialog>

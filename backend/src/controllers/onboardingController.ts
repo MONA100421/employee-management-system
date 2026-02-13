@@ -147,7 +147,7 @@ export const submitOnboarding = async (req: Request, res: Response) => {
 
 /**
  * GET /api/hr/onboarding
- * HR only: Lists all onboarding applications
+ * HR only: Lists all onboarding applications grouped by status
  */
 export const listOnboardingsForHR = async (req: Request, res: Response) => {
   try {
@@ -155,17 +155,29 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
       .populate("user", "username email")
       .sort({ submittedAt: -1 })
       .lean();
+    
+    const grouped = {
+      pending: [] as any[],
+      approved: [] as any[],
+      rejected: [] as any[],
+    };
 
-    const out = apps.map((a: any) => ({
-      id: a._id,
-      employee: a.user
-        ? { username: a.user.username, email: a.user.email }
-        : null,
-      status: dbToUIStatus(a.status),
-      submittedAt: a.submittedAt ?? a.createdAt,
-    }));
+    apps.forEach((a: any) => {
+      const record = {
+        id: a._id,
+        employee: a.user
+          ? { username: a.user.username, email: a.user.email }
+          : null,
+        status: dbToUIStatus(a.status),
+        submittedAt: a.submittedAt ?? a.createdAt,
+      };
 
-    return res.json({ ok: true, applications: out });
+      if (grouped[a.status as keyof typeof grouped]) {
+        grouped[a.status as keyof typeof grouped].push(record);
+      }
+    });
+
+    return res.json({ ok: true, grouped });
   } catch (err) {
     console.error("listOnboardingsForHR error", err);
     return res.status(500).json({ ok: false, message: "Server error" });
@@ -235,6 +247,13 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
           status: decision,
           hrFeedback: feedback || "",
           reviewedAt: new Date(),
+        },
+        $push: {
+          history: {
+            status: decision,
+            updatedAt: new Date(),
+            action: `HR Review: ${decision}`,
+          },
         },
         $inc: { __v: 1 },
       },

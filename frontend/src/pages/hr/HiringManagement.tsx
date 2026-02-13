@@ -19,6 +19,7 @@ import {
   Alert,
   InputAdornment,
   Grid,
+  Stack,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -34,10 +35,12 @@ import FeedbackDialog from "../../components/common/FeedbackDialog";
 import {
   getHROnboardings,
   reviewOnboarding,
+  sendInvitation,
+  getInvitationHistory,
   type HROnboardingListItem,
+  type InvitationRecord,
 } from "../../lib/onboarding";
 import { useNavigate } from "react-router-dom";
-import api from "../../lib/api";
 
 const HiringManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -47,6 +50,7 @@ const HiringManagement: React.FC = () => {
   // Invitation token states
   const [newHireEmail, setNewHireEmail] = useState("");
   const [newHireName, setNewHireName] = useState("");
+  const [loading, setLoading] = useState(false);
   const [tokenGenerated, setTokenGenerated] = useState(false);
   const [generatedLink, setGeneratedLink] = useState("");
 
@@ -55,7 +59,7 @@ const HiringManagement: React.FC = () => {
   const [loadingApps, setLoadingApps] = useState(true);
 
   // Invitation history states
-  const [inviteHistory, setInviteHistory] = useState<any[]>([]);
+  const [inviteHistory, setInviteHistory] = useState<InvitationRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const [feedbackDialog, setFeedbackDialog] = useState<{
@@ -68,14 +72,28 @@ const HiringManagement: React.FC = () => {
     application: null,
   });
 
+  const [submitting, setSubmitting] = useState(false);
+
   // Fetch all onboarding applications
   const loadApplications = async () => {
     setLoadingApps(true);
     try {
-      const data = await getHROnboardings();
-      setApplications(data);
+      const res: any = await getHROnboardings();
+      if (res && res.grouped) {
+        setApplications([
+          ...(res.grouped.pending || []),
+          ...(res.grouped.approved || []),
+          ...(res.grouped.rejected || []),
+        ]);
+      }
+      else if (Array.isArray(res)) {
+        setApplications(res);
+      } else {
+        setApplications([]);
+      }
     } catch (err) {
       console.error("Failed to load applications", err);
+      setApplications([]);
     } finally {
       setLoadingApps(false);
     }
@@ -85,8 +103,8 @@ const HiringManagement: React.FC = () => {
   const loadHistory = async () => {
     setLoadingHistory(true);
     try {
-      const res = await api.get("/hr/invite/history");
-      setInviteHistory(res.data.history || []);
+      const data = await getInvitationHistory();
+      setInviteHistory(data);
     } catch (err) {
       console.error("Failed to load history", err);
     } finally {
@@ -105,19 +123,47 @@ const HiringManagement: React.FC = () => {
     (app) => app.status === applicationTabs[tabValue],
   );
 
-  // Handle token generation and email trigger
+  /**
+   * Handles the generation of a registration token and sends the invitation email.
+   * Includes error handling to notify HR if the process fails.
+   */
   const handleGenerateToken = async () => {
-    if (!newHireEmail || !newHireName) return;
+    if (!newHireName || !newHireEmail) {
+      alert("Please provide both name and email.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await api.post("/hr/invite", {
-        email: newHireEmail,
-        name: newHireName,
-      });
-      setGeneratedLink(response.data.registrationLink);
-      setTokenGenerated(true);
-      loadHistory(); // Refresh history list after successful generation
-    } catch (error) {
-      console.error("Failed to generate token:", error);
+      // API call to generate token and send email
+      const res = await sendInvitation(newHireEmail, newHireName);
+
+      if (res.ok) {
+        // Notify HR of success and clear the form
+        setGeneratedLink(res.registrationLink);
+        setTokenGenerated(true);
+        alert(`Invitation sent to ${newHireName} successfully!`);
+        setNewHireName("");
+        setNewHireEmail("");
+
+        // Refresh the invitation history list to show the new record
+        loadHistory();
+      } else {
+        // Handle specific API error responses
+        alert(
+          res.message ||
+            "Failed to send invitation. Please check if the email is already invited.",
+        );
+      }
+    } catch (err: any) {
+      // Log the error for debugging
+      console.error("handleGenerateToken error:", err);
+      const errorMsg =
+        err.response?.data?.message ||
+        "An unexpected error occurred. Please try again later.";
+      alert(`Error: ${errorMsg}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,18 +186,26 @@ const HiringManagement: React.FC = () => {
     setFeedbackDialog({ open: true, type: "reject", application: app });
   };
 
+  // Handles the approval/rejection submission with loading state.
   const handleFeedbackSubmit = async (feedback: string) => {
     if (!feedbackDialog.application) return;
+
+    setSubmitting(true);
     try {
       await reviewOnboarding(
         feedbackDialog.application.id,
         feedbackDialog.type === "approve" ? "approved" : "rejected",
         feedbackDialog.type === "reject" ? feedback : undefined,
       );
+
       setFeedbackDialog({ open: false, type: "approve", application: null });
       await loadApplications();
+      alert("Application status updated successfully.");
     } catch (err) {
       console.error("Review submission failed", err);
+      alert("Failed to update status. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -185,7 +239,6 @@ const HiringManagement: React.FC = () => {
                     label="New Hire Full Name"
                     value={newHireName}
                     onChange={(e) => setNewHireName(e.target.value)}
-                    placeholder="e.g. John Doe"
                   />
                   <TextField
                     fullWidth
@@ -205,7 +258,7 @@ const HiringManagement: React.FC = () => {
                     variant="contained"
                     size="large"
                     onClick={handleGenerateToken}
-                    disabled={!newHireEmail || !newHireName}
+                    disabled={loading || !newHireEmail || !newHireName}
                   >
                     Send Invitation Email
                   </Button>
@@ -274,7 +327,10 @@ const HiringManagement: React.FC = () => {
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Sent:{" "}
-                            {new Date(item.createdAt).toLocaleDateString()}
+                            {new Date(item.createdAt).toLocaleString([], {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -408,6 +464,7 @@ const HiringManagement: React.FC = () => {
       {/* Reusable Feedback/Approval Dialog */}
       <FeedbackDialog
         open={feedbackDialog.open}
+        loading={submitting}
         type={feedbackDialog.type}
         title={
           feedbackDialog.type === "approve"
@@ -423,18 +480,6 @@ const HiringManagement: React.FC = () => {
       />
     </Box>
   );
-};
-
-const Stack = ({
-  children,
-  direction = "row",
-  justifyContent = "flex-start",
-}: any) => (
-  <Box
-    sx={{ display: "flex", flexDirection: direction, justifyContent, gap: 1 }}
-  >
-    {children}
-  </Box>
-);
+}
 
 export default HiringManagement;

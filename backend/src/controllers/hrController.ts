@@ -154,6 +154,8 @@ export const inviteHistory = async (_req: Request, res: Response) => {
       .lean();
 
     const now = Date.now();
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
     const out = tokens.map((t: any) => {
       const expiresAtTime =
         t.expiresAt instanceof Date
@@ -170,6 +172,7 @@ export const inviteHistory = async (_req: Request, res: Response) => {
         id: t._id,
         email: t.email,
         name: t.name || "N/A",
+        registrationLink: `${frontendUrl}/register?token=${t.tokenHash}&email=${encodeURIComponent(t.email)}`,
         createdAt: t.createdAt,
         expiresAt: t.expiresAt,
         used: t.used,
@@ -182,6 +185,25 @@ export const inviteHistory = async (_req: Request, res: Response) => {
     return res.json({ ok: true, history: out });
   } catch (err) {
     console.error("inviteHistory error:", err);
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res
+      .status(500)
+      .json({ ok: false, message: "Internal server error" });
+  }
+};
+
+export const searchEmployees = async (req: Request, res: Response) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ ok: true, employees: [] });
+
+    const regex = new RegExp(q as string, "i");
+    const users = await User.find({
+      role: "employee",
+      $or: [{ username: regex }, { email: regex }],
+    }).lean();
+
+    return res.json({ ok: true, employees: users });
+  } catch (err) {
+    return res.status(500).json({ ok: false });
   }
 };

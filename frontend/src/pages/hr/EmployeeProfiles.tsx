@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import api from '../../lib/api';
 import {
   Box,
   Table,
@@ -11,12 +10,17 @@ import {
   CircularProgress,
   Button,
   Stack,
+  TextField
 } from '@mui/material';
 
 import StatusChip from '../../components/common/StatusChip';
 import type { StatusType } from '../../components/common/StatusChip';
 import FeedbackDialog from '../../components/common/FeedbackDialog';
-import type { UIOnboardingStatus } from '../../lib/onboarding';
+import {
+  getHROnboardings,
+  reviewOnboarding,
+  type UIOnboardingStatus,
+} from "../../lib/onboarding";
 
 type OnboardingRow = {
   id: string;
@@ -31,21 +35,36 @@ type OnboardingRow = {
 export default function EmployeeProfiles() {
   const [rows, setRows] = useState<OnboardingRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState<'approve' | 'reject'>('approve');
+  const [dialogType, setDialogType] = useState<"approve" | "reject">("approve");
   const [activeRow, setActiveRow] = useState<OnboardingRow | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const resp = await api.get("/hr/employees");
-      if (resp.data.ok) {
-        setRows(resp.data.employees || []);
+      const response: any = await getHROnboardings();
+
+      if (response && response.grouped) {
+        const allRows = [
+          ...(response.grouped.pending || []),
+          ...(response.grouped.approved || []),
+          ...(response.grouped.rejected || []),
+        ];
+        setRows(allRows);
+      }
+      else if (Array.isArray(response)) {
+        setRows(response);
+      }
+      else {
+        setRows([]);
       }
     } catch (err) {
       console.error("Failed to load employee profiles", err);
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -58,49 +77,62 @@ export default function EmployeeProfiles() {
   // map backend UI status -> StatusChip status
   const mapStatus = (s: UIOnboardingStatus): StatusType => {
     switch (s) {
-      case 'approved':
-        return 'approved';
-      case 'rejected':
-        return 'rejected';
-      case 'pending':
-        return 'pending';
-      case 'never-submitted':
+      case "approved":
+        return "approved";
+      case "rejected":
+        return "rejected";
+      case "pending":
+        return "pending";
+      case "never-submitted":
       default:
-        return 'pending';
+        return "pending";
     }
   };
 
   const openApprove = (row: OnboardingRow) => {
     setActiveRow(row);
-    setDialogType('approve');
+    setDialogType("approve");
     setDialogOpen(true);
   };
 
   const openReject = (row: OnboardingRow) => {
     setActiveRow(row);
-    setDialogType('reject');
+    setDialogType("reject");
     setDialogOpen(true);
   };
 
+  // Filter rows based on search query.
+  const filteredRows = rows.filter((row) => {
+    const name = row.employee?.username?.toLowerCase() || "";
+    const email = row.employee?.email?.toLowerCase() || "";
+    const query = searchQuery.toLowerCase();
+    return name.includes(query) || email.includes(query);
+  });
+
   const handleDialogSubmit = async (feedback: string) => {
     if (!activeRow) return;
-
+    setSubmitting(true);
     try {
-      await api.post(`/hr/onboarding/${activeRow.id}/review`, {
-        decision: dialogType === 'approve' ? 'approved' : 'rejected',
-        feedback,
-      });
+      const decision = dialogType === "approve" ? "approved" : "rejected";
+
+      await reviewOnboarding(
+        activeRow.id,
+        decision,
+        dialogType === "reject" ? feedback : undefined,
+      );
       setDialogOpen(false);
       setActiveRow(null);
-      await load(); // refresh list
+      await load();
     } catch (err) {
-      console.error('Review failed', err);
+      console.error("Review failed", err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
         <CircularProgress />
       </Box>
     );
@@ -109,8 +141,20 @@ export default function EmployeeProfiles() {
   return (
     <Box>
       <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
-        Onboarding Applications
+        Employee Profiles
       </Typography>
+
+      {/* Search Box */}
+      <TextField
+        fullWidth
+        label="Search employees by name or email"
+        variant="outlined"
+        value={searchQuery}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          setSearchQuery(e.target.value)
+        }
+        sx={{ mb: 3 }}
+      />
 
       <Table>
         <TableHead>
@@ -124,20 +168,20 @@ export default function EmployeeProfiles() {
         </TableHead>
 
         <TableBody>
-          {rows.map((row) => (
+          {filteredRows.map((row) => (
             <TableRow key={row.id} hover>
-              <TableCell>{row.employee?.username ?? '—'}</TableCell>
-              <TableCell>{row.employee?.email ?? '—'}</TableCell>
+              <TableCell>{row.employee?.username ?? "—"}</TableCell>
+              <TableCell>{row.employee?.email ?? "—"}</TableCell>
               <TableCell>
                 <StatusChip status={mapStatus(row.status)} />
               </TableCell>
               <TableCell>
                 {row.submittedAt
                   ? new Date(row.submittedAt).toLocaleString()
-                  : '—'}
+                  : "—"}
               </TableCell>
               <TableCell align="right">
-                {row.status === 'pending' ? (
+                {row.status === "pending" ? (
                   <Stack direction="row" spacing={1} justifyContent="flex-end">
                     <Button
                       size="small"
@@ -157,7 +201,7 @@ export default function EmployeeProfiles() {
                     </Button>
                   </Stack>
                 ) : (
-                  '—'
+                  "—"
                 )}
               </TableCell>
             </TableRow>
@@ -183,14 +227,15 @@ export default function EmployeeProfiles() {
       {/* Feedback Dialog */}
       <FeedbackDialog
         open={dialogOpen}
+        loading={submitting}
         type={dialogType}
         title={
-          dialogType === 'approve'
-            ? 'Approve Onboarding Application'
-            : 'Reject Onboarding Application'
+          dialogType === "approve"
+            ? "Approve Onboarding Application"
+            : "Reject Onboarding Application"
         }
         itemName={activeRow?.employee?.username}
-        requireFeedback={dialogType === 'reject'}
+        requireFeedback={dialogType === "reject"}
         onSubmit={handleDialogSubmit}
         onCancel={() => {
           setDialogOpen(false);

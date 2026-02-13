@@ -13,6 +13,15 @@ export interface OnboardingApplication {
   hrFeedback: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
+  version?: number;
+}
+
+export interface InvitationRecord {
+  id: string;
+  email: string;
+  name: string;
+  status: "sent" | "registered";
+  createdAt: string;
 }
 
 /**
@@ -26,24 +35,35 @@ export async function getMyOnboarding(): Promise<OnboardingApplication> {
 /**
  * POST /api/onboarding
  */
-export async function submitOnboarding(formData: Record<string, unknown>) {
-  const res = await api.post('/onboarding', { formData });
+export async function submitOnboarding(
+  formData: Record<string, unknown>,
+  version?: number,
+) {
+  const res = await api.post("/onboarding", { formData, version });
   return res.data as { ok: boolean; status: UIOnboardingStatus };
 }
 
 export type ReviewDecision = 'approved' | 'rejected';
 
+export async function sendInvitation(name: string, email: string) {
+  const res = await api.post("/hr/invite", { name, email });
+  return res.data;
+}
+
+export async function getInvitationHistory(): Promise<InvitationRecord[]> {
+  const res = await api.get("/hr/invite/history");
+  return res.data.history || [];
+}
+
 export async function reviewOnboarding(
   onboardingId: string,
   decision: ReviewDecision,
-  feedback?: string
+  feedback?: string,
+  version?: number
 ): Promise<{ ok: boolean }> {
   const resp = await api.post(
     `/hr/onboarding/${onboardingId}/review`,
-    {
-      decision,
-      feedback,
-    }
+    { decision, feedback, version } 
   );
 
   return resp.data;
@@ -61,9 +81,9 @@ export type HROnboardingListItem = {
   submittedAt: string;
 };
 
-export async function getHROnboardings(): Promise<HROnboardingListItem[]> {
+export async function getHROnboardings(): Promise<any> {
   const res = await api.get("/hr/onboarding");
-  return res.data.applications || [];
+  return res.data;
 }
 
 export interface HROnboardingDetail {
@@ -73,6 +93,7 @@ export interface HROnboardingDetail {
   hrFeedback: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
+  version: number;
   employee: {
     id: string;
     username: string;
@@ -86,4 +107,11 @@ export async function getHROnboardingDetail(
   const res = await api.get(`/hr/onboarding/${onboardingId}`);
   return res.data.application;
 }
+
+export interface GroupedOnboardings {
+  pending: HROnboardingListItem[];
+  approved: HROnboardingListItem[];
+  rejected: HROnboardingListItem[];
+}
+
 

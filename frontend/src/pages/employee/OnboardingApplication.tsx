@@ -95,11 +95,32 @@ const Onboarding = () => {
   const loading = onboardingLoading || visaLoading;
 
   const documents = useMemo(() => {
-    const merged =
-      workAuthType === "f1" ? [...onboardingDocs, ...visaDocs] : onboardingDocs;
+    let merged = [...onboardingDocs];
+
+    if (workAuthType === "f1") {
+      const hasOptReceipt = visaDocs.some((d) => d.type === "opt_receipt");
+
+      if (!hasOptReceipt) {
+        merged.push({
+          id: "temp-opt",
+          type: "opt_receipt",
+          category: "visa",
+          status: "not-started",
+          fileName: undefined,
+          fileUrl: undefined,
+          uploadedAt: undefined,
+          reviewedAt: undefined,
+          hrFeedback: undefined,
+        });
+
+      } else {
+        merged = [...merged, ...visaDocs];
+      }
+    }
 
     return merged.map(toOnboardingDoc);
   }, [workAuthType, onboardingDocs, visaDocs]);
+
 
   const handleUpload = async (type: string, file: File) => {
     const isVisaDoc = visaDocs.some((d) => d.type === type);

@@ -28,12 +28,12 @@ export async function uploadFilePresigned({
 }): Promise<UploadResult> {
   const presignRes = await api.post<PresignResponse>("/uploads/presign", {
     fileName: file.name,
-    contentType: file.type || "application/octet-stream",
+    fileType: file.type || "application/octet-stream",
     type,
     category,
   });
 
-  if (!presignRes.data || !presignRes.data.ok) {
+  if (!presignRes.data?.ok) {
     throw new Error("Failed to get presigned URL");
   }
 
@@ -58,7 +58,7 @@ export async function uploadFilePresigned({
     fileUrl,
   });
 
-  if (!registerRes.data || !registerRes.data.ok) {
+  if (!registerRes.data?.ok) {
     throw new Error("Failed to register uploaded document");
   }
 
@@ -68,7 +68,7 @@ export async function uploadFilePresigned({
   };
 }
 
-// Get presigned GET url for a stored object key (or fileUrl in s3:// form)
+
 export async function getPresignedGet({
   key,
   fileUrl,

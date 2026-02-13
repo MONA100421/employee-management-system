@@ -67,7 +67,7 @@ const HRDashboard: React.FC = () => {
   const stats = [
     {
       title: "Total Employees",
-      value: totalEmployees ?? "—",
+      value: totalEmployees ?? (loading ? "..." : "0"),
       change: "Live data",
       icon: <PeopleIcon sx={{ fontSize: 28 }} />,
       color: theme.palette.primary.main,
@@ -170,7 +170,16 @@ const HRDashboard: React.FC = () => {
                   No recent activities found.
                 </Typography>
               ) : (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                    maxHeight: 400,
+                    overflowY: "auto",
+                    pr: 1,
+                  }}
+                >
                   {recentActivity.map(
                     (activity: DashboardNotification, index: number) => (
                       <React.Fragment key={activity.id || index}>

@@ -17,6 +17,7 @@ import {
   IconButton,
   Tooltip,
   useTheme,
+  CircularProgress,
 } from "@mui/material";
 import {
   CheckCircle as ApproveIcon,
@@ -39,6 +40,7 @@ type HRVisaDocument = {
   fileName?: string;
   fileUrl?: string;
   uploadedAt?: string;
+  version?: number;
   hrFeedback?: string | null;
   user: {
     id: string;
@@ -97,17 +99,23 @@ const VisaManagement: React.FC = () => {
   const handleFeedbackSubmit = async (feedback: string) => {
     if (!feedbackDialog.record) return;
     try {
-      // Replaced fetch with api.post
       await api.post(`/documents/${feedbackDialog.record.id}/review`, {
         decision: feedbackDialog.type === "approve" ? "approved" : "rejected",
         feedback,
+        version: feedbackDialog.record.version,
       });
-      // Refresh the list after review
-      await loadDocuments();
-    } catch (err) {
-      console.error("Failed to review document", err);
-    } finally {
       setFeedbackDialog({ open: false, type: "approve", record: null });
+      await loadDocuments();
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        alert(
+          "This document has been modified by another HR. The list will refresh.",
+        );
+        await loadDocuments();
+        setFeedbackDialog({ open: false, type: "approve", record: null });
+      } else {
+        console.error("Failed to review document", err);
+      }
     }
   };
 
@@ -254,14 +262,19 @@ const VisaManagement: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ))}
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                    <CircularProgress size={24} />
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </TableContainer>
-        {shownRecords.length === 0 && (
+        {shownRecords.length === 0 && !loading && (
           <Box sx={{ p: 4, textAlign: "center" }}>
-            <Typography color="text.secondary">
-              {loading ? "Loading..." : "No records found"}
-            </Typography>
+            <Typography color="text.secondary">No records found</Typography>
           </Box>
         )}
       </Card>

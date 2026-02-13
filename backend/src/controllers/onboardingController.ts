@@ -30,54 +30,71 @@ const dbToUIStatus = (s: string | undefined) => {
   }
 };
 
-// GET /api/onboarding/me
+/**
+ * GET /api/onboarding/me
+ */
 export const getMyOnboarding = async (req: Request, res: Response) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const user = (req as any).user;
-    if (!user) {
-      await session.abortTransaction();
+    if (!user)
       return res.status(401).json({ ok: false, message: "Unauthenticated" });
-    }
 
-    // 1. 尋找申請單，如果不存在就立刻「預初始化」一份
-    let app = await OnboardingApplication.findOne({ user: user.userId }).session(session);
+    let app = await OnboardingApplication.findOne({
+      user: user.userId,
+    });
 
+    // First time initialization
     if (!app) {
-      // 第一次進入流程：建立 OnboardingApplication 紀錄
-      app = new OnboardingApplication({
+      app = await OnboardingApplication.create({
         user: user.userId,
         status: "never_submitted",
         formData: {},
-        history: [{ status: "never_submitted", updatedAt: new Date(), action: "Started Onboarding" }],
-      });
-      await app.save({ session });
-
-      // 2. ✨ 關鍵：立刻建立預設文件的 Skeleton
-      const requiredDocs = [
-        { type: "profile_photo", category: "onboarding" },
-        { type: "id_card", category: "onboarding" },
-        { type: "work_auth", category: "onboarding" },
-      ];
-
-      for (const doc of requiredDocs) {
-        await Document.findOneAndUpdate(
-          { user: user.userId, type: doc.type },
+        history: [
           {
-            $setOnInsert: {
-              user: user.userId,
-              type: doc.type,
-              category: doc.category,
-              status: "not_started",
-            },
+            status: "never_submitted",
+            updatedAt: new Date(),
+            action: "Started Onboarding",
           },
-          { upsert: true, session }
-        );
-      }
+        ],
+      });
     }
 
-    await session.commitTransaction();
+    // Ensure required onboarding docs always exist
+    const baseDocs = [
+      { type: "profile_photo", category: "onboarding" },
+      { type: "id_card", category: "onboarding" },
+      { type: "work_auth", category: "onboarding" },
+    ];
+
+    if (app.formData?.workAuthType === "f1") {
+      await Document.findOneAndUpdate(
+        { user: user.userId, type: "opt_receipt" },
+        {
+          $setOnInsert: {
+            user: user.userId,
+            type: "opt_receipt",
+            category: "visa",
+            status: "not_started",
+          },
+        },
+        { upsert: true },
+      );
+    }
+
+    for (const doc of baseDocs) {
+      await Document.findOneAndUpdate(
+        { user: user.userId, type: doc.type },
+        {
+          $setOnInsert: {
+            user: user.userId,
+            type: doc.type,
+            category: doc.category,
+            status: "not_started",
+          },
+        },
+        { upsert: true }
+      );
+    }
 
     return res.json({
       ok: true,
@@ -92,15 +109,15 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    await session.abortTransaction();
     console.error("getMyOnboarding error:", err);
     return res.status(500).json({ ok: false, message: "Server error" });
-  } finally {
-    session.endSession();
   }
 };
 
-// POST /api/onboarding
+
+/**
+ * POST /api/onboarding
+ */
 export const submitOnboarding = async (req: Request, res: Response) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -109,40 +126,38 @@ export const submitOnboarding = async (req: Request, res: Response) => {
     const user = (req as any).user;
     const { formData, version } = req.body;
 
-    let app = await OnboardingApplication.findOne({ user: user.userId }).session(session);
-    
+    const app = await OnboardingApplication.findOne({
+      user: user.userId,
+      __v: version,
+    }).session(session);
+
+
     if (!app) {
-      await session.abortTransaction();
-      return res.status(404).json({ ok: false, message: "Application record not found." });
-    }
-
-    const currentStatus = app.status;
-
-    if (!ALLOWED_TRANSITIONS[currentStatus]?.includes("pending")) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        ok: false,
-        message: `Status is ${currentStatus}. Submitting is not allowed.`,
-      });
-    }
-
-    const updatedApp = await OnboardingApplication.findOneAndUpdate(
-      { _id: app._id, __v: version },
-      {
-        $set: { formData, status: "pending", submittedAt: new Date() },
-        $push: { history: { status: "pending", updatedAt: new Date(), action: "Submission" } },
-        $inc: { __v: 1 },
-      },
-      { new: true, session },
-    );
-
-    if (!updatedApp) {
       await session.abortTransaction();
       return res.status(409).json({
         ok: false,
-        message: "Conflict: Application was modified. Please refresh.",
+        message: "Application modified. Please refresh.",
       });
     }
+
+    if (!ALLOWED_TRANSITIONS[app.status]?.includes("pending")) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        ok: false,
+        message: `Cannot submit from ${app.status}`,
+      });
+    }
+
+    app.formData = formData;
+    app.status = "pending";
+    app.submittedAt = new Date();
+    app.history.push({
+      status: "pending",
+      updatedAt: new Date(),
+      action: "Submission",
+    });
+
+    await app.save({ session });
 
     if (formData.workAuthType === "f1") {
       await Document.findOneAndUpdate(
@@ -160,12 +175,15 @@ export const submitOnboarding = async (req: Request, res: Response) => {
     }
 
     await session.commitTransaction();
-    return res.json({ ok: true, status: dbToUIStatus(updatedApp.status) });
 
+    return res.json({
+      ok: true,
+      status: dbToUIStatus(app.status),
+    });
   } catch (err) {
     await session.abortTransaction();
     console.error("submitOnboarding error:", err);
-    return res.status(500).json({ ok: false, message: "Server error during submission" });
+    return res.status(500).json({ ok: false });
   } finally {
     session.endSession();
   }
@@ -223,7 +241,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     }
 
     const app = await OnboardingApplication.findOne({
-      _id: id,
+      user: user.userId,
       __v: version,
     }).session(session);
 
@@ -304,6 +322,7 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     });
 
     await app.save({ session });
+
     await session.commitTransaction();
 
     setImmediate(async () => {

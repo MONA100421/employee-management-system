@@ -168,8 +168,9 @@ const Onboarding = () => {
     return base;
   }, [workAuthType]);
 
+
   const hasRequiredDocs = requiredDocTypes.every((type) =>
-    documents.some((d) => d.type === type && d.fileName),
+    documents.some((d) => d.type === type && d.status !== "not-started"),
   );
 
   const canSubmit =

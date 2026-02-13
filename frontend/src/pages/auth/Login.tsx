@@ -50,13 +50,15 @@ const Login: React.FC = () => {
       const res = await login(username, password);
 
       if (res.ok && res.user) {
-        if (res.user.role === 'hr') {
-          navigate('/hr/dashboard');
+        if (res.user.role === "hr") {
+          navigate("/hr/dashboard");
+        } else if (res.user.role === "employee") {
+          navigate("/employee/onboarding");
         } else {
-          navigate('/employee/dashboard');
+          navigate("/");
         }
       } else {
-        setError(res.message ?? 'Invalid username or password');
+        setError(res.message ?? "Invalid username or password");
       }
     } catch (err) {
       console.error('Login error', err);

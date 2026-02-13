@@ -124,21 +124,6 @@ export const reviewDocument = async (req: Request, res: Response) => {
     feedback,
   });
 
-  // use normalized type names
-  await Notification.create({
-    user: updatedDoc.user,
-    type:
-      decision === "approved"
-        ? NotificationTypes.DOCUMENT_APPROVED
-        : NotificationTypes.DOCUMENT_REJECTED,
-    title: decision === "approved" ? "Document Approved" : "Document Rejected",
-    message: `${updatedDoc.type} document ${decision}`,
-    data: {
-      documentId: updatedDoc._id.toString(),
-      documentType: updatedDoc.type,
-    },
-  });
-
   if (decision === "rejected") {
     try {
       const employee = await User.findById(updatedDoc.user);

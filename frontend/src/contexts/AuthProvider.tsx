@@ -23,25 +23,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login: AuthContextType["login"] = async (username, password) => {
     try {
       const resp = await api.post("/auth/login", { username, password });
-
       if (resp.data.ok) {
         const { token, user: loggedInUser } = resp.data;
-
-        // Store JWT token for API authorization
-        localStorage.setItem("auth_token", token);
-
-        // Store user for UI persistence
-        setUser(loggedInUser);
-        localStorage.setItem("auth_user", JSON.stringify(loggedInUser));
-
-        // Clear cached data so the new user doesn't see old documents
         resetDocumentsCache();
-
+        localStorage.setItem("auth_token", token);
+        localStorage.setItem("auth_user", JSON.stringify(loggedInUser));
+        setUser(loggedInUser);
         return { ok: true, user: loggedInUser };
       }
       return { ok: false, message: resp.data.message };
     } catch {
-      // Replaced 'err' with nothing to fix ESLint warning
       return {
         ok: false,
         message: "Login failed. Please check your credentials.",
@@ -54,14 +45,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    */
   const logout = async () => {
     try {
-      await api.post("/auth/logout");
-    } catch {
-        // Ignore errors during logout
+      await api.post("/auth/logout").catch(() => {});
+    } finally {
+      setUser(null);
+      localStorage.removeItem("auth_user");
+      localStorage.removeItem("auth_token");
+      resetDocumentsCache();
+      window.location.href = "/login";
     }
-    setUser(null);
-    localStorage.removeItem("auth_user");
-    localStorage.removeItem("auth_token");
-    resetDocumentsCache();
   };
 
 

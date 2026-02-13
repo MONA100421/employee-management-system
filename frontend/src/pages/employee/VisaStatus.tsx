@@ -196,7 +196,9 @@ const VisaStatus: React.FC = () => {
                   fontWeight={600}
                   color={daysRemaining < 30 ? "error.dark" : "info.dark"}
                 >
-                  Visa Expiration Countdown: {daysRemaining} days remaining
+                  {daysRemaining === 0
+                    ? "⚠️ Visa Status: Expired"
+                    : `Visa Expiration Countdown: ${daysRemaining} days remaining`}
                 </Typography>
                 {daysRemaining < 30 && (
                   <Typography

@@ -183,9 +183,7 @@ export const validateRegistrationToken = async (
   req: Request,
   res: Response,
 ) => {
-  const rawToken = Array.isArray(req.params.token)
-    ? req.params.token[0]
-    : req.params.token;
+  const rawToken = String(req.params.token).trim();
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
   const record = await RegistrationToken.findOne({ tokenHash });
@@ -223,8 +221,9 @@ export const registerHandler = async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, message: "Token already used" });
   if (record.expiresAt < new Date())
     return res.status(400).json({ ok: false, message: "Token expired" });
-  if (record.email !== email)
+  if (record.email.toLowerCase() !== email.toLowerCase()) {
     return res.status(400).json({ ok: false, message: "Email mismatch" });
+  }
 
   const exists = await User.findOne({ $or: [{ email }, { username }] });
   if (exists)

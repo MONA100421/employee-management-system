@@ -150,7 +150,7 @@ const VisaManagement: React.FC = () => {
   const handleSendNotification = async (record: HRVisaDocument) => {
     try {
       await api.post(`/documents/${record.id}/notify`);
-      alert(`Notification sent to ${record.user?.username}`);
+      alert(`Notification sent to ${record.user?.username || "the employee"}`);
     } catch (err) {
       console.error("Failed to send notification", err);
       alert("Failed to send notification");
@@ -206,11 +206,11 @@ const VisaManagement: React.FC = () => {
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                        {record.user?.username?.[0]?.toUpperCase()}
+                        {record.user?.username?.charAt(0).toUpperCase() || "?"}
                       </Avatar>
                       <Box>
                         <Typography fontWeight={500}>
-                          {record.user?.username}
+                          {record.user?.username || "Unknown User"}
                         </Typography>
                         <Typography
                           variant="caption"
@@ -220,10 +220,10 @@ const VisaManagement: React.FC = () => {
                             fontWeight: 600,
                           }}
                         >
-                          Work Auth: {record.workAuthTitle}
+                          Work Auth: {record.workAuthTitle || "N/A"}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {record.user?.email}
+                          {record.user?.email || "No email info"}
                         </Typography>
                       </Box>
                     </Box>
@@ -371,7 +371,7 @@ const VisaManagement: React.FC = () => {
         }
         itemName={
           feedbackDialog.record
-            ? `${feedbackDialog.record.user?.username} - ${feedbackDialog.record.type}`
+            ? `${feedbackDialog.record.user?.username || "Unknown Employee"} - ${feedbackDialog.record.type}`
             : ""
         }
         requireFeedback={feedbackDialog.type === "reject"}
@@ -380,6 +380,6 @@ const VisaManagement: React.FC = () => {
       />
     </Box>
   );
-};;
+};
 
 export default VisaManagement;

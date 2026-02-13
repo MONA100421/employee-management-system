@@ -25,12 +25,14 @@ export const listEmployees = async (_req: Request, res: Response) => {
       {
         $project: {
           id: { $ifNull: ["$appData._id", "$_id"] },
-          firstName: "$appData.personalInfo.firstName",
-          lastName: "$appData.personalInfo.lastName",
-          ssn: "$appData.personalInfo.ssn",
-          phone: "$appData.personalInfo.phone",
+          firstName: { $ifNull: ["$appData.personalInfo.firstName", "N/A"] },
+          lastName: { $ifNull: ["$appData.personalInfo.lastName", "User"] },
+          ssn: { $ifNull: ["$appData.personalInfo.ssn", "N/A"] },
+          phone: { $ifNull: ["$appData.personalInfo.phone", "N/A"] },
           email: "$email",
-          workAuthTitle: "$appData.workAuthorization.authType",
+          workAuthTitle: {
+            $ifNull: ["$appData.workAuthorization.authType", "Not Set"],
+          },
           status: { $ifNull: ["$appData.status", "never_submitted"] },
           submittedAt: "$appData.submittedAt",
         },
@@ -153,8 +155,6 @@ export const inviteHistory = async (_req: Request, res: Response) => {
       .lean();
 
     const now = Date.now();
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-
     const out = tokens.map((t: any) => {
       const expiresAtTime =
         t.expiresAt instanceof Date
@@ -171,7 +171,6 @@ export const inviteHistory = async (_req: Request, res: Response) => {
         id: t._id,
         email: t.email,
         name: t.name || "N/A",
-        registrationLink: `${frontendUrl}/register?token=${t.tokenHash}&email=${encodeURIComponent(t.email)}`,
         createdAt: t.createdAt,
         expiresAt: t.expiresAt,
         used: t.used,

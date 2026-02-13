@@ -6,9 +6,8 @@ import NotificationModel from "../models/Notification";
 import { enqueueOnboardingDecisionEmail } from "../queues/emailQueue";
 import { NotificationTypes } from "../utils/notificationTypes";
 import EmployeeProfile from "../models/EmployeeProfile";
+import mongoose from "mongoose";
 
-
-// Define strict state transition rules
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   never_submitted: ["pending"],
   pending: ["approved", "rejected"],
@@ -31,10 +30,7 @@ const dbToUIStatus = (s: string | undefined) => {
   }
 };
 
-/**
- * GET /api/onboarding/me
- * Retrieves the current employee's onboarding application status and data
- */
+// GET /api/onboarding/me
 export const getMyOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -74,10 +70,7 @@ export const getMyOnboarding = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * POST /api/onboarding
- * Employee submits or resubmits application
- */
+// POST /api/onboarding
 export const submitOnboarding = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -145,17 +138,14 @@ export const submitOnboarding = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * GET /api/hr/onboarding
- * HR only: Lists all onboarding applications grouped by status
- */
+// GET /api/hr/onboarding
 export const listOnboardingsForHR = async (req: Request, res: Response) => {
   try {
     const apps = await OnboardingApplication.find()
       .populate("user", "username email")
       .sort({ submittedAt: -1 })
       .lean();
-    
+
     const grouped = {
       pending: [] as any[],
       approved: [] as any[],
@@ -171,7 +161,6 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
         status: dbToUIStatus(a.status),
         submittedAt: a.submittedAt ?? a.createdAt,
       };
-
       if (grouped[a.status as keyof typeof grouped]) {
         grouped[a.status as keyof typeof grouped].push(record);
       }
@@ -179,35 +168,43 @@ export const listOnboardingsForHR = async (req: Request, res: Response) => {
 
     return res.json({ ok: true, grouped });
   } catch (err) {
-    console.error("listOnboardingsForHR error", err);
     return res.status(500).json({ ok: false, message: "Server error" });
   }
 };
 
-/**
- * POST /api/hr/onboarding/:id/review
- * HR only: Approves or rejects an onboarding application
- */
+// POST /api/hr/onboarding/:id/review
 export const reviewOnboarding = async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const user = (req as any).user;
+    const hrUser = (req as any).user;
     const { id } = req.params;
     const { decision, feedback, version } = req.body;
 
     if (!["approved", "rejected"].includes(decision)) {
+      await session.abortTransaction();
       return res
         .status(400)
         .json({ ok: false, message: "Invalid decision value" });
     }
 
-    const app = await OnboardingApplication.findById(id);
-    if (!app)
-      return res
-        .status(404)
-        .json({ ok: false, message: "Application not found" });
+    const app = await OnboardingApplication.findOne({
+      _id: id,
+      __v: version,
+    }).session(session);
 
-    // Validate State Transition
+    if (!app) {
+      await session.abortTransaction();
+      return res.status(409).json({
+        ok: false,
+        message:
+          "Conflict: This application has been updated by someone else. Please refresh.",
+      });
+    }
+
     if (!ALLOWED_TRANSITIONS[app.status]?.includes(decision)) {
+      await session.abortTransaction();
       return res.status(400).json({
         ok: false,
         message: `Cannot change status from ${app.status} to ${decision}`,
@@ -215,122 +212,124 @@ export const reviewOnboarding = async (req: Request, res: Response) => {
     }
 
     if (decision === "approved") {
+      const hasUnapproved = await Document.exists({
+        user: app.user,
+        category: { $in: ["onboarding", "visa"] },
+        status: { $ne: "approved" },
+      }).session(session);
+
+      if (hasUnapproved) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          ok: false,
+          message: "All onboarding documents must be approved by HR first.",
+        });
+      }
+
       const formData = app.formData || {};
 
-      await User.findByIdAndUpdate(app.user, {
-        $set: {
-          "profile.firstName": formData.firstName,
-          "profile.lastName": formData.lastName,
-          "profile.middleName": formData.middleName,
-          "profile.preferredName": formData.preferredName,
-          workAuthorization: {
-            authType: formData.workAuthType,
-          },
-        },
-      });
+      const userUpdate: any = {};
+      if (formData.firstName)
+        userUpdate["profile.firstName"] = formData.firstName;
+      if (formData.lastName) userUpdate["profile.lastName"] = formData.lastName;
+      if (formData.middleName)
+        userUpdate["profile.middleName"] = formData.middleName;
+      if (formData.preferredName)
+        userUpdate["profile.preferredName"] = formData.preferredName;
+      if (formData.workAuthType)
+        userUpdate["workAuthorization.authType"] = formData.workAuthType;
+
+      await User.findByIdAndUpdate(app.user, { $set: userUpdate }, { session });
+
       await EmployeeProfile.findOneAndUpdate(
         { user: app.user },
         {
           $set: {
             phone: formData.phone,
-            address: {
-              street: formData.address,
-              city: formData.city,
-              state: formData.state,
-              zipCode: formData.zipCode,
-              country: formData.country || "USA", 
-            },
-            emergency: {
-              contactName: formData.emergencyContact,
-              relationship: formData.emergencyRelationship,
-              phone: formData.emergencyPhone,
-            },
+            "address.street": formData.address,
+            "address.city": formData.city,
+            "address.state": formData.state,
+            "address.zipCode": formData.zipCode,
+            "address.country": formData.country || "USA",
+            "emergency.contactName": formData.emergencyContact,
+            "emergency.relationship": formData.emergencyRelationship,
+            "emergency.phone": formData.emergencyPhone,
+            "emergency.email": formData.emergencyEmail,
           },
         },
-        { upsert: true, new: true },
+        { upsert: true, session },
       );
     }
 
-    const filter: any = { _id: id };
-    if (version !== undefined) {
-      filter.__v = version;
-    }
+    app.status = decision;
+    app.hrFeedback = feedback || "";
+    app.reviewedAt = new Date();
+    app.history.push({
+      status: decision,
+      updatedAt: new Date(),
+      action: `HR Review: ${decision}`,
+    });
 
-    const updatedApp = await OnboardingApplication.findOneAndUpdate(
-      filter,
-      {
-        $set: {
-          status: decision,
-          hrFeedback: feedback || "",
-          reviewedAt: new Date(),
-        },
-        $push: {
-          history: {
-            status: decision,
-            updatedAt: new Date(),
-            action: `HR Review: ${decision}`,
-          },
-        },
-        $inc: { __v: 1 },
-      },
-      { new: true },
-    );
+    await app.save({ session });
+    await session.commitTransaction();
 
-    if (!updatedApp) {
-      return res.status(409).json({
-        ok: false,
-        message:
-          "Race condition detected: This application has already been modified by another HR.",
-      });
-    }
+    setImmediate(async () => {
+      try {
+        const employee = await User.findById(app.user);
+        if (employee) {
+          await NotificationModel.create({
+            user: employee._id,
+            type:
+              decision === "approved"
+                ? NotificationTypes.ONBOARDING_REVIEW_APPROVED
+                : NotificationTypes.ONBOARDING_REVIEW_REJECTED,
+            title: `Onboarding ${decision === "approved" ? "Approved" : "Rejected"}`,
+            message:
+              feedback ||
+              (decision === "approved"
+                ? "Your application is complete."
+                : "Please check feedback."),
+          });
 
-    // Notifications & Emails
-    const employee = await User.findById(updatedApp.user);
-    if (employee) {
-      await NotificationModel.create({
-        user: employee._id,
-        type:
-          decision === "approved"
-            ? NotificationTypes.ONBOARDING_REVIEW_APPROVED
-            : NotificationTypes.ONBOARDING_REVIEW_REJECTED,
-        title: `Onboarding ${decision === "approved" ? "Approved" : "Rejected"}`,
-        message:
-          feedback ||
-          (decision === "approved"
-            ? "Your application is complete."
-            : "Please check feedback."),
-      });
-
-      if (employee.email) {
-        await enqueueOnboardingDecisionEmail({
-          to: employee.email,
-          decision,
-          reviewer: user.username,
-          onboardingId: updatedApp._id.toString(),
-          feedback,
-        });
+          if (employee.email) {
+            await enqueueOnboardingDecisionEmail({
+              to: employee.email,
+              decision,
+              reviewer: hrUser.username,
+              onboardingId: app._id.toString(),
+              feedback,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Notification Side-effect error:", e);
       }
-    }
+    });
 
-    return res.json({ ok: true, status: dbToUIStatus(updatedApp.status) });
+    return res.json({ ok: true, status: dbToUIStatus(app.status) });
   } catch (err) {
+    await session.abortTransaction();
     console.error("reviewOnboarding error", err);
     return res
       .status(500)
       .json({ ok: false, message: "Server error during review" });
+  } finally {
+    session.endSession();
   }
 };
 
-/**
- * GET /api/hr/onboarding/:id
- * Include version in the detailed view
- */
+// GET /api/hr/onboarding/:id
 export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const app = await OnboardingApplication.findById(id).populate("user", "username email").lean();
+    const app = await OnboardingApplication.findById(id)
+      .populate("user", "username email")
+      .lean();
 
-    if (!app) return res.status(404).json({ ok: false, message: "Application not found" });
+    if (!app)
+      return res
+        .status(404)
+        .json({ ok: false, message: "Application not found" });
 
     return res.json({
       ok: true,
@@ -341,15 +340,18 @@ export const getOnboardingDetailForHR = async (req: Request, res: Response) => {
         hrFeedback: app.hrFeedback || null,
         submittedAt: app.submittedAt ?? null,
         reviewedAt: app.reviewedAt ?? null,
-        version: app.__v, // Send version to HR UI
-        employee: app.user ? {
-          id: (app.user as any)._id,
-          username: (app.user as any).username,
-          email: (app.user as any).email,
-        } : null,
+        version: app.__v,
+        employee: app.user
+          ? {
+              id: (app.user as any)._id,
+              username: (app.user as any).username,
+              email: (app.user as any).email,
+            }
+          : null,
       },
     });
   } catch (err) {
     return res.status(500).json({ ok: false, message: "Server error" });
   }
 };
+  

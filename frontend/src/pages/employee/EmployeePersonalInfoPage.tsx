@@ -278,8 +278,8 @@ export default function EmployeePersonalInfoPage() {
     }
   };
 
-  const submitSection = (section: string) =>
-    handleSubmit(async (values) => {
+  const submitSection = async (section: string) => {
+    await handleSubmit(async (values) => {
       const payload: any = {};
       if (section === "name") {
         payload.firstName = values.firstName;
@@ -314,6 +314,7 @@ export default function EmployeePersonalInfoPage() {
         console.error("Update failed:", err);
       }
     })();
+  };
 
   return (
     <Box sx={{ p: 1 }}>
@@ -355,7 +356,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<PersonIcon />}
             editing={editing === "name"}
             onEdit={() => setEditing("name")}
-            onSave={() => void saveSection("name")}
+            onSave={() => saveSection("name")}
             onCancel={handleCancelClick}
           >
             {(
@@ -382,7 +383,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<HomeIcon />}
             editing={editing === "address"}
             onEdit={() => setEditing("address")}
-            onSave={() => void saveSection("address")}
+            onSave={() => saveSection("address")}
             onCancel={handleCancelClick}
           >
             {(
@@ -409,7 +410,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<PhoneIcon />}
             editing={editing === "contact"}
             onEdit={() => setEditing("contact")}
-            onSave={() => void saveSection("contact")}
+            onSave={() => saveSection("contact")}
             onCancel={handleCancelClick}
           >
             <Grid size={{ xs: 6 }}>
@@ -442,7 +443,7 @@ export default function EmployeePersonalInfoPage() {
             icon={<EmergencyIcon />}
             editing={editing === "emergency"}
             onEdit={() => setEditing("emergency")}
-            onSave={() => void saveSection("emergency")}
+            onSave={() => saveSection("emergency")}
             onCancel={handleCancelClick}
           >
             {(

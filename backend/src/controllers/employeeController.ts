@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import EmployeeProfile from "../models/EmployeeProfile";
 import User from "../models/User";
 
-// GET /employees/me
+// GET /employee/me
 export const getMyEmployee = async (req: Request, res: Response) => {
   const userId = (req as any).user.userId;
 
@@ -30,7 +30,7 @@ export const getMyEmployee = async (req: Request, res: Response) => {
   });
 };
 
-// PATCH /employees/me
+// PATCH /employee/me
 export const patchMyEmployee = async (req: Request, res: Response) => {
   const userId = (req as any).user.userId;
   const payload = req.body;

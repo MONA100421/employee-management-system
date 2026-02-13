@@ -215,7 +215,26 @@ export default function EmployeePersonalInfoPage() {
   } = useForm<EmployeeProfileFormValues>({
     resolver: zodResolver(employeeProfileSchema),
     mode: "onTouched",
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      middleName: "",
+      preferredName: "",
+      email: "",
+      phone: "",
+      street: "",
+      apt: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
+      emergencyContactName: "",
+      emergencyRelationship: "",
+      emergencyPhone: "",
+      emergencyEmail: "",
+    },
   });
+
 
   // Load data from server and reset form state
   const loadData = useCallback(async () => {

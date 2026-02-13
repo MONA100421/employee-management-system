@@ -100,20 +100,26 @@ const Onboarding = () => {
 
   useEffect(() => {
     const load = async () => {
-      const app = await getMyOnboarding();
-      if (app && app.status) {
-        setStatus(
-          (app.status || "never_submitted").replace(
-            "_",
-            "-",
-          ) as UIOnboardingStatus,
-        );
-        setRejectionFeedback(app.hrFeedback ?? null);
-        if (app.formData) {
-          reset(app.formData);
+      try {
+        const app = await getMyOnboarding();
+        if (app && app.status) {
+          setStatus(
+            (app.status || "never_submitted").replace(
+              "_",
+              "-",
+            ) as UIOnboardingStatus,
+          );
+          setRejectionFeedback(app.hrFeedback ?? null);
+          if (app.formData) {
+            reset(app.formData);
+          }
         }
+      } catch (err) {
+        console.error("Failed to load onboarding data:", err);
+        setStatus("never-submitted");
       }
     };
+
     load();
   }, [reset]);
 
@@ -130,20 +136,13 @@ const Onboarding = () => {
 
   const isReadOnly = status === "pending" || status === "approved";
 
-  const requiredDocTypes =
-    documentCategory === "onboarding"
-      ? ["id_card", "work_auth", "profile_photo"]
-      : ["opt_receipt", "opt_ead", "i_983", "i_20"];
-
-  const hasIncompleteDocuments = requiredDocTypes.some((type) => {
-    const doc = documents.find((d) => d.type === type);
-    return !doc || !doc.fileName;
-  });
+  const hasUploadedAtLeastOneDoc = documents.some((d) => !!d.fileName);
 
   const canSubmit =
     !isReadOnly &&
-    !hasIncompleteDocuments &&
+    hasUploadedAtLeastOneDoc &&
     (status === "never-submitted" || status === "rejected");
+
 
 
   const validateStep = async (step: number) => {
@@ -169,14 +168,22 @@ const Onboarding = () => {
   };
 
   const handleSubmit = async () => {
-    const formData = getValues();
-    const res = await submitOnboarding(formData);
-    if (res.ok) {
-      setStatus(
-        (res.status?.replace("_", "-") as UIOnboardingStatus) ?? "pending",
-      );
-      setRejectionFeedback(null);
-      setActiveStep(0);
+    try {
+      const formData = getValues();
+      const res = await submitOnboarding(formData);
+
+      if (res.ok) {
+        setStatus(
+          (res.status?.replace("_", "-") as UIOnboardingStatus) ?? "pending",
+        );
+        setRejectionFeedback(null);
+        setActiveStep(0);
+      } else {
+        console.error("Submission failed with status:", res.status);
+      }
+    } catch (err) {
+      console.error("Network error during submission:", err);
+      alert("提交失敗，請稍後再試");
     }
   };
 
